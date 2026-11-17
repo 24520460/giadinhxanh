@@ -3283,6 +3283,44 @@ table.schedule-table thead th {
 }
 
 @media (max-width: 640px) {
+  .shell-topbar .topbar-inner.site-container,
+  body[data-view-mode="dev"] .topbar-inner.site-container {
+    padding-inline: 12px;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .topbar-right {
+    flex-wrap: wrap !important;
+    flex: 1 1 100%;
+    justify-content: flex-start;
+    gap: 6px;
+    max-width: 100%;
+  }
+  .user-role-select {
+    max-width: 138px;
+    height: 32px;
+    padding: 0 8px;
+    font-size: 0.75rem;
+  }
+  .mode-switch-pill {
+    height: 32px;
+  }
+  .mode-switch-btn {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+  }
+  .portal-switcher.user-main-nav {
+    flex-wrap: wrap !important;
+    overflow-x: visible;
+    border-radius: 14px;
+    padding: 4px;
+    gap: 4px;
+    width: 100%;
+  }
+  .portal-switcher.user-main-nav .portal-tab {
+    padding: 5px 9px;
+    font-size: 0.75rem;
+  }
   .site-container,
   body[data-view-mode="user"] .shell-sheet:not([data-surface-mode="stationery"]),
   body[data-view-mode="production"] .shell-sheet:not([data-surface-mode="stationery"]) {

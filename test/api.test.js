@@ -105,7 +105,7 @@ describe('Gia Đình Xanh - Full-Stack REST API & RPC Verification', () => {
     });
   }
 
-  function makeRequest(method, reqPath, body = null) {
+  function makeRequest(method, reqPath, body = null, extraHeaders = {}) {
     return new Promise((resolve, reject) => {
       const req = http.request(
         {
@@ -114,7 +114,8 @@ describe('Gia Đình Xanh - Full-Stack REST API & RPC Verification', () => {
           path: reqPath,
           method,
           headers: {
-            'Content-Type': 'application/json'
+            'Content-Type': 'application/json',
+            ...extraHeaders
           }
         },
         (res) => {
@@ -185,13 +186,14 @@ describe('Gia Đình Xanh - Full-Stack REST API & RPC Verification', () => {
   });
 
   test('POST /api/bookings creates a new booking with history record', async () => {
+    const futureTime = new Date(Date.now() + 5 * 86400000).toISOString();
     const payload = {
       customer_id: 101,
       provider_id: 201,
       service_id: 1,
       ward_id: '27403',
       address: '123 Đường Nguyễn Thị Thập, Phường Tân Phú, Quận 7',
-      scheduled_time: '2026-11-05T09:00:00+07:00',
+      scheduled_time: futureTime,
       total_amount: 180000,
       notes: 'Unit test booking creation'
     };
@@ -406,27 +408,31 @@ describe('Gia Đình Xanh - Full-Stack REST API & RPC Verification', () => {
   });
 
   test('Double-booking & schedule exception prevention: POST /api/bookings returns 409 Conflict', async () => {
-    // 1. Provider 201 has exception on 2026-10-27
+    const seed = dbMock.createInitialStore();
+    const ex = seed.availability_exceptions.find((e) => Number(e.provider_id) === 201) || seed.availability_exceptions[0];
+    // 1. Provider 201 has exception on ex.exception_date
     const conflictRes = await makeRequest('POST', '/api/bookings', {
       customer_id: 101,
-      provider_id: 201,
+      provider_id: ex.provider_id,
       service_id: 1,
       ward_id: '27403',
       address: '123 Đường Nguyễn Thị Thập',
-      scheduled_time: '2026-10-27T14:00:00+07:00'
+      scheduled_time: `${ex.exception_date}T14:00:00+07:00`
     });
     assert.strictEqual(conflictRes.statusCode, 409);
     assert.strictEqual(conflictRes.data.conflict, true);
     assert.ok(conflictRes.data.error.includes('nghỉ làm hoặc bận'));
 
-    // 2. Provider 201 has confirmed/in_progress booking 1042 at 2026-10-23T14:00:00+07:00
+    // 2. Provider 201 has confirmed/in_progress booking 1042
+    const activeBk = seed.bookings.find((b) => Number(b.provider_id) === 201 && ['confirmed', 'in_progress'].includes(b.status));
+    const overlapTime = new Date(Date.parse(activeBk.scheduled_time) + 30 * 60 * 1000).toISOString();
     const overlapRes = await makeRequest('POST', '/api/bookings', {
       customer_id: 101,
       provider_id: 201,
       service_id: 1,
       ward_id: '27403',
       address: '123 Đường Nguyễn Thị Thập',
-      scheduled_time: '2026-10-23T14:30:00+07:00'
+      scheduled_time: overlapTime
     });
     assert.strictEqual(overlapRes.statusCode, 409);
     assert.strictEqual(overlapRes.data.conflict, true);
@@ -543,22 +549,78 @@ describe('Gia Đình Xanh - Full-Stack REST API & RPC Verification', () => {
     assert.ok(Array.isArray(getFavs.data.favorites));
   });
 
-  test('Review Moderation & Audit Logs: soft-hide review and log admin action', async () => {
+  test('Review Moderation & Audit Logs: soft-hide review and log admin action (requires Admin auth)', async () => {
+    const adminSession = await makeRequest('POST', '/api/auth/demo-session', { role: 'admin' });
+    assert.strictEqual(adminSession.statusCode, 200);
+    const authHeader = { Authorization: `Bearer ${adminSession.data.token}` };
+
     // Moderate review (hide)
     const modRes = await makeRequest('PATCH', '/api/admin/reviews/801/moderate', {
       status: 'hidden',
       moderation_reason: 'Ngôn từ không phù hợp quy tắc cộng đồng',
       actor_id: 'c2eebc99-9c0b-4ef8-bb6d-6bb9bd380c99'
-    });
+    }, authHeader);
     assert.strictEqual(modRes.statusCode, 200);
     assert.strictEqual(modRes.data.ok, true);
     assert.strictEqual(modRes.data.review.status, 'hidden');
 
     // Audit logs should record this action
-    const auditRes = await makeRequest('GET', '/api/admin/audit-logs');
+    const auditRes = await makeRequest('GET', '/api/admin/audit-logs', null, authHeader);
     assert.strictEqual(auditRes.statusCode, 200);
     const foundLog = auditRes.data.audit_logs.find(l => l.action === 'HIDE_REVIEW');
     assert.ok(foundLog, 'Audit logs should record HIDE_REVIEW action');
+  });
+
+  test('Security & Input Validation Fixes: phone regex, past scheduled_time, negative incidental, and RBAC', async () => {
+    // 1. Invalid phone rejected with 400 (TC04 fix)
+    const badPhone = await makeRequest('POST', '/api/auth/register', {
+      full_name: 'Bad Phone User',
+      phone_number: 'abc-xyz',
+      password: 'password123'
+    });
+    assert.strictEqual(badPhone.statusCode, 400);
+
+    // 2. Past scheduled_time rejected with 400 (TC06 fix)
+    const pastBk = await makeRequest('POST', '/api/bookings', {
+      customer_id: 101,
+      service_id: 301,
+      ward_id: '27403',
+      address: '100 Nguyễn Văn Linh',
+      scheduled_time: '2020-01-01T09:00:00.000Z'
+    });
+    assert.strictEqual(pastBk.statusCode, 400);
+
+    // 3. Unauthenticated admin-adjust rejected with 401 (TC12 fix)
+    const unauthAdmin = await makeRequest('POST', '/api/rpc/admin-adjust', {
+      booking_id: 1042,
+      total_amount: 0
+    });
+    assert.strictEqual(unauthAdmin.statusCode, 401);
+
+    // 4. Customer token on admin-adjust rejected with 403 (TC12 fix)
+    const custSess = await makeRequest('POST', '/api/auth/demo-session', { role: 'customer' });
+    const custAdmin = await makeRequest('POST', '/api/rpc/admin-adjust', {
+      booking_id: 1042,
+      total_amount: 0
+    }, { Authorization: `Bearer ${custSess.data.token}` });
+    assert.strictEqual(custAdmin.statusCode, 403);
+
+    // 5. Negative incidental rejected with 400 (TC11 fix)
+    const provSess = await makeRequest('POST', '/api/auth/demo-session', { role: 'provider' });
+    const negInc = await makeRequest('POST', '/api/rpc/update-incidental', {
+      booking_id: 1042,
+      total_incidental: -50000
+    }, { Authorization: `Bearer ${provSess.data.token}` });
+    assert.strictEqual(negInc.statusCode, 400);
+  });
+
+  test('Clean Path SPA Routes: /home, /auth/login, /bookings/new, /provider/jobs, /admin/kyc return 200 HTML', async () => {
+    const paths = ['/home', '/auth/login', '/bookings/new', '/provider/jobs', '/admin/kyc'];
+    for (const p of paths) {
+      const res = await makeRequest('GET', p);
+      assert.strictEqual(res.statusCode, 200, `${p} should return 200`);
+      assert.ok(typeof res.raw === 'string' && res.raw.includes('<!DOCTYPE html>'), `${p} should serve SPA HTML`);
+    }
   });
 
   test('AI Chatbot Assistant: POST /api/ai/chat grounded domain reasoning & memory', async () => {

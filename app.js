@@ -31,6 +31,9 @@ window.GDXApp = (() => {
     currentPortal: 1, // 0: Auth, 1: Customer, 2: Provider, 3: Admin
     currentScreen: '1.1',
     currentUser: null,
+    authToken: (() => {
+      try { return localStorage.getItem('gdx_auth_token'); } catch (_) { return null; }
+    })(),
     activeModal: null,
     activeBookingId: 1042,
     activeProviderId: isProdFromUrl ? null : 201,
@@ -66,7 +69,7 @@ window.GDXApp = (() => {
     liveTimerInterval: null,
     reviewRating: 5,
     reviewDraftRating: 5,
-    onboardingAvatar: 'assets/provider-mai.jpg',
+    onboardingAvatar: '/assets/provider-mai.jpg',
     wizardDraft: {
       service_id: 301,
       scheduled_time: '2026-10-25T08:30',
@@ -256,6 +259,7 @@ window.GDXApp = (() => {
       const headers = {
         'Content-Type': 'application/json',
         ...(state.isProduction ? { 'x-gdx-mode': 'production' } : {}),
+        ...(state.authToken ? { Authorization: `Bearer ${state.authToken}` } : {}),
         ...options.headers
       };
       const res = await fetch(endpoint + modeParam, {
@@ -265,6 +269,50 @@ window.GDXApp = (() => {
       return await res.json();
     } catch (err) {
       return { ok: false, error: err.message };
+    }
+  }
+
+  function syncActiveIdentityWithDb() {
+    if (state.isProduction || state.currentUser) return;
+    const db = window.GDX_DB;
+    if (!db) return;
+
+    if (Array.isArray(db.services) && db.services.length > 0) {
+      const hasSel = db.services.some((s) => String(s.service_id) === String(state.selectedServiceId));
+      if (!hasSel) {
+        state.selectedServiceId = db.services[0].service_id;
+      }
+    }
+
+    if (Array.isArray(db.customer_profiles) && db.customer_profiles.length > 0) {
+      const matchCp = db.customer_profiles.find((c) => String(c.customer_id) === String(state.activeCustomerId));
+      if (!matchCp) {
+        state.activeCustomerId = db.customer_profiles[0].customer_id;
+        if (state.currentPortal === 1 && db.customer_profiles[0].user_id) {
+          state.activeUserId = db.customer_profiles[0].user_id;
+        }
+      }
+    }
+
+    if (Array.isArray(db.provider_profiles) && db.provider_profiles.length > 0) {
+      const matchPp = db.provider_profiles.find((p) => String(p.provider_id) === String(state.activeProviderId));
+      if (!matchPp) {
+        state.activeProviderId = db.provider_profiles[0].provider_id;
+        if (state.currentPortal === 2 && db.provider_profiles[0].user_id) {
+          state.activeUserId = db.provider_profiles[0].user_id;
+        }
+      }
+    }
+  }
+
+  async function refreshDemoToken(role) {
+    if (state.isProduction || state.currentUser) return;
+    const res = await apiRequest('/api/auth/demo-session', {
+      method: 'POST',
+      body: JSON.stringify({ role })
+    });
+    if (res && res.ok && res.token) {
+      state.authToken = res.token;
     }
   }
 
@@ -341,10 +389,10 @@ window.GDXApp = (() => {
                 const title = (s.title || '').toLowerCase();
                 let img = s.image_url;
                 if (!img) {
-                  if (title.includes('nấu') || title.includes('cơm')) img = 'assets/cooking-family-meal.jpg';
-                  else if (title.includes('đầu bếp') || title.includes('tiệc')) img = 'assets/cooking-chef-prep.jpg';
-                  else if (title.includes('deep') || title.includes('sâu') || title.includes('tổng vệ sinh')) img = 'assets/cleaning-deep.jpg';
-                  else img = 'assets/cleaning-livingroom.jpg';
+                  if (title.includes('nấu') || title.includes('cơm')) img = '/assets/cooking-family-meal.jpg';
+                  else if (title.includes('đầu bếp') || title.includes('tiệc')) img = '/assets/cooking-chef-prep.jpg';
+                  else if (title.includes('deep') || title.includes('sâu') || title.includes('tổng vệ sinh')) img = '/assets/cleaning-deep.jpg';
+                  else img = '/assets/cleaning-livingroom.jpg';
                 }
                 return { ...s, image_url: img };
               });
@@ -380,30 +428,31 @@ window.GDXApp = (() => {
       }
 
       // Khôi phục phiên đăng nhập thực tế từ localStorage nếu có
-      if (state.isProduction) {
-        try {
-          const savedUserRaw = localStorage.getItem('gdx_auth_user');
-          if (savedUserRaw) {
-            const savedUser = JSON.parse(savedUserRaw);
-            const found = (db.users || []).find((u) => u.user_id === savedUser.user_id);
-            state.currentUser = found || savedUser;
-            state.activeUserId = (found || savedUser).user_id;
-            state.userRole = (found || savedUser).role;
-            const cp = (db.customer_profiles || []).find((c) => String(c.user_id) === String(state.activeUserId));
-            if (cp) {
-              state.activeCustomerId = cp.customer_id;
-              state.wizardDraft.ward_id = cp.ward_id;
-              state.wizardDraft.address = cp.default_address;
-              state.wizardDraft.latitude = cp.latitude;
-              state.wizardDraft.longitude = cp.longitude;
-            }
-            const pp = (db.provider_profiles || []).find((p) => p.user_id === state.activeUserId);
-            if (pp) state.activeProviderId = pp.provider_id;
+      try {
+        const savedUserRaw = localStorage.getItem('gdx_auth_user');
+        const savedToken = localStorage.getItem('gdx_auth_token');
+        if (savedToken) state.authToken = savedToken;
+        if (savedUserRaw) {
+          const savedUser = JSON.parse(savedUserRaw);
+          const found = (db.users || []).find((u) => u.user_id === savedUser.user_id);
+          state.currentUser = found || savedUser;
+          state.activeUserId = (found || savedUser).user_id;
+          state.userRole = (found || savedUser).role;
+          const cp = (db.customer_profiles || []).find((c) => String(c.user_id) === String(state.activeUserId));
+          if (cp) {
+            state.activeCustomerId = cp.customer_id;
+            state.wizardDraft.ward_id = cp.ward_id;
+            state.wizardDraft.address = cp.default_address;
+            state.wizardDraft.latitude = cp.latitude;
+            state.wizardDraft.longitude = cp.longitude;
           }
-        } catch (_) {}
-      }
+          const pp = (db.provider_profiles || []).find((p) => String(p.user_id) === String(state.activeUserId));
+          if (pp) state.activeProviderId = pp.provider_id;
+        }
+      } catch (_) {}
 
-      go(state.currentScreen);
+      syncActiveIdentityWithDb();
+      go(state.currentScreen, state.currentRouteParams || {}, { skipHistory: true });
       fetchNotifications();
     }
   }
@@ -644,13 +693,139 @@ window.GDXApp = (() => {
     '3.9': { id: '3.9', portal: 3, title: '3.9. Quản lý Địa giới hành chính (Tỉnh/Thành & Phường/Xã)', type: 'modal', table: 'province, ward' },
   };
 
+  const SCREEN_ROUTES = {
+    '0.1': '/auth/login',
+    '0.2': '/onboarding/customer',
+    '0.3': '/onboarding/provider',
+    '0.4': '/provider/status',
+    '0.5': '/account/suspended',
+    '1.1': '/home',
+    '1.2': '/bookings/new',
+    '1.3': '/bookings/tracking',
+    '1.4': '/bookings',
+    '1.5': '/profile',
+    '1.6': '/favorites',
+    '1.8': '/bookings/payment',
+    '2.1': '/provider/jobs',
+    '2.2': '/provider/shift',
+    '2.3': '/provider/earnings',
+    '2.4': '/provider/settings',
+    '3.1': '/admin/dashboard',
+    '3.2': '/admin/services',
+    '3.3': '/admin/kyc',
+    '3.4': '/admin/support'
+  };
+
+  function getPathForScreen(screenId, params = {}) {
+    if (screenId === '0.1') {
+      if (params && params.view === 'register') return '/auth/register';
+      if (params && params.view === 'forgot') return '/auth/forgot-password';
+      if (!params?.view && state.authView === 'register') return '/auth/register';
+      if (!params?.view && state.authView === 'forgot') return '/auth/forgot-password';
+      return '/auth/login';
+    }
+    if (screenId === '1.3' && params && params.bookingId != null) {
+      return `/bookings/${encodeURIComponent(params.bookingId)}/tracking`;
+    }
+    if (screenId === '1.8' && params && params.bookingId != null) {
+      return `/bookings/${encodeURIComponent(params.bookingId)}/payment`;
+    }
+    if (screenId === '2.2' && params && params.bookingId != null) {
+      return `/provider/shift/${encodeURIComponent(params.bookingId)}`;
+    }
+    return SCREEN_ROUTES[screenId] || '/home';
+  }
+
+  function resolveRouteFromLocation() {
+    const pathname = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
+    const hash = (window.location.hash || '').replace(/^#/, '');
+
+    // Hỗ trợ legacy hash (#1.2)
+    if (hash && SCREENS[hash]) {
+      return { screenId: hash, params: {}, normalizedPath: getPathForScreen(hash) };
+    }
+
+    if (pathname === '/' || pathname === '/index.html' || pathname === '/home' || pathname === '/services') {
+      return { screenId: '1.1', params: {}, normalizedPath: '/home' };
+    }
+    if (pathname === '/auth' || pathname === '/auth/login') {
+      return { screenId: '0.1', params: { view: 'login' }, normalizedPath: '/auth/login' };
+    }
+    if (pathname === '/auth/register') {
+      return { screenId: '0.1', params: { view: 'register' }, normalizedPath: '/auth/register' };
+    }
+    if (pathname === '/auth/forgot-password') {
+      return { screenId: '0.1', params: { view: 'forgot' }, normalizedPath: '/auth/forgot-password' };
+    }
+    if (pathname === '/booking/new' || pathname === '/bookings/new') {
+      return { screenId: '1.2', params: {}, normalizedPath: '/bookings/new' };
+    }
+
+    let m = pathname.match(/^\/bookings\/([^/]+)\/tracking$/);
+    if (m) {
+      const bid = isNaN(Number(m[1])) ? m[1] : Number(m[1]);
+      return { screenId: '1.3', params: { bookingId: bid }, normalizedPath: pathname };
+    }
+    m = pathname.match(/^\/bookings\/([^/]+)\/payment$/);
+    if (m) {
+      const bid = isNaN(Number(m[1])) ? m[1] : Number(m[1]);
+      return { screenId: '1.8', params: { bookingId: bid }, normalizedPath: pathname };
+    }
+    m = pathname.match(/^\/provider\/shift\/([^/]+)$/);
+    if (m) {
+      const bid = isNaN(Number(m[1])) ? m[1] : Number(m[1]);
+      return { screenId: '2.2', params: { bookingId: bid }, normalizedPath: pathname };
+    }
+
+    for (const [sid, routePath] of Object.entries(SCREEN_ROUTES)) {
+      if (pathname === routePath) {
+        return { screenId: sid, params: {}, normalizedPath: routePath };
+      }
+    }
+    if (pathname === '/admin') {
+      return { screenId: '3.1', params: {}, normalizedPath: '/admin/dashboard' };
+    }
+    if (pathname === '/provider') {
+      return { screenId: '2.1', params: {}, normalizedPath: '/provider/jobs' };
+    }
+
+    return { screenId: '1.1', params: {}, normalizedPath: '/home' };
+  }
+
+  function pushScreenUrl(screenId, params = {}, replace = false) {
+    if (!window.history || typeof window.history.pushState !== 'function') return;
+    const basePath = getPathForScreen(screenId, params);
+    const curQuery = new URLSearchParams(window.location.search);
+    const preserved = new URLSearchParams();
+    const mode = curQuery.get('mode') || curQuery.get('env');
+    if (mode === 'dev' || mode === 'production') {
+      preserved.set('mode', mode);
+    }
+    const qs = preserved.toString();
+    const targetUrl = qs ? `${basePath}?${qs}` : basePath;
+    if (window.location.pathname + window.location.search === targetUrl) return;
+    try {
+      if (replace) {
+        window.history.replaceState({ screenId, params }, '', targetUrl);
+      } else {
+        window.history.pushState({ screenId, params }, '', targetUrl);
+      }
+    } catch (_) {}
+  }
+
+  let toastTimer = null;
   function showToast(message) {
     const el = document.getElementById('toastBanner');
     if (!el) return;
+    if (toastTimer) {
+      clearTimeout(toastTimer);
+      toastTimer = null;
+    }
     el.textContent = message;
     el.hidden = false;
-    setTimeout(() => {
+    toastTimer = setTimeout(() => {
       el.hidden = true;
+      toastTimer = null;
     }, 3600);
   }
 
@@ -1407,7 +1582,7 @@ window.GDXApp = (() => {
     }
   }
 
-  function setViewMode(mode, silent = false) {
+  function setViewMode(mode, silent = false, options = {}) {
     if (mode === 'production') {
       state.viewMode = 'production';
       state.isProduction = true;
@@ -1416,7 +1591,7 @@ window.GDXApp = (() => {
     }
     document.body.setAttribute('data-view-mode', state.viewMode);
     renderUserTopbar();
-    switchPortal(state.currentPortal, state.currentScreen);
+    switchPortal(state.currentPortal, state.currentScreen, state.currentRouteParams || {}, options);
     if (!silent) {
       showToast(
         state.viewMode === 'production'
@@ -1459,7 +1634,7 @@ window.GDXApp = (() => {
   }
 
   // --- PORTAL & SIDEBAR SWITCHER ---
-  function switchPortal(portalId, targetScreenId = null, params = {}) {
+  function switchPortal(portalId, targetScreenId = null, params = {}, options = {}) {
     state.currentPortal = Number(portalId);
     document.querySelectorAll('#devPortalSwitcher .portal-tab').forEach((tab) => {
       tab.setAttribute('aria-selected', tab.getAttribute('data-portal') === String(portalId));
@@ -1477,7 +1652,7 @@ window.GDXApp = (() => {
         if (provWidget) provWidget.style.display = 'none';
         const dest = targetScreenId || '0.1';
         renderSidebar(dest);
-        go(dest, params);
+        go(dest, params, options);
         return;
       } else if (portalId === 1) {
         state.userRole = state.currentUser ? state.currentUser.role : 'customer';
@@ -1489,49 +1664,68 @@ window.GDXApp = (() => {
         if (provWidget) provWidget.style.display = 'none';
         const dest = targetScreenId || '1.1';
         renderSidebar(dest);
-        go(dest, params);
+        go(dest, params, options);
         return;
       }
     }
 
+    const db = window.GDX_DB || {};
     if (portalId === 0) {
       if (captionEl && state.viewMode === 'dev') captionEl.textContent = 'Phân hệ 0 · Dùng chung & Xác thực';
       if (identityEl) identityEl.textContent = 'Trạng thái: Khách vãng lai / Đăng nhập';
       state.userRole = 'anon';
-      state.activeUserId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+      state.activeUserId = (db.users && db.users[0] && db.users[0].user_id) || 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
       if (provWidget) provWidget.style.display = 'none';
       const dest = targetScreenId || '0.1';
       renderSidebar(dest);
-      go(dest, params);
+      go(dest, params, options);
     } else if (portalId === 1) {
+      const firstCp = (db.customer_profiles && db.customer_profiles[0]) || null;
+      const custUser = (firstCp && (db.users || []).find((u) => String(u.user_id) === String(firstCp.user_id))) || null;
       if (captionEl && state.viewMode === 'dev') captionEl.textContent = 'Phân hệ 1 · Khách hàng (Customer)';
-      if (identityEl) identityEl.textContent = 'auth.uid(): Nguyễn Minh Thảo (customer_id #101)';
+      if (identityEl) {
+        identityEl.textContent = `auth.uid(): ${(custUser && custUser.full_name) || 'Nguyễn Minh Thảo'} (customer_id #${(firstCp && firstCp.customer_id) || 101})`;
+      }
       state.userRole = 'customer';
-      state.activeUserId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
-      state.activeCustomerId = 101;
+      if (!state.currentUser || state.currentUser.role !== 'customer') {
+        state.activeUserId = (firstCp && firstCp.user_id) || 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+        state.activeCustomerId = (firstCp && firstCp.customer_id) || 101;
+        refreshDemoToken('customer');
+      }
       if (provWidget) provWidget.style.display = 'none';
       const dest = targetScreenId || '1.1';
       renderSidebar(dest);
-      go(dest, params);
+      go(dest, params, options);
     } else if (portalId === 2) {
+      const firstPp = (db.provider_profiles && db.provider_profiles[0]) || null;
+      const provUser = (firstPp && (db.users || []).find((u) => String(u.user_id) === String(firstPp.user_id))) || null;
       if (captionEl && state.viewMode === 'dev') captionEl.textContent = 'Phân hệ 2 · Thợ / Đối tác (Provider)';
-      if (identityEl) identityEl.textContent = 'auth.uid(): Đặng Thị Mai Lan (provider_id #201)';
+      if (identityEl) {
+        identityEl.textContent = `auth.uid(): ${(provUser && provUser.full_name) || 'Đặng Thị Mai Lan'} (provider_id #${(firstPp && firstPp.provider_id) || 201})`;
+      }
       state.userRole = 'provider';
-      state.activeUserId = 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b21';
-      state.activeProviderId = 201;
+      if (!state.currentUser || state.currentUser.role !== 'provider') {
+        state.activeUserId = (firstPp && firstPp.user_id) || 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b21';
+        state.activeProviderId = (firstPp && firstPp.provider_id) || 201;
+        refreshDemoToken('provider');
+      }
       if (provWidget) provWidget.style.display = 'flex';
       const dest = targetScreenId || '2.1';
       renderSidebar(dest);
-      go(dest, params);
+      go(dest, params, options);
     } else if (portalId === 3) {
+      const adminUser = ((db.users || []).find((u) => u.role === 'admin')) || null;
       if (captionEl && state.viewMode === 'dev') captionEl.textContent = 'Phân hệ 3 · Quản trị viên (Admin)';
-      if (identityEl) identityEl.textContent = 'auth.uid(): Nguyễn Quang Hào (role: admin)';
+      if (identityEl) identityEl.textContent = `auth.uid(): ${(adminUser && adminUser.full_name) || 'Nguyễn Quang Hào'} (role: admin)`;
       state.userRole = 'admin';
-      state.activeUserId = 'c2eebc99-9c0b-4ef8-bb6d-6bb9bd380c99';
+      if (!state.currentUser || state.currentUser.role !== 'admin') {
+        state.activeUserId = (adminUser && adminUser.user_id) || 'c2eebc99-9c0b-4ef8-bb6d-6bb9bd380c99';
+        refreshDemoToken('admin');
+      }
       if (provWidget) provWidget.style.display = 'none';
       const dest = targetScreenId || '3.1';
       renderSidebar(dest);
-      go(dest, params);
+      go(dest, params, options);
     }
   }
 
@@ -1565,12 +1759,17 @@ window.GDXApp = (() => {
       .join('');
   }
 
-  function go(screenId, params = {}) {
+  function go(screenId, params = {}, options = {}) {
     state.currentScreen = screenId;
+    state.currentRouteParams = params;
     const meta = SCREENS[screenId];
     if (meta && meta.portal !== state.currentPortal) {
-      switchPortal(meta.portal, screenId, params);
+      switchPortal(meta.portal, screenId, params, options);
       return;
+    }
+
+    if (!options.skipHistory) {
+      pushScreenUrl(screenId, params, Boolean(options.replace));
     }
 
     renderSidebar(screenId);
@@ -1851,14 +2050,14 @@ window.GDXApp = (() => {
                 </div>
               </button>
               <button type="button" class="auth-dev-chip" onclick="GDXApp.quickPersonaLogin('provider')">
-                <img src="assets/provider-lan.jpg" alt="Mai Lan" style="width:28px; height:28px; border-radius:50%; object-fit:cover;">
+                <img src="/assets/provider-lan.jpg" alt="Mai Lan" style="width:28px; height:28px; border-radius:50%; object-fit:cover;">
                 <div>
                   <div style="font-weight:600; font-size:13px;">Đặng Thị Mai Lan</div>
                   <div class="field-hint" style="font-size:11px;">Thợ đã duyệt (4.95★)</div>
                 </div>
               </button>
               <button type="button" class="auth-dev-chip" onclick="GDXApp.quickPersonaLogin('provider_pending')">
-                <img src="assets/provider-mai.jpg" alt="Võ Văn Khải" style="width:28px; height:28px; border-radius:50%; object-fit:cover;">
+                <img src="/assets/provider-mai.jpg" alt="Võ Văn Khải" style="width:28px; height:28px; border-radius:50%; object-fit:cover;">
                 <div>
                   <div style="font-weight:600; font-size:13px;">Võ Văn Khải</div>
                   <div class="field-hint" style="font-size:11px;">Thợ chờ duyệt (0.4)</div>
@@ -1942,6 +2141,7 @@ window.GDXApp = (() => {
 
   function setAuthView(view = 'login') {
     state.authView = view;
+    pushScreenUrl('0.1', { view });
     const vp = document.getElementById('mainViewport');
     if (vp) {
       renderScreen_0_1(vp, { view });
@@ -2028,6 +2228,7 @@ window.GDXApp = (() => {
       state.currentUser = res.user;
       state.activeUserId = res.user.user_id;
       state.userRole = res.user.role;
+      if (res.token) state.authToken = res.token;
 
       if (window.GDX_DB && Array.isArray(window.GDX_DB.users)) {
         const uIdx = window.GDX_DB.users.findIndex(u => u.user_id === res.user.user_id);
@@ -2059,6 +2260,7 @@ window.GDXApp = (() => {
 
       try {
         localStorage.setItem('gdx_auth_user', JSON.stringify(res.user));
+        if (res.token) localStorage.setItem('gdx_auth_token', res.token);
       } catch (_) {}
 
       showToast(`Đăng nhập thành công! Chào mừng ${res.user.full_name}.`);
@@ -2116,6 +2318,7 @@ window.GDXApp = (() => {
       state.currentUser = res.user;
       state.activeUserId = res.user.user_id;
       state.userRole = res.user.role;
+      if (res.token) state.authToken = res.token;
 
       if (window.GDX_DB && Array.isArray(window.GDX_DB.users)) {
         const uIdx = window.GDX_DB.users.findIndex(u => u.user_id === res.user.user_id);
@@ -2125,6 +2328,7 @@ window.GDXApp = (() => {
 
       try {
         localStorage.setItem('gdx_auth_user', JSON.stringify(res.user));
+        if (res.token) localStorage.setItem('gdx_auth_token', res.token);
       } catch (_) {}
 
       showToast(`Đăng ký tài khoản thành công! Chào mừng ${res.user.full_name}.`);
@@ -2141,12 +2345,14 @@ window.GDXApp = (() => {
 
   function handleLogout() {
     state.currentUser = null;
+    state.authToken = null;
     state.activeUserId = null;
     state.activeCustomerId = null;
     state.activeProviderId = null;
     state.userRole = 'anon';
     try {
       localStorage.removeItem('gdx_auth_user');
+      localStorage.removeItem('gdx_auth_token');
     } catch (_) {}
     showToast('Đã đăng xuất tài khoản.');
     renderUserTopbar();
@@ -2719,10 +2925,10 @@ window.GDXApp = (() => {
     const svcs = window.GDX_DB.services.filter((s) => s.is_active);
     const wards = window.GDX_DB.ward.filter((w) => w.provinceId === '79');
     const avatarChoices = [
-      { url: 'assets/provider-mai.jpg', label: 'Ảnh hồ sơ 1' },
-      { url: 'assets/provider-lan.jpg', label: 'Ảnh hồ sơ 2' },
-      { url: 'assets/provider-tuan.jpg', label: 'Ảnh hồ sơ 3' },
-      { url: 'assets/provider-ha.jpg', label: 'Ảnh hồ sơ 4' }
+      { url: '/assets/provider-mai.jpg', label: 'Ảnh hồ sơ 1' },
+      { url: '/assets/provider-lan.jpg', label: 'Ảnh hồ sơ 2' },
+      { url: '/assets/provider-tuan.jpg', label: 'Ảnh hồ sơ 3' },
+      { url: '/assets/provider-ha.jpg', label: 'Ảnh hồ sơ 4' }
     ];
 
     container.innerHTML = `
@@ -3057,14 +3263,14 @@ window.GDXApp = (() => {
   }
 
   function getServiceImage(s) {
-    if (!s) return 'assets/cleaning-livingroom.jpg';
+    if (!s) return '/assets/cleaning-livingroom.jpg';
     if (s.image_url) return s.image_url;
     const t = (s.title || '').toLowerCase();
-    if (t.includes('nấu') || t.includes('cơm')) return 'assets/cooking-family-meal.jpg';
-    if (t.includes('đầu bếp') || t.includes('tiệc')) return 'assets/cooking-chef-prep.jpg';
-    if (t.includes('deep') || t.includes('sâu') || t.includes('tổng vệ sinh')) return 'assets/cleaning-deep.jpg';
-    if (isCookingService(s)) return 'assets/cooking-family-meal.jpg';
-    return 'assets/cleaning-livingroom.jpg';
+    if (t.includes('nấu') || t.includes('cơm')) return '/assets/cooking-family-meal.jpg';
+    if (t.includes('đầu bếp') || t.includes('tiệc')) return '/assets/cooking-chef-prep.jpg';
+    if (t.includes('deep') || t.includes('sâu') || t.includes('tổng vệ sinh')) return '/assets/cleaning-deep.jpg';
+    if (isCookingService(s)) return '/assets/cooking-family-meal.jpg';
+    return '/assets/cleaning-livingroom.jpg';
   }
 
   // =====================================================================
@@ -3291,7 +3497,7 @@ window.GDXApp = (() => {
           <!-- Right Column: Warm Documentary Photography -->
           <div class="hero-media-wrapper">
             <div class="hero-media-frame">
-              <img src="assets/hero-home-clean.jpg" alt="Không gian nhà cửa sáng sạch ấm cúng cùng Gia Đình Xanh" class="hero-image" loading="eager">
+              <img src="/assets/hero-home-clean.jpg" alt="Không gian nhà cửa sáng sạch ấm cúng cùng Gia Đình Xanh" class="hero-image" loading="eager">
             </div>
           </div>
         </div>
@@ -3415,8 +3621,8 @@ window.GDXApp = (() => {
             <!-- Card 1: Home Cleaning Showcase -->
             <article class="gallery-service-card">
               <div class="gallery-photo-strip">
-                <img src="assets/cleaning-livingroom.jpg" alt="Dọn dẹp phòng khách tinh tươm" loading="lazy">
-                <img src="assets/cleaning-detail.jpg" alt="Chăm chút từng góc nhỏ ngăn nắp" loading="lazy">
+                <img src="/assets/cleaning-livingroom.jpg" alt="Dọn dẹp phòng khách tinh tươm" loading="lazy">
+                <img src="/assets/cleaning-detail.jpg" alt="Chăm chút từng góc nhỏ ngăn nắp" loading="lazy">
               </div>
               <div class="gallery-card-body">
                 <div>
@@ -3451,8 +3657,8 @@ window.GDXApp = (() => {
             <!-- Card 2: Home Cooking Showcase -->
             <article class="gallery-service-card">
               <div class="gallery-photo-strip">
-                <img src="assets/cooking-family-meal.jpg" alt="Mâm cơm gia đình ấm cúng" loading="lazy">
-                <img src="assets/cooking-pot-stew.jpg" alt="Món ăn nóng hổi đượm vị" loading="lazy">
+                <img src="/assets/cooking-family-meal.jpg" alt="Mâm cơm gia đình ấm cúng" loading="lazy">
+                <img src="/assets/cooking-pot-stew.jpg" alt="Món ăn nóng hổi đượm vị" loading="lazy">
               </div>
               <div class="gallery-card-body">
                 <div>
@@ -3513,7 +3719,7 @@ window.GDXApp = (() => {
                       return `
                       <article class="service-card">
                         <div class="service-card-media">
-                          <img src="${s.image_url || 'assets/service-cleaning.jpg'}" alt="${s.title}" loading="lazy">
+                          <img src="${s.image_url || '/assets/service-cleaning.jpg'}" alt="${s.title}" loading="lazy">
                           <span class="service-badge-pill">${cat ? cat.name : 'Dịch vụ gia đình'}</span>
                           <button type="button" class="fav-icon-btn ${isFav ? 'is-favorited' : ''}" onclick="GDXApp.toggleFavorite(${s.service_id})" aria-label="${isFav ? 'Bỏ lưu dịch vụ' : 'Lưu dịch vụ yêu thích'}" title="${isFav ? 'Đã lưu yêu thích' : 'Lưu vào yêu thích'}">
                             ${Icons.heart(isFav)}
@@ -3588,7 +3794,7 @@ window.GDXApp = (() => {
                     return `
                     <article class="provider-card">
                       <div class="provider-card-top">
-                        <img src="${p.avatar_url || 'assets/provider-lan.jpg'}" alt="${p.full_name}" class="provider-avatar" loading="lazy">
+                        <img src="${p.avatar_url || '/assets/provider-lan.jpg'}" alt="${p.full_name}" class="provider-avatar" loading="lazy">
                         <div class="provider-meta">
                           <div class="provider-name-row">
                             <h3 class="provider-name">${p.full_name}</h3>
@@ -3684,7 +3890,7 @@ window.GDXApp = (() => {
         <div class="site-container">
           <div class="testimonial-grid">
             <div class="testimonial-media">
-              <img src="assets/family-story.jpg" alt="Không gian gia đình ấm cúng sạch sẽ sau ca dịch vụ" class="testimonial-image" loading="lazy">
+              <img src="/assets/family-story.jpg" alt="Không gian gia đình ấm cúng sạch sẽ sau ca dịch vụ" class="testimonial-image" loading="lazy">
             </div>
             <div class="testimonial-content">
               <h2 class="section-title">Thời gian thảnh thơi bên gia đình</h2>
@@ -3879,16 +4085,34 @@ window.GDXApp = (() => {
 
     // 4. Fallback ở chế độ dev/mock không phải production
     if (!state.isProduction && db.customer_profiles.length > 0) {
+      state.activeCustomerId = db.customer_profiles[0].customer_id;
       return db.customer_profiles[0];
     }
 
     return null;
   }
 
+  function getDefaultUpcomingTimeLocal() {
+    const d = new Date(Date.now() + 24 * 60 * 60 * 1000);
+    d.setHours(9, 0, 0, 0);
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T09:00`;
+  }
+
+  function getMinDateTimeLocal() {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
   // 1.2: Cấu hình dịch vụ trước khi đặt (Booking Wizard — Reference Layout)
   function renderScreen_1_2(container, params = {}) {
-    if (params.serviceId) state.selectedServiceId = Number(params.serviceId);
-    if (params.providerId) state.selectedProviderId = Number(params.providerId);
+    if (params.serviceId) {
+      state.selectedServiceId = isNaN(Number(params.serviceId)) ? String(params.serviceId) : Number(params.serviceId);
+    }
+    if (params.providerId) {
+      state.selectedProviderId = isNaN(Number(params.providerId)) ? String(params.providerId) : Number(params.providerId);
+    }
     if (params.wardId) state.wizardDraft.ward_id = params.wardId;
     if (params.scheduledTime) state.wizardDraft.scheduled_time = params.scheduledTime;
 
@@ -3900,7 +4124,7 @@ window.GDXApp = (() => {
       return true;
     });
 
-    const svc = activeServices.find((s) => s.service_id === state.selectedServiceId) || activeServices[0] || {
+    const svc = activeServices.find((s) => String(s.service_id) === String(state.selectedServiceId)) || activeServices[0] || {
       service_id: 301,
       title: 'Dọn dẹp nhà cửa theo giờ tiêu chuẩn',
       price: 85000,
@@ -3937,18 +4161,22 @@ window.GDXApp = (() => {
       ? params.address
       : (cust && cust.default_address ? cust.default_address : (state.wizardDraft.address || ''));
 
-    const selectedTime = params.scheduledTime || state.wizardDraft.scheduled_time || '2026-10-25T09:00';
+    const upcomingDefault = getDefaultUpcomingTimeLocal();
+    const draftTimeMs = state.wizardDraft.scheduled_time ? Date.parse(state.wizardDraft.scheduled_time) : 0;
+    const validDraftTime = draftTimeMs && draftTimeMs > Date.now() ? state.wizardDraft.scheduled_time : upcomingDefault;
+    const selectedTime = params.scheduledTime || validDraftTime;
+    const minBookingTime = getMinDateTimeLocal();
 
     const matchingProviderIds = (db.provider_services || [])
-      .filter((ps) => ps.service_id === svc.service_id)
+      .filter((ps) => String(ps.service_id) === String(svc.service_id))
       .map((ps) => ps.provider_id);
 
     const eligibleProviders = (db.provider_public_profiles || []).filter((p) =>
-      matchingProviderIds.length === 0 || matchingProviderIds.includes(p.provider_id)
+      matchingProviderIds.length === 0 || matchingProviderIds.some((id) => String(id) === String(p.provider_id))
     );
 
     if (state.wizardProviderMode === 'direct') {
-      if (!eligibleProviders.some((p) => p.provider_id === state.selectedProviderId) && eligibleProviders.length > 0) {
+      if (!eligibleProviders.some((p) => String(p.provider_id) === String(state.selectedProviderId)) && eligibleProviders.length > 0) {
         state.selectedProviderId = eligibleProviders[0].provider_id;
       }
     } else {
@@ -3956,7 +4184,7 @@ window.GDXApp = (() => {
     }
 
     const selectedProv =
-      eligibleProviders.find((p) => p.provider_id === state.selectedProviderId) || eligibleProviders[0];
+      eligibleProviders.find((p) => String(p.provider_id) === String(state.selectedProviderId)) || eligibleProviders[0];
     const totalAmount =
       svc.pricing_type === 'hourly' ? svc.price * state.bookingHours : svc.price;
 
@@ -4118,7 +4346,7 @@ window.GDXApp = (() => {
             <div class="form-row-2">
               <div class="field-group">
                 <label class="field-label" for="wizScheduledTime">Ngày giờ bắt đầu (bookings.scheduled_time)</label>
-                <input type="datetime-local" id="wizScheduledTime" class="input" value="${selectedTime}" required>
+                <input type="datetime-local" id="wizScheduledTime" class="input" value="${selectedTime}" min="${minBookingTime}" required>
               </div>
               <div class="field-group">
                 <label class="field-label" for="wizProvSelect">Tỉnh / Thành phố (${provinces.length} tỉnh thành)</label>
@@ -4240,7 +4468,7 @@ window.GDXApp = (() => {
                           return `
                           <div class="choice-card ${isSelected ? 'is-selected' : ''}" style="justify-content:space-between; align-items:center; flex-wrap:wrap;" onclick="GDXApp.selectBookingProvider(${p.provider_id})">
                             <div style="display:flex; align-items:center; gap:14px; flex:1; min-width:240px;">
-                              <img src="${p.avatar_url || 'assets/provider-lan.jpg'}" alt="${p.full_name}" class="provider-avatar-lg">
+                              <img src="${p.avatar_url || '/assets/provider-lan.jpg'}" alt="${p.full_name}" class="provider-avatar-lg">
                               <div>
                                 <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                                   <strong style="font-family:var(--font-heading); font-size:1.0625rem;">${p.full_name}</strong>
@@ -4410,7 +4638,7 @@ window.GDXApp = (() => {
       return;
     }
 
-    const svc = (db.services || []).find((s) => s.service_id === state.selectedServiceId) || (db.services || [])[0];
+    const svc = (db.services || []).find((s) => String(s.service_id) === String(state.selectedServiceId)) || (db.services || [])[0];
     if (!svc) {
       showToast('Vui lòng chọn một dịch vụ hợp lệ.');
       return;
@@ -4423,28 +4651,38 @@ window.GDXApp = (() => {
     const latEl = document.getElementById('wizLat');
     const lngEl = document.getElementById('wizLng');
 
+    const addressVal = addrEl ? addrEl.value.trim() : '';
+    if (!addressVal) {
+      showToast('Vui lòng nhập số nhà, địa chỉ phục vụ chi tiết.');
+      if (addrEl) addrEl.focus();
+      return;
+    }
+
+    const schedRaw = schedEl && schedEl.value ? schedEl.value : '';
+    const schedMs = schedRaw ? Date.parse(schedRaw) : NaN;
+    if (!Number.isFinite(schedMs) || schedMs < Date.now() - 5 * 60 * 1000) {
+      showToast('Thời gian hẹn phải từ hiện tại trở đi (không thể đặt lịch trong quá khứ).');
+      if (schedEl) schedEl.focus();
+      return;
+    }
+
     const totalAmount = svc.pricing_type === 'hourly' ? svc.price * state.bookingHours : svc.price;
-    const existingIds = (db.bookings || []).map((b) => b.booking_id || 0);
+    const existingIds = (db.bookings || []).map((b) => (typeof b.booking_id === 'number' ? b.booking_id : 0));
     const newId = existingIds.length > 0 ? Math.max(...existingIds) + 1 : 1001;
 
     const chosenLat = latEl && latEl.value ? Number(latEl.value) : (cust && cust.latitude ? Number(cust.latitude) : 10.741205);
     const chosenLng = lngEl && lngEl.value ? Number(lngEl.value) : (cust && cust.longitude ? Number(cust.longitude) : 106.702110);
 
     const isBroadcast = state.wizardProviderMode !== 'direct';
-    const chosenProviderId = isBroadcast ? null : (state.selectedProviderId || 201);
-
-    const addressVal = (addrEl && addrEl.value ? addrEl.value.trim() : '') ||
-                       (cust && cust.default_address ? cust.default_address.trim() : '') ||
-                       (state.wizardDraft.address ? state.wizardDraft.address.trim() : '') ||
-                       'Số 14 Đường Nội Khu Cảnh Đồi, Phú Mỹ Hưng';
+    const chosenProviderId = isBroadcast ? null : (state.selectedProviderId || (db.provider_profiles?.[0]?.provider_id) || 201);
 
     const wardVal = (wardEl && wardEl.value ? String(wardEl.value).trim() : '') ||
                     (cust && cust.ward_id ? String(cust.ward_id).trim() : '') ||
                     (state.wizardDraft.ward_id ? String(state.wizardDraft.ward_id).trim() : '') ||
                     '27403';
 
-    const customerIdVal = state.activeCustomerId ||
-                          (cust ? cust.customer_id : null) ||
+    const customerIdVal = (cust ? cust.customer_id : null) ||
+                          state.activeCustomerId ||
                           (db.customer_profiles && db.customer_profiles[0] ? db.customer_profiles[0].customer_id : 101);
 
     const newBooking = {
@@ -4454,7 +4692,7 @@ window.GDXApp = (() => {
       dispatch_type: isBroadcast ? 'broadcast' : 'direct',
       service_id: svc.service_id,
       booking_time: new Date().toISOString(),
-      scheduled_time: schedEl && schedEl.value ? new Date(schedEl.value).toISOString() : new Date().toISOString(),
+      scheduled_time: new Date(schedMs).toISOString(),
       status: 'pending',
       payment_status: 'unpaid',
       total_incidental: 0,
@@ -4608,7 +4846,7 @@ window.GDXApp = (() => {
           <div class="panel form-stack">
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
               <div style="display:flex; align-items:center; gap:14px;">
-                <img src="${prov ? prov.avatar_url : 'assets/provider-lan.jpg'}" alt="${prov ? prov.full_name : 'Thợ'}" class="provider-avatar-lg">
+                <img src="${prov ? prov.avatar_url : '/assets/provider-lan.jpg'}" alt="${prov ? prov.full_name : 'Thợ'}" class="provider-avatar-lg">
                 <div>
                   <div style="font-weight:600; font-size:16px;">${prov ? prov.full_name : 'Đang điều phối đối tác thợ'}</div>
                   <div class="rating-inline" style="margin-top:2px;">
@@ -4798,7 +5036,7 @@ window.GDXApp = (() => {
                   return `
             <article class="panel" style="display:flex; justify-content:space-between; align-items:center; gap:16px; flex-wrap:wrap;">
               <div style="display:flex; gap:14px; align-items:center; flex:1; min-width:260px;">
-                <img src="${svc ? svc.image_url : 'assets/service-cleaning.jpg'}" alt="${svc ? svc.title : ''}" style="width:76px; height:58px; border-radius:8px; object-fit:cover; flex-shrink:0;">
+                <img src="${svc ? svc.image_url : '/assets/service-cleaning.jpg'}" alt="${svc ? svc.title : ''}" style="width:76px; height:58px; border-radius:8px; object-fit:cover; flex-shrink:0;">
                 <div>
                   <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
                     <span class="field-hint num" style="font-weight:600;">#${b.booking_id}</span>
@@ -5175,7 +5413,7 @@ window.GDXApp = (() => {
               return `
                 <article class="service-card">
                   <div class="service-card-media">
-                    <img src="${s.image_url || 'assets/service-cleaning.jpg'}" alt="${s.title}">
+                    <img src="${s.image_url || '/assets/service-cleaning.jpg'}" alt="${s.title}">
                     <span class="service-card-badge">${cat ? cat.name : 'Yêu thích'}</span>
                     <button type="button" class="fav-icon-btn is-favorited" onclick="GDXApp.toggleFavorite(${s.service_id})" aria-label="Bỏ lưu">
                       ${Icons.heart(true)}
@@ -6086,7 +6324,7 @@ window.GDXApp = (() => {
                       <tr>
                         <td>
                           <div style="display:flex; align-items:center; gap:10px;">
-                            <img src="${s.image_url || 'assets/service-cleaning.jpg'}" alt="${s.title}" style="width:44px; height:32px; border-radius:4px; object-fit:cover;">
+                            <img src="${s.image_url || '/assets/service-cleaning.jpg'}" alt="${s.title}" style="width:44px; height:32px; border-radius:4px; object-fit:cover;">
                             <strong>${s.title}</strong>
                           </div>
                         </td>
@@ -6802,7 +7040,7 @@ window.GDXApp = (() => {
               <span class="vietqr-frame-corner top-right"></span>
               <span class="vietqr-frame-corner bottom-left"></span>
               <span class="vietqr-frame-corner bottom-right"></span>
-              <img src="assets/rickroll-vietqr.svg" alt="Mã VietQR Chuyển khoản" class="vietqr-code-img">
+              <img src="/assets/rickroll-vietqr.svg" alt="Mã VietQR Chuyển khoản" class="vietqr-code-img">
             </div>
 
             <div style="font-size:0.8125rem; color:var(--color-muted); line-height:1.45; margin-bottom:8px;">
@@ -7050,7 +7288,7 @@ window.GDXApp = (() => {
       <form onsubmit="event.preventDefault(); GDXApp.submitBookingReview(${bk.booking_id}, this);">
         <div class="modal-body form-stack">
           <div style="display:flex; align-items:center; gap:12px;">
-            <img src="${prov ? prov.avatar_url : 'assets/provider-tuan.jpg'}" alt="Thợ" style="width:48px; height:48px; border-radius:50%; object-fit:cover;">
+            <img src="${prov ? prov.avatar_url : '/assets/provider-tuan.jpg'}" alt="Thợ" style="width:48px; height:48px; border-radius:50%; object-fit:cover;">
             <div>
               <strong>Đối tác thực hiện: ${prov ? prov.full_name : 'Phạm Quốc Tuấn'}</strong>
               <div class="field-hint">Mỗi đánh giá giúp cộng đồng khách hàng chọn được thợ tận tâm</div>
@@ -7774,7 +8012,7 @@ window.GDXApp = (() => {
         service_id: Math.max(...db.services.map((x) => x.service_id)) + 1,
         category_id: Number(form.category_id.value),
         title: form.title.value,
-        image_url: 'assets/service-laundry.jpg',
+        image_url: '/assets/service-laundry.jpg',
         pricing_type: form.pricing_type.value,
         price: Number(form.price.value),
         estimated_duration: Number(form.estimated_duration.value),
@@ -8065,8 +8303,28 @@ window.GDXApp = (() => {
       }
     }
 
+    const initialRoute = resolveRouteFromLocation();
+    state.currentScreen = initialRoute.screenId;
+    state.currentRouteParams = initialRoute.params || {};
+    if (initialRoute.screenId === '0.1' && initialRoute.params?.view) {
+      state.authView = initialRoute.params.view;
+    }
+    const initialMeta = SCREENS[initialRoute.screenId];
+    if (initialMeta) {
+      state.currentPortal = initialMeta.portal;
+    }
+    pushScreenUrl(initialRoute.screenId, initialRoute.params, true);
+
+    window.addEventListener('popstate', () => {
+      const resolved = resolveRouteFromLocation();
+      if (resolved.screenId === '0.1' && resolved.params?.view) {
+        state.authView = resolved.params.view;
+      }
+      go(resolved.screenId, resolved.params, { skipHistory: true });
+    });
+
     await syncWithBackend();
-    setViewMode(state.viewMode, true);
+    setViewMode(state.viewMode, true, { skipHistory: true });
   }
 
   document.addEventListener('DOMContentLoaded', init);

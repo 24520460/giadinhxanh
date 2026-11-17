@@ -160,7 +160,7 @@
         user_id: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b21',
         info: '5 năm kinh nghiệm dọn dẹp nhà cửa theo giờ, ủi quần áo và sắp xếp tủ đồ gia đình tại khu vực Quận 7 và Quận 1.',
         id_card_number: '079188004512',
-        avatar_url: 'assets/provider-lan.jpg',
+        avatar_url: '/assets/provider-lan.jpg',
         verification_status: 'verified',
         average_rating: 4.95,
         total_reviews: 42,
@@ -175,7 +175,7 @@
         user_id: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b22',
         info: 'Thợ dọn dẹp chuyên sâu, tổng vệ sinh căn hộ và khử khuẩn không gian sống gia đình tại Quận 7 và TP. Thủ Đức.',
         id_card_number: '079092011834',
-        avatar_url: 'assets/provider-tuan.jpg',
+        avatar_url: '/assets/provider-tuan.jpg',
         verification_status: 'verified',
         average_rating: 4.85,
         total_reviews: 31,
@@ -190,7 +190,7 @@
         user_id: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b23',
         info: 'Nhận nấu ăn gia đình theo buổi, sơ chế thực phẩm và dọn dẹp gian bếp gọn gàng tại Quận 1, Quận 3, Quận 7.',
         id_card_number: '079191008291',
-        avatar_url: 'assets/provider-ha.jpg',
+        avatar_url: '/assets/provider-ha.jpg',
         verification_status: 'verified',
         average_rating: 4.9,
         total_reviews: 27,
@@ -205,7 +205,7 @@
         user_id: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b24',
         info: 'Chuyên viên dọn dẹp nhà cửa và tổng vệ sinh căn hộ · 4 năm kinh nghiệm làm việc tại TP.HCM.',
         id_card_number: '079095023419',
-        avatar_url: 'assets/provider-mai.jpg',
+        avatar_url: '/assets/provider-mai.jpg',
         verification_status: 'pending',
         average_rating: 0.0,
         total_reviews: 0,
@@ -220,7 +220,7 @@
         user_id: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b25',
         info: 'Nhận dọn nhà theo giờ khu vực Bình Thạnh, Quận 1.',
         id_card_number: '079097009182',
-        avatar_url: 'assets/provider-tuan.jpg',
+        avatar_url: '/assets/provider-tuan.jpg',
         verification_status: 'rejected',
         average_rating: 0.0,
         total_reviews: 0,
@@ -270,7 +270,7 @@
         pricing_type: 'hourly',
         estimated_duration: 180,
         is_active: true,
-        image_url: 'assets/cleaning-livingroom.jpg',
+        image_url: '/assets/cleaning-livingroom.jpg',
         created_at: '2026-06-01T00:00:00+07:00',
         updated_at: '2026-10-01T00:00:00+07:00',
       },
@@ -283,7 +283,7 @@
         pricing_type: 'fixed',
         estimated_duration: 240,
         is_active: true,
-        image_url: 'assets/cleaning-deep.jpg',
+        image_url: '/assets/cleaning-deep.jpg',
         created_at: '2026-06-01T00:00:00+07:00',
         updated_at: '2026-10-01T00:00:00+07:00',
       },
@@ -296,7 +296,7 @@
         pricing_type: 'fixed',
         estimated_duration: 120,
         is_active: true,
-        image_url: 'assets/cooking-family-meal.jpg',
+        image_url: '/assets/cooking-family-meal.jpg',
         created_at: '2026-06-01T00:00:00+07:00',
         updated_at: '2026-10-01T00:00:00+07:00',
       },
@@ -309,7 +309,7 @@
         pricing_type: 'hourly',
         estimated_duration: 180,
         is_active: true,
-        image_url: 'assets/cooking-chef-prep.jpg',
+        image_url: '/assets/cooking-chef-prep.jpg',
         created_at: '2026-06-01T00:00:00+07:00',
         updated_at: '2026-10-01T00:00:00+07:00',
       },
@@ -322,7 +322,7 @@
         pricing_type: 'fixed',
         estimated_duration: 120,
         is_active: false,
-        image_url: 'assets/cleaning-detail.jpg',
+        image_url: '/assets/cleaning-detail.jpg',
         created_at: '2026-06-01T00:00:00+07:00',
         updated_at: '2026-10-01T00:00:00+07:00',
       },
@@ -335,7 +335,7 @@
         pricing_type: 'hourly',
         estimated_duration: 120,
         is_active: false,
-        image_url: 'assets/home-kitchen-clean.jpg',
+        image_url: '/assets/home-kitchen-clean.jpg',
         created_at: '2026-06-01T00:00:00+07:00',
         updated_at: '2026-10-01T00:00:00+07:00',
       },
@@ -392,11 +392,21 @@
     // -------------------------------------------------------------------
     // 9. availability_exceptions (id BIGINT, provider_id BIGINT, exception_date DATE, start_time, end_time, reason)
     // -------------------------------------------------------------------
+    const futureDateStr = (daysAhead) => {
+      const d = new Date(Date.now() + daysAhead * 86400000);
+      return d.toISOString().slice(0, 10);
+    };
+    const futureIso = (daysAhead, hour = 14) => {
+      const d = new Date(Date.now() + daysAhead * 86400000);
+      const pad = (n) => String(n).padStart(2, '0');
+      return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(hour)}:00:00+07:00`;
+    };
+
     const availability_exceptions = [
       {
         id: 1,
         provider_id: 201,
-        exception_date: '2026-10-27',
+        exception_date: futureDateStr(10),
         start_time: '13:00',
         end_time: '17:30',
         reason: 'Bận việc gia đình buổi chiều, tạm ngưng nhận lịch Quận 7',
@@ -405,7 +415,7 @@
       {
         id: 2,
         provider_id: 202,
-        exception_date: '2026-10-29',
+        exception_date: futureDateStr(12),
         start_time: '08:00',
         end_time: '12:00',
         reason: 'Bảo dưỡng máy bơm xịt rửa máy lạnh và máy hút giặt sofa',
@@ -423,7 +433,7 @@
         customer_id: 101,
         provider_id: 201,
         service_id: 301,
-        scheduled_time: '2026-10-23T14:00:00+07:00',
+        scheduled_time: futureIso(7, 14),
         address: 'Số 14 Đường Nội Khu Cảnh Đồi, Phú Mỹ Hưng',
         ward_id: '27403',
         latitude: 10.728912,
