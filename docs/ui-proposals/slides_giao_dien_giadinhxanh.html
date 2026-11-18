@@ -1,0 +1,2924 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gia Đình Xanh — Trình Chiếu Giao Diện & Thư Viện Component (35 Màn Hình)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #1B4332;
+      --primary-dark: #143326;
+      --primary-light: #EBF2EE;
+      --accent-warm: #E07A5F;
+      --text: #1F2430;
+      --text-muted: #64748B;
+      --bg: #0F172A;
+      --card-bg: #FFFFFF;
+      --surface-subtle: #F8F9FA;
+      --border: #E2E8F0;
+      --border-subtle: #F1F5F9;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.05);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+      --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.15), 0 10px 10px -5px rgba(0,0,0,0.04);
+      --radius-pill: 9999px;
+      --radius-card: 16px;
+      --radius-sm: 8px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navigation Bar */
+    .top-nav {
+      height: 60px;
+      background: #111827;
+      border-bottom: 1px solid #1F2937;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      color: #F9FAFB;
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-badge {
+      background: var(--primary);
+      color: #A7F3D0;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 800;
+      font-size: 13px;
+      padding: 5px 12px;
+      border-radius: var(--radius-pill);
+      letter-spacing: 0.5px;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .brand-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      color: #F3F4F6;
+    }
+
+    .brand-sub {
+      font-size: 13px;
+      color: #9CA3AF;
+      display: none;
+    }
+
+    @media (min-width: 860px) {
+      .brand-sub { display: inline; }
+    }
+
+    .nav-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-nav {
+      background: #1F2937;
+      border: 1px solid #374151;
+      color: #E5E7EB;
+      padding: 6px 14px;
+      border-radius: var(--radius-pill);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn-nav:hover {
+      background: #374151;
+      color: #FFFFFF;
+      border-color: #4B5563;
+    }
+
+    .btn-nav.active {
+      background: var(--primary);
+      border-color: #059669;
+      color: #FFFFFF;
+    }
+
+    .slide-counter {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      color: #E5E7EB;
+      background: #1F2937;
+      padding: 5px 12px;
+      border-radius: var(--radius-pill);
+      font-variant-numeric: tabular-nums;
+      border: 1px solid #374151;
+    }
+
+    /* Main Presentation Container */
+    .pres-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px 24px;
+      position: relative;
+    }
+
+    .slide-wrapper {
+      width: 100%;
+      max-width: 1440px;
+      aspect-ratio: 16 / 9;
+      min-height: 640px;
+      background: var(--card-bg);
+      border-radius: 20px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Slide Header */
+    .slide-header {
+      padding: 16px 28px;
+      background: #FFFFFF;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .slide-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .module-pill {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+    }
+
+    .pill-auth { background: #FEF3C7; color: #92400E; }
+    .pill-customer { background: #EBF2EE; color: #1B4332; }
+    .pill-provider { background: #E0E7FF; color: #3730A3; }
+    .pill-admin { background: #FEE2E2; color: #991B1B; }
+    .pill-appendix { background: #F3E8FF; color: #6B21A8; }
+    .pill-architecture { background: #E2E8F0; color: #1E293B; }
+
+    .screen-id {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent-warm);
+    }
+
+    .screen-type-badge {
+      background: #F1F5F9;
+      color: #475569;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 6px;
+      text-transform: uppercase;
+    }
+
+    .slide-titles-wrap {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .slide-main-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 20px;
+      font-weight: 800;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .slide-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .role-badge {
+      background: #F8FAFC;
+      border: 1px solid var(--border);
+      color: #334155;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      white-space: nowrap;
+    }
+
+    /* Slide Body Content */
+    .slide-body {
+      flex: 1;
+      padding: 24px 28px;
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 28px;
+      overflow: hidden;
+      background: var(--surface-subtle);
+    }
+
+    /* Left Preview Panel */
+    .preview-panel {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-sm);
+      position: relative;
+    }
+
+    .preview-header {
+      padding: 10px 16px;
+      background: #F8FAFC;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .preview-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .dot-red { background: #EF4444; }
+    .dot-yellow { background: #F59E0B; }
+    .dot-green { background: #10B981; }
+
+    .preview-media {
+      flex: 1;
+      overflow-y: auto;
+      background: #F1F5F9;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      position: relative;
+      cursor: zoom-in;
+    }
+
+    .preview-media img {
+      width: 100%;
+      height: auto;
+      display: block;
+      transition: transform 0.2s;
+    }
+
+    .preview-media:hover img {
+      transform: scale(1.01);
+    }
+
+    .preview-overlay-btn {
+      position: absolute;
+      bottom: 14px;
+      right: 14px;
+      background: rgba(17, 24, 39, 0.85);
+      backdrop-filter: blur(4px);
+      color: #FFFFFF;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 8px 14px;
+      border-radius: var(--radius-pill);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .preview-overlay-btn:hover {
+      background: var(--primary);
+    }
+
+    /* Right Spec Panel */
+    .spec-panel {
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding-right: 6px;
+    }
+
+    .spec-panel::-webkit-scrollbar {
+      width: 6px;
+    }
+    .spec-panel::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 3px;
+    }
+
+    .spec-card {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .spec-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .spec-desc {
+      font-size: 13px;
+      line-height: 1.55;
+      color: #334155;
+      margin-bottom: 6px;
+    }
+
+    .tag-cloud {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .db-tag {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      background: #F1F5F9;
+      color: #0F172A;
+      padding: 3px 8px;
+      border-radius: 5px;
+      border: 1px solid #E2E8F0;
+      font-weight: 500;
+    }
+
+    .rls-tag {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      background: #FEF3C7;
+      color: #92400E;
+      padding: 3px 8px;
+      border-radius: 5px;
+      border: 1px solid #FDE68A;
+      font-weight: 500;
+    }
+
+    .comp-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+
+    .comp-list li {
+      font-size: 13px;
+      color: #334155;
+      line-height: 1.45;
+      position: relative;
+      padding-left: 18px;
+    }
+
+    .comp-list li::before {
+      content: "•";
+      position: absolute;
+      left: 4px;
+      top: -1px;
+      color: var(--primary);
+      font-weight: 800;
+      font-size: 16px;
+    }
+
+    .rule-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .rule-list li {
+      font-size: 12px;
+      color: #475569;
+      line-height: 1.45;
+      background: #F8FAFC;
+      border-left: 3px solid var(--accent-warm);
+      padding: 6px 10px;
+      border-radius: 0 6px 6px 0;
+    }
+
+    /* Cover Slide Layout */
+    .cover-body {
+      flex: 1;
+      padding: 48px;
+      background: linear-gradient(135deg, #1B4332 0%, #143326 100%);
+      color: #FFFFFF;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cover-body::before {
+      content: "";
+      position: absolute;
+      top: -100px;
+      right: -100px;
+      width: 450px;
+      height: 450px;
+      background: radial-gradient(circle, rgba(224, 122, 95, 0.25) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+
+    .cover-top-badge {
+      align-self: flex-start;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(8px);
+      color: #A7F3D0;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 800;
+      padding: 6px 16px;
+      border-radius: var(--radius-pill);
+      letter-spacing: 0.6px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .cover-main-heading {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 42px;
+      font-weight: 800;
+      line-height: 1.15;
+      margin-top: 24px;
+      margin-bottom: 14px;
+      color: #FFFFFF;
+      max-width: 900px;
+    }
+
+    .cover-sub-heading {
+      font-size: 20px;
+      color: #D1FAE5;
+      font-weight: 400;
+      max-width: 820px;
+      line-height: 1.45;
+      margin-bottom: 32px;
+    }
+
+    .cover-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-top: auto;
+    }
+
+    .cover-kpi-card {
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(6px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 12px;
+      padding: 16px;
+    }
+
+    .cover-kpi-num {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 28px;
+      font-weight: 700;
+      color: #FDE68A;
+      margin-bottom: 4px;
+    }
+
+    .cover-kpi-label {
+      font-size: 13px;
+      color: #E2E8F0;
+      font-weight: 500;
+    }
+
+    /* Architecture Overview Slide */
+    .arch-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      height: 100%;
+      overflow-y: auto;
+    }
+
+    .arch-card {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .arch-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .arch-card-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .arch-card-count {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent-warm);
+      background: #FFF7ED;
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+    }
+
+    /* Summary Slide Layout */
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      height: 100%;
+      overflow-y: auto;
+    }
+
+    .color-swatch-list {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 10px;
+    }
+
+    .swatch-item {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      background: #FFFFFF;
+    }
+
+    .swatch-color {
+      height: 48px;
+      width: 100%;
+    }
+
+    .swatch-meta {
+      padding: 8px;
+      font-size: 11px;
+    }
+
+    .swatch-hex {
+      font-family: 'IBM Plex Mono', monospace;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .swatch-name {
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    /* Bottom Control Bar */
+    .bottom-bar {
+      height: 64px;
+      background: #111827;
+      border-top: 1px solid #1F2937;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      color: #9CA3AF;
+      position: sticky;
+      bottom: 0;
+      z-index: 50;
+    }
+
+    .playback-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .btn-circle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #1F2937;
+      border: 1px solid #374151;
+      color: #FFFFFF;
+      font-size: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-circle:hover {
+      background: var(--primary);
+      border-color: #059669;
+      transform: scale(1.05);
+    }
+
+    .btn-circle:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      transform: none;
+      background: #1F2937;
+      border-color: #374151;
+    }
+
+    .progress-bar-wrap {
+      flex: 1;
+      max-width: 500px;
+      margin: 0 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .progress-track {
+      flex: 1;
+      height: 6px;
+      background: #1F2937;
+      border-radius: 3px;
+      overflow: hidden;
+      cursor: pointer;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #10B981 0%, #34D399 100%);
+      transition: width 0.25s ease-out;
+    }
+
+    .keyboard-hint {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #9CA3AF;
+    }
+
+    .kbd {
+      background: #1F2937;
+      border: 1px solid #374151;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      color: #E5E7EB;
+    }
+
+    /* Modal Grid Overview (Drawer) */
+    .drawer-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(6px);
+      z-index: 100;
+      display: none;
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+
+    .drawer-overlay.open {
+      display: flex;
+      opacity: 1;
+    }
+
+    .drawer-content {
+      width: 100%;
+      max-width: 1280px;
+      margin: 32px auto;
+      background: #111827;
+      border: 1px solid #374151;
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      height: calc(100vh - 64px);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+    }
+
+    .drawer-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid #1F2937;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #F9FAFB;
+    }
+
+    .drawer-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .filter-pills-bar {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding: 12px 24px;
+      background: #0B0F19;
+      border-bottom: 1px solid #1F2937;
+    }
+
+    .filter-btn {
+      background: #1F2937;
+      border: 1px solid #374151;
+      color: #9CA3AF;
+      padding: 6px 14px;
+      border-radius: var(--radius-pill);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+
+    .filter-btn:hover {
+      background: #374151;
+      color: #FFFFFF;
+    }
+
+    .filter-btn.active {
+      background: var(--primary);
+      color: #A7F3D0;
+      border-color: #059669;
+    }
+
+    .drawer-search-wrap {
+      padding: 12px 24px;
+      background: #111827;
+      border-bottom: 1px solid #1F2937;
+    }
+
+    .drawer-search-input {
+      width: 100%;
+      background: #1F2937;
+      border: 1px solid #374151;
+      color: #FFFFFF;
+      padding: 10px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      outline: none;
+    }
+
+    .drawer-search-input:focus {
+      border-color: #10B981;
+    }
+
+    .drawer-grid {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 16px;
+    }
+
+    .thumb-card {
+      background: #1F2937;
+      border: 1px solid #374151;
+      border-radius: 12px;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .thumb-card:hover {
+      border-color: #10B981;
+      transform: translateY(-2px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+    }
+
+    .thumb-card.active {
+      border: 2px solid #10B981;
+      box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+    }
+
+    .thumb-img-wrap {
+      height: 140px;
+      background: #0B0F19;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      border-bottom: 1px solid #374151;
+    }
+
+    .thumb-img-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: top;
+    }
+
+    .thumb-info {
+      padding: 12px;
+    }
+
+    .thumb-num {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent-warm);
+      margin-bottom: 4px;
+    }
+
+    .thumb-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #F3F4F6;
+      line-height: 1.35;
+      overflow: hidden;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+    }
+
+    /* Lightbox Zoom Modal */
+    .lightbox-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.9);
+      backdrop-filter: blur(8px);
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .lightbox-modal.open {
+      display: flex;
+    }
+
+    .lightbox-img-wrap {
+      max-width: 95vw;
+      max-height: 90vh;
+      overflow: auto;
+      border-radius: 12px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+      position: relative;
+    }
+
+    .lightbox-img-wrap img {
+      display: block;
+      max-width: 100%;
+      height: auto;
+    }
+
+    .lightbox-close-btn {
+      position: absolute;
+      top: 20px;
+      right: 24px;
+      background: #1F2937;
+      color: #FFFFFF;
+      border: 1px solid #374151;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      font-size: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+    }
+
+    .lightbox-close-btn:hover {
+      background: #EF4444;
+      border-color: #DC2626;
+    }
+
+    /* Tech Notes Drawer */
+    .notes-modal {
+      position: fixed;
+      bottom: 64px;
+      right: 24px;
+      width: 420px;
+      max-height: 500px;
+      background: #1E293B;
+      border: 1px solid #334155;
+      border-radius: 14px;
+      box-shadow: var(--shadow-xl);
+      z-index: 90;
+      display: none;
+      flex-direction: column;
+      overflow: hidden;
+      color: #F1F5F9;
+    }
+
+    .notes-modal.open {
+      display: flex;
+    }
+
+    .notes-header {
+      padding: 12px 16px;
+      background: #0F172A;
+      border-bottom: 1px solid #334155;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .notes-body {
+      padding: 16px;
+      overflow-y: auto;
+      font-size: 13px;
+      line-height: 1.55;
+      color: #CBD5E1;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Print / PDF view */
+    @media print {
+      body {
+        background: #FFFFFF;
+        color: #000000;
+      }
+      .top-nav, .bottom-bar, .drawer-overlay, .lightbox-modal, .notes-modal {
+        display: none !important;
+      }
+      .pres-container {
+        padding: 0;
+      }
+      .slide-wrapper {
+        aspect-ratio: auto;
+        min-height: auto;
+        box-shadow: none;
+        border: none;
+        page-break-after: always;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="top-nav">
+    <div class="brand-wrap">
+      <span class="brand-badge">🌿 GIA ĐÌNH XANH</span>
+      <span class="brand-title">Kiến Trúc Giao Diện &amp; Thư Viện Component</span>
+      <span class="brand-sub">· 35 Màn Hình &amp; Hộp Thoại (Retina 2x)</span>
+    </div>
+    <div class="nav-actions">
+      <span class="slide-counter" id="slideCounter">Slide 1 / 40</span>
+      <button class="btn-nav" id="btnToggleGrid" title="Xem lưới toàn bộ slide (Phím G hoặc O)">
+        <span>🗂️ Lưới Slide (G)</span>
+      </button>
+      <button class="btn-nav" id="btnToggleNotes" title="Ghi chú kỹ thuật CSDL (Phím N)">
+        <span>📝 CSDL &amp; Ghi chú (N)</span>
+      </button>
+      <button class="btn-nav" id="btnToggleFullscreen" title="Toàn màn hình (Phím F)">
+        <span>⛶ Toàn màn hình (F)</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Presentation Stage -->
+  <main class="pres-container">
+    <div class="slide-wrapper" id="slideStage">
+      <!-- Active slide injected via JS -->
+    </div>
+  </main>
+
+  <!-- Bottom Control Bar -->
+  <footer class="bottom-bar">
+    <div class="playback-controls">
+      <button class="btn-circle" id="btnPrev" title="Slide trước (Phím Mũi tên trái hoặc PageUp)">‹</button>
+      <button class="btn-circle" id="btnNext" title="Slide tiếp theo (Phím Mũi tên phải hoặc Space hoặc PageDown)">›</button>
+      <button class="btn-circle" id="btnFirst" title="Về slide đầu tiên (Phím Home)">«</button>
+      <button class="btn-circle" id="btnLast" title="Tới slide cuối cùng (Phím End)">»</button>
+    </div>
+
+    <div class="progress-bar-wrap">
+      <div class="progress-track" id="progressTrack" title="Bấm vào thanh để nhảy tới slide tương ứng">
+        <div class="progress-fill" id="progressFill" style="width: 2.5%;"></div>
+      </div>
+    </div>
+
+    <div class="keyboard-hint">
+      <span>Điều khiển:</span>
+      <span class="kbd">←</span>
+      <span class="kbd">→</span>
+      <span class="kbd">Space</span>
+      <span class="kbd">F (Toàn màn hình)</span>
+      <span class="kbd">G (Lưới)</span>
+    </div>
+  </footer>
+
+  <!-- Grid Overview Drawer -->
+  <div class="drawer-overlay" id="gridDrawer">
+    <div class="drawer-content">
+      <div class="drawer-header">
+        <div class="drawer-title">🗂️ Tổng Hợp 35 Màn Hình &amp; Thành Phần Dự Án Gia Đình Xanh</div>
+        <button class="btn-nav" id="btnCloseGrid">✕ Đóng (Esc)</button>
+      </div>
+      <div class="filter-pills-bar">
+        <button class="filter-btn active" data-filter="all">Tất cả (40 slide)</button>
+        <button class="filter-btn" data-filter="architecture">Tổng quan &amp; Kiến trúc</button>
+        <button class="filter-btn" data-filter="auth">Phân hệ 0: Xác thực (5)</button>
+        <button class="filter-btn" data-filter="customer">Phân hệ 1: Khách hàng (11)</button>
+        <button class="filter-btn" data-filter="provider">Phân hệ 2: Đối tác Thợ (9)</button>
+        <button class="filter-btn" data-filter="admin">Phân hệ 3: Quản trị Admin (9)</button>
+        <button class="filter-btn" data-filter="appendix">Phụ lục &amp; Giám sát (2)</button>
+      </div>
+      <div class="drawer-search-wrap">
+        <input type="text" class="drawer-search-input" id="drawerSearchInput" placeholder="🔍 Nhập từ khóa tìm kiếm màn hình, mã số (VD: '1.2', 'Booking', 'VietQR', 'KYC', 'Timer', 'Audit')...">
+      </div>
+      <div class="drawer-grid" id="drawerGridList">
+        <!-- Injected via JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Lightbox Zoom Modal -->
+  <div class="lightbox-modal" id="lightboxModal">
+    <button class="lightbox-close-btn" id="btnCloseLightbox" title="Đóng phóng to (Esc)">✕</button>
+    <div class="lightbox-img-wrap">
+      <img id="lightboxImg" src="" alt="Ảnh Retina phóng to">
+    </div>
+  </div>
+
+  <!-- Tech Notes Modal -->
+  <div class="notes-modal" id="notesModal">
+    <div class="notes-header">
+      <span id="notesTitle">📝 Ghi Chú Kỹ Thuật CSDL</span>
+      <button class="btn-nav" style="padding:2px 8px;" id="btnCloseNotes">✕</button>
+    </div>
+    <div class="notes-body" id="notesContent">
+      <!-- Injected via JS -->
+    </div>
+  </div>
+
+  <script>
+    const slides = [
+  {
+    "id": "cover",
+    "num": "00",
+    "module": "TỔNG QUAN HỆ THỐNG",
+    "moduleTag": "architecture",
+    "title": "GIA ĐÌNH XANH — HỆ THỐNG ĐẶT LỊCH DỊCH VỤ GIA ĐÌNH",
+    "subtitle": "Tài liệu Đặc tả Giao diện & Thư viện Component Toàn diện (35 Màn hình & Modals)",
+    "type": "COVER SLIDE",
+    "role": "Toàn bộ hệ thống",
+    "dbTables": [
+      "16 bảng PostgreSQL",
+      "7 ENUMs",
+      "1 Public View",
+      "4 Stored Procedures (RPC)"
+    ],
+    "rls": "Bảo mật Row Level Security (RLS) theo users.role: customer, provider, admin",
+    "isCover": true,
+    "description": "Nền tảng đặt lịch dịch vụ gia đình theo phong cách Warm Minimalism: minh bạch giá cả, định danh thợ qua KYC CCCD, theo dõi ca làm việc thời gian thực với GPS và thanh toán chuyển khoản tự động VietQR.",
+    "highlights": [
+      "Tổng quy mô: 34 màn hình & hộp thoại nghiệp vụ (19 Pages + 15 Modals/Drawers/Components) + 2 màn hình bổ trợ",
+      "4 Phân hệ vận hành: Dùng chung & Xác thực, Khách hàng, Thợ đối tác, Quản trị viên Admin",
+      "Phong cách thiết kế: Warm Minimalism (Forest Green #1B4332, Soft Sage #EBF2EE, Warm Terracotta #E07A5F)",
+      "Độ phân giải hiển thị: Chuẩn Retina 2x sắc nét, tối ưu trải nghiệm chạm trên Mobile & Desktop",
+      "Đồng bộ 100% CSDL: Ánh xạ 1-1 với cấu trúc bảng PostgreSQL và các hàm RPC kiểm toán"
+    ]
+  },
+  {
+    "id": "architecture_overview",
+    "num": "00.1",
+    "module": "KIẾN TRÚC & QUY TRÌNH",
+    "moduleTag": "architecture",
+    "title": "Bản Đồ Kiến Trúc Phân Hệ & Luồng Nghiệp Vụ End-to-End",
+    "subtitle": "Mối liên kết giữa 3 vai trò người dùng qua 4 phân hệ chức năng độc lập",
+    "type": "SYSTEM ARCHITECTURE",
+    "role": "Khách hàng · Đối tác Thợ · Quản trị viên Admin",
+    "dbTables": [
+      "users",
+      "bookings",
+      "provider_profiles",
+      "services",
+      "support_tickets"
+    ],
+    "rls": "Phân quyền triệt để: is_admin(), current_customer_id(), current_provider_id()",
+    "isArchitecture": true,
+    "description": "Hệ thống vận hành xoay quanh vòng đời đơn hàng khép kín: Khách hàng tìm kiếm dịch vụ -> Cấu hình lịch -> Thợ nhận việc trên sàn -> Thực thi ca làm & bấm giờ -> Quyết toán & Thanh toán VietQR -> Đánh giá & Hỗ trợ -> Admin giám sát kiểm toán.",
+    "modulesSummary": [
+      {
+        "name": "Phân hệ 0: Xác thực & Onboarding",
+        "count": "5 Giao diện (5 Pages)",
+        "desc": "Định danh tài khoản, phân luồng vai trò, bắt buộc khai báo SĐT, Phường/Xã (Khách) hoặc CCCD & tay nghề (Thợ)."
+      },
+      {
+        "name": "Phân hệ 1: Khách hàng (Customer Portal)",
+        "count": "11 Giao diện (6 Pages + 5 Modals/Drawers)",
+        "desc": "Khám phá dịch vụ, máy tính giá tức thì, wizard đặt lịch, theo dõi GPS trực tiếp, thanh toán VietQR và chấm sao."
+      },
+      {
+        "name": "Phân hệ 2: Đối tác Thợ (Provider Portal)",
+        "count": "9 Giao diện (4 Pages + 5 Modals/Components)",
+        "desc": "Sàn nhận việc, bấm giờ ca làm thực tế, kê khai vật tư phát sinh, ví thu nhập, lịch rảnh và GPS trực tuyến."
+      },
+      {
+        "name": "Phân hệ 3: Quản trị viên (Admin Portal)",
+        "count": "9 Giao diện (4 Pages + 5 Modals/Drawers)",
+        "desc": "Dashboard điều phối trung tâm, kiểm duyệt KYC hồ sơ thợ, quản trị cây danh mục & biểu giá, xử lý khiếu nại."
+      }
+    ]
+  },
+  {
+    "id": "screen_matrix",
+    "num": "00.2",
+    "module": "CHỈ MỤC GIAO DIỆN",
+    "moduleTag": "architecture",
+    "title": "Ma Trận Tổng Hợp 35 Màn Hình & Thành Phần Hệ Thống",
+    "subtitle": "Bảng tra cứu nhanh mã màn hình, loại giao diện, vai trò và bảng CSDL ánh xạ",
+    "type": "MASTER MATRIX",
+    "role": "Toàn bộ phân hệ",
+    "dbTables": [
+      "16 bảng PostgreSQL 16"
+    ],
+    "rls": "Bảo mật đa lớp RLS",
+    "isMatrix": true,
+    "description": "Tra cứu đầy đủ 35 giao diện được hiện thực hóa trong mã nguồn dự án, hỗ trợ tìm kiếm và nhảy nhanh đến slide chi tiết."
+  },
+  {
+    "id": "screen_0_1",
+    "num": "0.1",
+    "module": "PHÂN HỆ 0: XÁC THỰC",
+    "moduleTag": "auth",
+    "title": "Đăng Nhập / Đăng Ký / Khôi Phục Mật Khẩu",
+    "subtitle": "Cổng xác thực định danh tập trung với tabs chuyển đổi trạng thái",
+    "type": "PAGE",
+    "role": "Dùng chung (Public)",
+    "image": "01_0.1_Dang_Nhap_Dang_Ky.png",
+    "dbTables": [
+      "auth.users",
+      "public.users"
+    ],
+    "rls": "users_insert_own, định danh auth.uid()",
+    "purpose": "Cổng xác thực bắt buộc để lấy auth.uid() cho toàn bộ các hàm RLS (is_admin(), current_customer_id(), current_provider_id()) và phân quyền vai trò người dùng ngay từ bước đầu.",
+    "components": [
+      "SegmentedControl Tabs: Đăng nhập | Đăng ký | Quên mật khẩu",
+      "Form Đăng nhập: Input Email/Phone, PasswordInput kèm nút ẩn/hiện, Nút 'Đăng nhập'",
+      "Form Đăng ký: Input Họ và tên, SĐT (Unique), Email, RadioGroup chọn vai trò (Khách hàng / Thợ đối tác), Nút 'Tạo tài khoản'",
+      "Form Quên mật khẩu: Input Email khôi phục, Nút 'Gửi liên kết đặt lại mật khẩu'",
+      "OAuth Social Buttons: Đăng nhập nhanh Google / Facebook / Apple"
+    ],
+    "businessRules": [
+      "users.phone_number có ràng buộc UNIQUE trên toàn hệ thống.",
+      "users.role chỉ nhận 2 giá trị khi đăng ký tự do: 'customer' hoặc 'provider' (admin phải được gán nội bộ).",
+      "Khi đăng ký thành công, trigger tự động chuyển hướng người dùng sang màn hình Onboarding tương ứng (0.2 hoặc 0.3)."
+    ],
+    "notes": "Giao diện sử dụng bố cục Warm Minimalism với khung thẻ trung tâm nổi bật, viền mảnh và bóng đổ nhẹ tạo cảm giác ấm cúng, an tâm."
+  },
+  {
+    "id": "screen_0_2",
+    "num": "0.2",
+    "module": "PHÂN HỆ 0: XÁC THỰC",
+    "moduleTag": "auth",
+    "title": "Thiết Lập Hồ Sơ Khách Hàng (Customer Onboarding)",
+    "subtitle": "Biểu mẫu hoàn tất thông tin địa chỉ và tọa độ GPS bắt buộc cho khách mới",
+    "type": "PAGE STEP FORM",
+    "role": "Khách hàng (Customer)",
+    "image": "02_0.2_Thiet_Lap_Ho_So_Khach_Hang.png",
+    "dbTables": [
+      "users",
+      "customer_profiles",
+      "province",
+      "ward"
+    ],
+    "rls": "RLS customers_own: Khách chỉ cập nhật hồ sơ cá nhân",
+    "purpose": "Ràng buộc NOT NULL ở customer_profiles.ward_id và users.phone_number đòi hỏi khách hàng mới phải hoàn tất thông tin địa bàn và SĐT ngay lần đầu đăng nhập trước khi có thể đặt dịch vụ.",
+    "components": [
+      "Input Họ và tên (users.full_name) & Input Số điện thoại (users.phone_number)",
+      "Dropdown Tỉnh / Thành phố (province.\"provinceId\")",
+      "Dropdown Phường / Xã (ward.ward_id - Bắt buộc theo khóa ngoại)",
+      "Input Địa chỉ chi tiết (customer_profiles.default_address)",
+      "Interactive GPS Pinning: Bản đồ định vị và tọa độ latitude / longitude tự động trích xuất",
+      "PrimaryButton: 'Hoàn tất thiết lập & Vào trang chủ'"
+    ],
+    "businessRules": [
+      "customer_profiles.ward_id là trường bắt buộc (NOT NULL) để phục vụ thuật toán lọc thợ khả dụng theo địa bàn.",
+      "Cặp tọa độ GPS latitude, longitude được lưu dạng số thực độ chính xác cao để tính toán khoảng cách điều phối.",
+      "Không cho phép bỏ qua bước này để bảo đảm mọi đơn đặt phòng sau này đều có địa chỉ hợp lệ."
+    ],
+    "notes": "Sau khi gửi biểu mẫu, hệ thống sẽ tự động cập nhật bảng customer_profiles và cấp quyền truy cập toàn diện vào Customer Portal."
+  },
+  {
+    "id": "screen_0_3",
+    "num": "0.3",
+    "module": "PHÂN HỆ 0: XÁC THỰC",
+    "moduleTag": "auth",
+    "title": "Đăng Ký Hành Nghề Thợ (Provider Onboarding)",
+    "subtitle": "Biểu mẫu 3 bước thu thập hồ sơ KYC, chuyên môn kỹ năng và địa bàn hoạt động",
+    "type": "PAGE MULTI-STEP",
+    "role": "Đối tác Thợ (Provider)",
+    "image": "03_0.3_Dang_Ky_Hanh_Nghe_Tho.png",
+    "dbTables": [
+      "users",
+      "provider_profiles",
+      "provider_services",
+      "provider_areas",
+      "ward",
+      "services"
+    ],
+    "rls": "Hồ sơ khởi tạo ở trạng thái verification_status = 'pending'",
+    "purpose": "Bắt buộc thu thập CCCD/CMND (id_card_number UNIQUE NOT NULL), ảnh đại diện, mô tả năng lực kinh nghiệm, danh sách dịch vụ nhận làm và khu vực hoạt động để gửi Ban Quản trị xét duyệt.",
+    "components": [
+      "StepIndicator: Bước 1 (Định danh & CCCD) -> Bước 2 (Dịch vụ tiếp nhận) -> Bước 3 (Khu vực hoạt động)",
+      "Form Bước 1: Input Số CCCD/CMND, FileUploader ảnh chân dung và giấy tờ tùy thân, Textarea mô tả kinh nghiệm",
+      "Form Bước 2: Danh sách Checkbox chọn dịch vụ đăng ký (liên kết bảng services)",
+      "Form Bước 3: Bộ chọn Phường/Xã hoạt động dạng Multi-select (liên kết bảng provider_areas)",
+      "Checkbox cam kết tuân thủ quy chế vận hành & SubmitButton 'Gửi hồ sơ xét duyệt'"
+    ],
+    "businessRules": [
+      "id_card_number có ràng buộc UNIQUE NOT NULL, ngăn chặn 1 CCCD đăng ký nhiều tài khoản thợ.",
+      "Hồ sơ mới luôn được khởi tạo với verification_status = 'pending'.",
+      "Thợ chưa được verified sẽ bị RLS chặn không xuất hiện trên View công khai provider_public_profiles."
+    ],
+    "notes": "Biểu mẫu có tính năng lưu bản nháp tự động ở local storage giúp đối tác không bị mất dữ liệu khi gián đoạn kết nối."
+  },
+  {
+    "id": "screen_0_4",
+    "num": "0.4",
+    "module": "PHÂN HỆ 0: XÁC THỰC",
+    "moduleTag": "auth",
+    "title": "Trạng Thái Hồ Sơ Thợ (Chờ Duyệt / Bị Từ Chối)",
+    "subtitle": "Màn hình thông báo tiến độ thẩm định hồ sơ KYC và hỗ trợ nộp lại khi bị từ chối",
+    "type": "PAGE STATUS",
+    "role": "Đối tác Thợ (Provider)",
+    "image": "04_0.4_Trang_Thai_Ho_So_Tho.png",
+    "dbTables": [
+      "provider_profiles",
+      "users"
+    ],
+    "rls": "RLS chặn thợ chưa đạt verified nhận việc trên Job Board",
+    "purpose": "Cung cấp giao diện trạng thái trực quan giải thích lý do hồ sơ đang chờ xét duyệt hoặc bị từ chối, kèm biểu mẫu cho phép tải lại ảnh CCCD và bổ sung kinh nghiệm để nộp lại xét duyệt.",
+    "components": [
+      "StatusBanner: Badge hiển thị trạng thái hiện tại ('Đang chờ xét duyệt' hoặc 'Hồ sơ bị từ chối')",
+      "Illustration Graphic: Đồ họa minh họa tiến độ thẩm định hồ sơ",
+      "Timeline xét duyệt: Ngày nộp -> Chuyên viên tiếp nhận -> Kết quả dự kiến",
+      "RejectionNoticeBox: Hiển thị lý do từ chối cụ thể từ Ban Quản trị",
+      "ResubmitForm: Form cập nhật thông tin bổ sung, tải lại ảnh CCCD rõ nét hơn, Nút 'Nộp lại hồ sơ'"
+    ],
+    "businessRules": [
+      "Khi trạng thái là 'pending', nút nộp lại bị vô hiệu hóa để tránh spam yêu cầu thẩm định.",
+      "Khi trạng thái là 'rejected', thợ có thể sửa đổi thông tin và chuyển lại trạng thái về 'pending'.",
+      "Khi Admin duyệt thành công (verified), hệ thống lập tức mở khóa quyền truy cập vào Job Board (2.1)."
+    ],
+    "notes": "Màn hình giúp giảm tải khiếu nại cho bộ phận CSKH bằng cách minh bạch tiến trình và lý do thẩm định hồ sơ."
+  },
+  {
+    "id": "screen_0_5",
+    "num": "0.5",
+    "module": "PHÂN HỆ 0: XÁC THỰC",
+    "moduleTag": "auth",
+    "title": "Thông Báo Tài Khoản Bị Khóa (Account Suspended)",
+    "subtitle": "Màn hình chặn truy cập an toàn khi tài khoản bị vô hiệu hóa bởi Admin",
+    "type": "PAGE ERROR / INTERCEPTOR",
+    "role": "Tài khoản bị khóa (users.is_active = FALSE)",
+    "image": "05_0.5_Thong_Bao_Tai_Khoan_Bi_Khoa.png",
+    "dbTables": [
+      "users",
+      "support_tickets"
+    ],
+    "rls": "users.is_active = FALSE vô hiệu hóa mọi quyền thao tác ghi dữ liệu",
+    "purpose": "Khi tài khoản bị Admin tạm đình chỉ (do vi phạm chính sách, tranh chấp hoặc gian lận), hệ thống hiển thị màn hình giải thích rõ nguyên nhân và hướng dẫn gửi khiếu nại thay vì báo lỗi trắng trang.",
+    "components": [
+      "WarningIcon & Tiêu đề cảnh báo tài khoản bị tạm ngừng hoạt động",
+      "Lý do vi phạm chi tiết và mã quyết định kỷ luật nội bộ",
+      "PrimaryAction: Nút 'Gửi phiếu khiếu nại (Support Ticket)' kết nối trực ban",
+      "SecondaryAction: Nút 'Đăng xuất khỏi thiết bị'",
+      "SupportContacts: Hotline hỗ trợ trực tiếp và email tiếp nhận giải trình"
+    ],
+    "businessRules": [
+      "Middleware và RLS kiểm tra users.is_active trên mọi API request; nếu FALSE lập tức redirect về trang này.",
+      "Người dùng bị khóa chỉ được phép tạo phiếu khiếu nại trong bảng support_tickets, không được tạo booking mới.",
+      "Chỉ Quản trị viên cấp cao mới có thẩm quyền mở khóa tài khoản tại màn hình Quản lý Người dùng (3.4)."
+    ],
+    "notes": "Đảm bảo tuân thủ tiêu chuẩn an ninh thông tin và trải nghiệm minh bạch cho người dùng khi xảy ra chế tài kỷ luật."
+  },
+  {
+    "id": "screen_1_1",
+    "num": "1.1",
+    "module": "PHÂN HỆ 1: KHÁCH HÀNG",
+    "moduleTag": "customer",
+    "title": "Trang Chủ & Khám Phá Dịch Vụ (Service Catalog)",
+    "subtitle": "Niên biểu dịch vụ chuẩn mực kết hợp máy tính biểu giá tức thì phong cách Stationery",
+    "type": "PAGE (CORE HUB)",
+    "role": "Khách hàng (Customer) & Vãng lai",
+    "image": "06_1.1_Trang_Chu_Kham_Pha_Dich_Vu.png",
+    "dbTables": [
+      "service_categories",
+      "services",
+      "favorites",
+      "provider_public_profiles"
+    ],
+    "rls": "Truy vấn công khai bảng services và view provider_public_profiles",
+    "purpose": "Trang chủ thương hiệu giới thiệu các gói dịch vụ gia đình chất lượng cao, tích hợp máy tính giá tham chiếu nhanh theo Phường/Xã và danh mục thực đơn dịch vụ trực quan.",
+    "components": [
+      "CareCharterHero: Biểu ngữ triết lý dịch vụ gia đình tử tế và cam kết chất lượng",
+      "PerforatedStubCalculator: Máy tính biểu giá tức thì (chọn dịch vụ, chọn Phường/Xã -> hiển thị đơn giá niêm yết)",
+      "Menu-Style Catalog: Thực đơn phân loại theo danh mục cha (Điện nước, Điện lạnh, Dọn dẹp, Sửa khóa...)",
+      "ServiceCard: Thẻ dịch vụ hiển thị ảnh, tên gói, giá (hourly/fixed), thời lượng ước tính và nút tim yêu thích",
+      "FavoriteHeartButton: Nút lưu dịch vụ yêu thích (tương tác bảng favorites)",
+      "TrustMetrics: Số thợ đã xác thực, số ca hoàn thành, đánh giá trung bình 4.9/5"
+    ],
+    "businessRules": [
+      "Chỉ hiển thị các dịch vụ có services.is_active = TRUE và danh mục category.status = 'active'.",
+      "Khách đã đăng nhập khi bấm tim sẽ kích hoạt RPC/INSERT vào bảng favorites với RLS fav_own.",
+      "Bấm nút 'Đặt lịch ngay' trên máy tính giá sẽ truyền tham số sang Booking Wizard (1.2)."
+    ],
+    "notes": "Thiết kế áp dụng triết lý 'The page is the object' phong cách giấy kraft cao cấp, phông chữ Plus Jakarta Sans hiện đại."
+  },
+  {
+    "id": "screen_1_2",
+    "num": "1.2",
+    "module": "PHÂN HỆ 1: KHÁCH HÀNG",
+    "moduleTag": "customer",
+    "title": "Cấu Hình Dịch Vụ Trước Khi Đặt (Booking Wizard)",
+    "subtitle": "Luồng đặt lịch thông minh lọc thợ phù hợp kỹ năng, khu vực và lịch rảnh thực tế",
+    "type": "PAGE CONFIGURATOR",
+    "role": "Khách hàng (Customer)",
+    "image": "07_1.2_Cau_Hinh_Dat_Lich_Booking_Wizard.png",
+    "dbTables": [
+      "services",
+      "provider_public_profiles",
+      "provider_services",
+      "provider_areas",
+      "availability_schedules",
+      "bookings"
+    ],
+    "rls": "Khách hàng tạo đơn bookings với status = 'pending', payment_status = 'unpaid'",
+    "purpose": "Cho phép khách hàng tinh chỉnh chi tiết ca hẹn: chọn dịch vụ, số giờ làm việc, ngày giờ hẹn, địa chỉ nhận việc, chọn thợ cụ thể theo hồ sơ uy tín và xem biên nhận tạm tính.",
+    "components": [
+      "Cột cấu hình bên trái: Dịch vụ đã chọn, Stepper tăng giảm số giờ (hourly), DateTimePicker chọn ca làm",
+      "Bộ chọn địa chỉ: Tự động điền default_address từ customer_profiles, cho phép đổi Phường/Xã",
+      "Textarea ghi chú: Nhập yêu cầu cụ thể hoặc hướng dẫn đường đi cho thợ (bookings.notes)",
+      "MatchedProviderList: Danh sách thợ phù hợp (avatar, họ tên, số sao, số review, nút 'Xem hồ sơ')",
+      "ReceiptSlip: Phiếu biên nhận tạm tính chi phí dịch vụ, thời gian, phụ phí dự kiến",
+      "ConfirmBookingButton: Nút 'Xác nhận đặt lịch' (khởi tạo đơn hàng vào CSDL)"
+    ],
+    "businessRules": [
+      "Thuật toán lọc thợ: Thợ phải thỏa mãn đồng thời: verified = TRUE, khớp service_id, khớp ward_id và có lịch rảnh.",
+      "scheduled_time phải lớn hơn thời điểm hiện tại tối thiểu 30 phút.",
+      "Đơn hàng mới tạo luôn có status = 'pending' và payment_status = 'unpaid'."
+    ],
+    "notes": "Biên nhận Receipt Slip sử dụng đường viền răng cưa đục lỗ (perforated border) đặc trưng của phong cách Warm Minimalism."
+  },
+  {
+    "id": "screen_1_3",
+    "num": "1.3",
+    "module": "PHÂN HỆ 1: KHÁCH HÀNG",
+    "moduleTag": "customer",
+    "title": "Theo Dõi Đơn Hàng Trực Tiếp (Live Tracking)",
+    "subtitle": "Giám sát tiến độ ca làm việc thời gian thực với bản đồ GPS và quyết toán chi phí",
+    "type": "PAGE LIVE DASHBOARD",
+    "role": "Khách hàng (Customer)",
+    "image": "08_1.3_Theo_Doi_Don_Hang_Live_Tracking.png",
+    "dbTables": [
+      "bookings",
+      "booking_status_history",
+      "provider_public_profiles"
+    ],
+    "rls": "RLS bookings_read_own: Chỉ khách đặt đơn mới xem được thông tin",
+    "purpose": "Bảng điều khiển theo dõi vòng đời đơn hàng: trạng thái di chuyển của thợ, vị trí GPS hai bên, chi phí phát sinh nếu có, thanh toán QR và tra cứu lịch sử kiểm toán trạng thái.",
+    "components": [
+      "StepperProgress: Thanh trạng thái 4 bước: pending -> confirmed -> in_progress -> completed",
+      "LiveMapGPS: Bản đồ hiển thị khoảng cách và vị trí thời gian thực của thợ đang đến",
+      "ProviderContactCard: Thông tin thợ phụ trách, số điện thoại, nút gọi điện thoại nhanh",
+      "CostSettlementTable: Bảng quyết toán chi tiết (Giá dịch vụ gốc, Phụ phí vật tư total_incidental, Tổng thanh toán)",
+      "ActionToolbar: Nút 'Thanh toán ngay' (Modal 1.8), Nút 'Hủy lịch hẹn' (Modal 1.10), Nút 'Hỗ trợ' (Drawer 1.11)",
+      "AuditTimeline: Dòng thời gian lịch sử trạng thái trích xuất từ bảng booking_status_history"
+    ],
+    "businessRules": [
+      "Nút 'Thanh toán ngay' chỉ kích hoạt khi đơn hàng ở trạng thái completed hoặc in_progress có phụ phí.",
+      "Khách chỉ được hủy đơn khi trạng thái là 'pending' hoặc 'confirmed' (hủy ca sát giờ sẽ ghi log kiểm toán).",
+      "Mọi thay đổi trạng thái đều đồng bộ tức thì qua Supabase Realtime."
+    ],
+    "notes": "Tích hợp biểu tượng xe di chuyển và tọa độ GPS giúp khách hàng hoàn toàn chủ động đón thợ tại nhà."
+  },
+  {
+    "id": "screen_1_4",
+    "num": "1.4",
+    "module": "PHÂN HỆ 1: KHÁCH HÀNG",
+    "moduleTag": "customer",
+    "title": "Quản Lý Lịch Hẹn Dịch Vụ (Booking History)",
+    "subtitle": "Danh sách lịch hẹn với bộ lọc phân loại trạng thái và thao tác đánh giá, đặt lại",
+    "type": "PAGE FILTERABLE LIST",
+    "role": "Khách hàng (Customer)",
+    "image": "09_1.4_Quan_Ly_Lich_Hen_Dich_Vu.png",
+    "dbTables": [
+      "bookings",
+      "services",
+      "reviews",
+      "provider_public_profiles"
+    ],
+    "rls": "RLS bookings_read_own: Lọc theo bookings.customer_id = auth.uid()",
+    "purpose": "Quản lý toàn bộ các đơn hàng đã đặt trong quá khứ và hiện tại, tra cứu nhanh mã đơn hàng, trạng thái thanh toán và thực hiện đánh giá thợ sau khi hoàn thành.",
+    "components": [
+      "FilterTabs: Tất cả | Chờ xác nhận | Đang thực hiện | Hoàn thành | Đã hủy",
+      "BookingCard: Mã đơn #booking_id dạng tabular-nums, Tên gói dịch vụ, Thời gian hẹn, Địa chỉ làm việc",
+      "FinancialSummaryBadge: Tổng tiền thanh toán kèm badge trạng thái ('Đã thanh toán' / 'Chờ chuyển khoản')",
+      "ActionButtons: Nút 'Xem chi tiết' (chuyển sang 1.3), Nút 'Đánh giá thợ' (mở Modal 1.9), Nút 'Đặt lại dịch vụ'",
+      "EmptyStatePrompt: Giao diện trống thân thiện khi chưa có đơn hàng trong bộ lọc"
+    ],
+    "businessRules": [
+      "Nút 'Đánh giá thợ' chỉ hiển thị khi đơn có status = 'completed' và chưa có bản ghi trong bảng reviews.",
+      "Bấm 'Đặt lại' sẽ tự động nạp cấu hình dịch vụ cũ vào Booking Wizard giúp đặt lại trong 1 cú chạm.",
+      "Đơn hàng đã hủy hiển thị rõ lý do hủy trích xuất từ booking_status_history."
+    ],
+    "notes": "Bố cục thẻ đơn hàng gọn gàng, mã đơn in đậm với font chữ IBM Plex Mono giúp đối soát dễ dàng."
+  },
+  {
+    "id": "screen_1_5",
+    "num": "1.5",
+    "module": "PHÂN HỆ 1: KHÁCH HÀNG",
+    "moduleTag": "customer",
+    "title": "Hồ Sơ Cá Nhân & Sổ Địa Chỉ (Profile & Addresses)",
+    "subtitle": "Cập nhật thông tin định danh, số điện thoại và sổ địa chỉ mặc định kèm GPS",
+    "type": "PAGE PROFILE",
+    "role": "Khách hàng (Customer)",
+    "image": "10_1.5_Ho_So_Ca_Nhan_Va_So_Dia_Chi.png",
+    "dbTables": [
+      "users",
+      "customer_profiles",
+      "province",
+      "ward"
+    ],
+    "rls": "RLS customers_own: Khách chỉ cập nhật thông tin cá nhân của chính mình",
+    "purpose": "Trung tâm quản lý thông tin khách hàng, cho phép chỉnh sửa họ tên, số điện thoại liên lạc, đổi Phường/Xã và địa chỉ thường trú để tối ưu hóa việc tự động điền khi đặt lịch.",
+    "components": [
+      "Section Định danh cá nhân: Input Họ và tên (users.full_name), Input SĐT (users.phone_number), Email (Readonly)",
+      "Section Sổ địa chỉ mặc định: Dropdown Tỉnh/Thành phố, Dropdown Phường/Xã (customer_profiles.ward_id)",
+      "Input Địa chỉ chi tiết: Số nhà, tên đường, tên tòa nhà/chung cư (customer_profiles.default_address)",
+      "GPSMapPinning: Ghim vị trí chính xác trên bản đồ để cập nhật tọa độ latitude, longitude",
+      "PrimaryButton: 'Lưu thay đổi hồ sơ' kèm thông báo Toast lưu thành công"
+    ],
+    "businessRules": [
+      "users.phone_number được kiểm tra trùng lặp trên toàn hệ thống trước khi lưu.",
+      "customer_profiles.ward_id không được để trống (NOT NULL).",
+      "Thay đổi địa chỉ ở đây sẽ không ảnh hưởng đến các đơn hàng đang ở trạng thái 'in_progress'."
+    ],
+    "notes": "Tích hợp bản đồ trực quan giúp người dùng ghim đúng vị trí ngõ ngách phức tạp ở đô thị."
+  },
+  {
+    "id": "screen_1_6",
+    "num": "1.6",
+    "module": "PHÂN HỆ 1: KHÁCH HÀNG",
+    "moduleTag": "customer",
+    "title": "Danh Sách Dịch Vụ Yêu Thích (Favorites)",
+    "subtitle": "Bộ sưu tập các gói dịch vụ tiện ích đã lưu để tái đặt lịch nhanh chóng",
+    "type": "PAGE FAVORITES",
+    "role": "Khách hàng (Customer)",
+    "image": "11_1.6_Danh_Sach_Dich_Vu_Yeu_Thich.png",
+    "dbTables": [
+      "favorites",
+      "services",
+      "service_categories"
+    ],
+    "rls": "RLS fav_own: favorites.user_id = auth.uid()",
+    "purpose": "Nơi lưu trữ các dịch vụ khách hàng thường xuyên sử dụng hoặc có ý định sử dụng trong tương lai, giúp truy cập nhanh mà không cần tìm kiếm lại trong danh mục.",
+    "components": [
+      "FavoritesGrid: Lưới hiển thị các thẻ dịch vụ đã lưu (ảnh minh họa, tiêu đề, danh mục, đơn giá)",
+      "RemoveFavoriteButton: Biểu tượng trái tim đỏ / nút 'Xóa khỏi danh sách lưu'",
+      "BookNowCTA: Nút 'Đặt lịch ngay ->' dẫn trực tiếp vào Booking Wizard với dịch vụ đã nạp sẵn",
+      "QuickSortDropdown: Lọc theo danh mục hoặc sắp xếp theo giá tăng/giảm dần",
+      "EmptyFavoritesState: Đồ họa nhắc nhở khi danh sách rỗng kèm nút 'Khám phá dịch vụ ngay'"
+    ],
+    "businessRules": [
+      "Bảng favorites có khóa chính phức hợp (user_id, service_id) đảm bảo không lưu trùng lặp.",
+      "Khi xóa dịch vụ khỏi mục yêu thích, thẻ tương ứng sẽ mờ dần và gỡ khỏi giao diện ngay lập tức.",
+      "Nếu dịch vụ bị Admin tắt kích hoạt (is_active = FALSE), thẻ sẽ hiển thị nhãn 'Tạm ngừng cung cấp'."
+    ],
+    "notes": "Trải nghiệm mượt mà với hoạt ảnh chuyển động mềm mại khi bấm thả tim lưu dịch vụ."
+  },
+  {
+    "id": "screen_1_7",
+    "num": "1.7",
+    "module": "PHÂN HỆ 1: KHÁCH HÀNG",
+    "moduleTag": "customer",
+    "title": "Hồ Sơ Công Khai Của Thợ (Provider Profile Drawer)",
+    "subtitle": "Ngăn kéo hiển thị năng lực, kinh nghiệm, dịch vụ đảm nhiệm và đánh giá từ khách hàng",
+    "type": "DRAWER / MODAL",
+    "role": "Khách hàng xem thông tin thợ",
+    "image": "12_1.7_Ho_So_Cong_Khai_Cua_Tho.png",
+    "dbTables": [
+      "provider_public_profiles (View)",
+      "reviews",
+      "provider_services",
+      "services"
+    ],
+    "rls": "Chỉ hiển thị thợ có verification_status = 'verified'",
+    "purpose": "Giúp khách hàng kiểm tra năng lực và độ uy tín thực tế của đối tác thợ trước khi quyết định chọn thợ phục vụ gia đình mình.",
+    "components": [
+      "ProviderHeaderCard: Avatar chân dung sắc nét, Họ tên thợ, Badge 'Đã xác thực CCCD (Verified)'",
+      "ReputationScore: Điểm sao trung bình (average_rating) định dạng 4.9/5 kèm tổng số đánh giá (total_reviews)",
+      "OnlineIndicator: Đèn xanh báo trạng thái thợ đang trực tuyến sẵn sàng nhận việc",
+      "BioSection: Đoạn giới thiệu bản thân, số năm kinh nghiệm và chuyên môn thế mạnh",
+      "SkillsTagList: Danh sách dịch vụ thợ tiếp nhận làm việc",
+      "CustomerReviewsFeed: Cuộn danh sách nhận xét thực tế từ khách hàng kèm ngày làm và số sao"
+    ],
+    "businessRules": [
+      "Dữ liệu được trích xuất an toàn từ View provider_public_profiles, ẩn hoàn toàn số CCCD và thông tin nhạy cảm.",
+      "Đánh giá sao được tính trung bình tự động bằng trigger trong CSDL mỗi khi có review mới.",
+      "Chỉ hiển thị các đánh giá hợp lệ từ đơn hàng hoàn thành (completed)."
+    ],
+    "notes": "Ngăn kéo trượt từ cạnh phải màn hình với nền mờ backdrop, giữ nguyên ngữ cảnh đặt lịch của khách."
+  },
+  {
+    "id": "screen_1_8",
+    "num": "1.8",
+    "module": "PHÂN HỆ 1: KHÁCH HÀNG",
+    "moduleTag": "customer",
+    "title": "Cổng Thanh Toán QR Chuyển Khoản (VietQR / Checkout)",
+    "subtitle": "Mã QR động chuẩn VietQR tích hợp cú pháp thanh toán tự động đối soát",
+    "type": "MODAL / CHECKOUT",
+    "role": "Khách hàng (Customer)",
+    "image": "13_1.8_Cong_Thanh_Toan_VietQR.png",
+    "dbTables": [
+      "bookings"
+    ],
+    "rls": "RPC rpc_confirm_booking_payment chuyển payment_status = 'paid'",
+    "purpose": "Cung cấp phương thức thanh toán không tiền mặt an toàn, sinh mã VietQR động chứa chính xác số tiền và cú pháp chuyển khoản để hệ thống tự động xác nhận.",
+    "components": [
+      "BillBreakdownSlip: Bảng tóm tắt phí dịch vụ gốc, phụ phí vật tư phát sinh (nếu có) và Tổng thanh toán",
+      "DynamicQRCode: Mã QR chuẩn VietQR sinh theo chuẩn NAPAS 247",
+      "TransferSyntaxBox: Cú pháp chuyển khoản bắt buộc 'GDX [booking_id]' kèm nút copy 1 chạm",
+      "BankInfoCard: Ngân hàng thụ hưởng, Số tài khoản, Tên chủ tài khoản công ty",
+      "ConfirmPaidButton: Nút 'Tôi đã hoàn tất chuyển khoản' (gọi RPC xác nhận)",
+      "AutoPollingNotice: Dòng trạng thái kiểm tra giao dịch tự động qua SePay Webhook"
+    ],
+    "businessRules": [
+      "Số tiền trong mã QR bằng chính xác bookings.total_amount.",
+      "Nội dung chuyển khoản chứa mã đơn định dạng 'GDX [booking_id]' để webhook tự động đối soát khớp lệnh.",
+      "Khi gọi rpc_confirm_booking_payment, đơn chuyển sang payment_status = 'paid' và ghi log kiểm toán."
+    ],
+    "notes": "Mã QR được render rõ ràng với hướng dẫn từng bước mở app ngân hàng quét mã chỉ trong 10 giây."
+  },
+  {
+    "id": "screen_1_9",
+    "num": "1.9",
+    "module": "PHÂN HỆ 1: KHÁCH HÀNG",
+    "moduleTag": "customer",
+    "title": "Đánh Giá & Chấm Điểm Thợ (Review & Rating)",
+    "subtitle": "Hộp thoại xếp hạng số sao và nhận xét chất lượng dịch vụ sau khi hoàn thành",
+    "type": "MODAL",
+    "role": "Khách hàng (Customer)",
+    "image": "14_1.9_Danh_Gia_Va_Cham_Diem_Tho.png",
+    "dbTables": [
+      "reviews",
+      "bookings",
+      "provider_profiles"
+    ],
+    "rls": "Khách hàng chỉ được đánh giá 1 lần duy nhất cho mỗi đơn hàng completed",
+    "purpose": "Thu thập phản hồi thực tế từ khách hàng để ghi nhận chất lượng dịch vụ của thợ, tự động tính lại điểm uy tín thợ trên toàn hệ thống.",
+    "components": [
+      "BookingHeader: Mã đơn hàng #booking_id, tên dịch vụ và tên thợ phụ trách",
+      "InteractiveStarRating: Bộ 5 ngôi sao tương tác đổi màu Warm Terracotta (#E07A5F) khi rê chuột",
+      "QuickTagPills: Thẻ nhận xét nhanh: 'Đúng giờ', 'Nhiệt tình', 'Tay nghề tốt', 'Giá hợp lý', 'Sạch sẽ'",
+      "CommentTextarea: Ô nhập nhận xét chi tiết và chia sẻ trải nghiệm thực tế",
+      "SubmitReviewButton: Nút 'Gửi đánh giá' kèm thông báo cảm ơn"
+    ],
+    "businessRules": [
+      "Khóa chính (booking_id) trong bảng reviews đảm bảo mỗi đơn chỉ được đánh giá duy nhất 1 lần.",
+      "Trigger update_provider_rating trên bảng reviews sẽ tự động tính lại average_rating và total_reviews của thợ.",
+      "Điểm sao rating bắt buộc nằm trong khoảng từ 1 đến 5."
+    ],
+    "notes": "Góp phần xây dựng cộng đồng dịch vụ gia đình trung thực, minh bạch và nâng cao tay nghề đối tác."
+  },
+  {
+    "id": "screen_1_10",
+    "num": "1.10",
+    "module": "PHÂN HỆ 1: KHÁCH HÀNG",
+    "moduleTag": "customer",
+    "title": "Xác Nhận Hủy Lịch Hẹn (Cancel Booking Modal)",
+    "subtitle": "Hộp thoại cảnh báo quy định hủy ca sát giờ và bắt buộc nhập lý do hủy",
+    "type": "MODAL",
+    "role": "Khách hàng (Customer)",
+    "image": "15_1.10_Xac_Nhan_Huy_Lich_Hen.png",
+    "dbTables": [
+      "bookings",
+      "booking_status_history"
+    ],
+    "rls": "Gọi RPC rpc_transition_booking_status chuyển trạng thái sang 'cancelled'",
+    "purpose": "Ngăn chặn việc vô ý bấm nhầm nút hủy, thông báo quy định về thời gian hủy ca sát giờ và ghi nhận lý do hủy đơn vào lịch sử kiểm toán phục vụ cải tiến dịch vụ.",
+    "components": [
+      "CancellationAlertBanner: Cảnh báo cam về việc hủy ca trước giờ hẹn",
+      "ReasonSelectDropdown: Các lý do phổ biến: 'Bận việc đột xuất', 'Đã tự sửa được', 'Muốn đổi giờ khác', 'Khác'",
+      "CustomReasonTextarea: Ô nhập lý do chi tiết (bắt buộc nhập nếu chọn 'Khác')",
+      "ConfirmCancelButton: Nút đỏ 'Xác nhận hủy đơn'",
+      "KeepBookingButton: Nút xám 'Giữ lại lịch hẹn & Quay lại'"
+    ],
+    "businessRules": [
+      "Chỉ cho phép hủy khi đơn chưa chuyển sang trạng thái 'in_progress'.",
+      "Lý do hủy được lưu bắt buộc vào trường reason của bảng booking_status_history.",
+      "Hệ thống sẽ gửi thông báo đẩy (Push Notification) đến thợ để họ nhận việc khác ngay lập tức."
+    ],
+    "notes": "Quy trình hủy đơn nhân văn nhưng kỷ luật, bảo vệ quyền lợi và thời gian di chuyển của đối tác thợ."
+  },
+  {
+    "id": "screen_1_11",
+    "num": "1.11",
+    "module": "PHÂN HỆ 1: KHÁCH HÀNG",
+    "moduleTag": "customer",
+    "title": "Trung Tâm Hỗ Trợ & Khiếu Nại (Support Tickets Drawer)",
+    "subtitle": "Ngăn kéo gửi phản ánh sự cố, theo dõi tiến độ xử lý khiếu nại của Ban Quản trị",
+    "type": "DRAWER",
+    "role": "Khách hàng (Customer)",
+    "image": "16_1.11_Trung_Tam_Ho_Tro_Khach_Hang.png",
+    "dbTables": [
+      "support_tickets",
+      "bookings",
+      "users"
+    ],
+    "rls": "RLS support_tickets_own: Khách chỉ xem các vé hỗ trợ do mình tạo",
+    "purpose": "Kênh giao tiếp chính thống giải quyết tranh chấp hoặc thắc mắc giữa khách và thợ, cam kết phản hồi trong 30 phút theo chuẩn SLA dịch vụ.",
+    "components": [
+      "CreateTicketSection: Form tạo phiếu hỗ trợ mới (chọn mã đơn liên quan, nhập tiêu đề, mô tả sự cố)",
+      "PrioritySelector: Mức độ ưu tiên: Thấp (Low), Trung bình (Medium), Cao (High), Khẩn cấp (Urgent)",
+      "AttachmentUploader: Tải ảnh chụp bằng chứng tại hiện trường",
+      "TicketHistoryFeed: Danh sách các phiếu đã gửi kèm huy hiệu trạng thái: 'Mới mở (Open)', 'Đang xử lý', 'Đã giải quyết', 'Đã đóng'",
+      "HotlineDirectCard: Số điện thoại đường dây nóng trực ban 24/7"
+    ],
+    "businessRules": [
+      "support_tickets.priority quy định thời hạn xử lý SLA nội bộ của Admin.",
+      "Vé liên quan đến mã đơn hàng hợp lệ sẽ tự động liên kết dữ liệu thợ và thời gian xảy ra sự việc.",
+      "Khi Admin cập nhật trạng thái vé tại màn hình 3.7, khách hàng sẽ nhận được thông báo phản hồi."
+    ],
+    "notes": "Đảm bảo sự an tâm tuyệt đối cho khách hàng khi sử dụng dịch vụ thông qua kênh khiếu nại minh bạch."
+  },
+  {
+    "id": "screen_2_1",
+    "num": "2.1",
+    "module": "PHÂN HỆ 2: ĐỐI TÁC THỢ",
+    "moduleTag": "provider",
+    "title": "Sàn Nhận Việc Làm (Job Board)",
+    "subtitle": "Bảng nhận đơn hàng thời gian thực lọc chuẩn xác theo kỹ năng và địa bàn hoạt động",
+    "type": "PAGE JOB BOARD",
+    "role": "Đối tác Thợ (Provider)",
+    "image": "17_2.1_San_Nhan_Viec_Lam_Job_Board.png",
+    "dbTables": [
+      "bookings",
+      "services",
+      "ward",
+      "provider_services",
+      "provider_areas"
+    ],
+    "rls": "RPC rpc_transition_booking_status chuyển trạng thái sang 'confirmed'",
+    "purpose": "Nơi đối tác thợ theo dõi các đơn hàng mới phát sinh trong khu vực đăng ký, kiểm tra thù lao dự kiến, địa chỉ, ghi chú của khách và bấm nhận việc.",
+    "components": [
+      "HeaderStatusBar: Nút gạt 'Đang nhận việc' (xanh lá) và nút cập nhật GPS thời gian thực (Component 2.5)",
+      "JobCard: Thẻ ca làm hiển thị Mã đơn, Tên dịch vụ, Thời gian hẹn, Địa chỉ chi tiết (kèm khoảng cách km)",
+      "IncomeBadge: Thù lao ròng dự kiến nhận được định dạng VND nổi bật",
+      "CustomerNotesBox: Đoạn ghi chú mô tả tình trạng hư hỏng từ khách hàng",
+      "AcceptJobButton: Nút 'Nhận việc ngay' (chuyển trạng thái đơn sang 'confirmed')",
+      "RejectJobButton: Nút 'Từ chối' (mở Modal 2.8 nêu lý do)"
+    ],
+    "businessRules": [
+      "Chỉ hiển thị các đơn hàng có status = 'pending' và khớp với provider_services & provider_areas của thợ.",
+      "Thợ phải có provider_profiles.is_available_online = TRUE mới được nhận đơn.",
+      "Ngay khi một thợ bấm nhận việc thành công, đơn hàng sẽ lập tức ẩn khỏi Job Board của các thợ khác qua Realtime."
+    ],
+    "notes": "Bố cục thẻ rộng rãi, chữ số to rõ ràng phù hợp cho thợ thao tác một tay trên điện thoại khi đang di chuyển."
+  },
+  {
+    "id": "screen_2_2",
+    "num": "2.2",
+    "module": "PHÂN HỆ 2: ĐỐI TÁC THỢ",
+    "moduleTag": "provider",
+    "title": "Ca Làm Việc Hiện Tại & Bấm Giờ (Live Timer)",
+    "subtitle": "Đồng hồ đếm giờ ca làm thực tế, check-in GPS và kê khai vật tư phát sinh tại hiện trường",
+    "type": "PAGE LIVE TIMER",
+    "role": "Đối tác Thợ (Provider)",
+    "image": "18_2.2_Ca_Lam_Viec_Hien_Tai_Live_Timer.png",
+    "dbTables": [
+      "bookings",
+      "services",
+      "booking_status_history"
+    ],
+    "rls": "RPC rpc_transition_booking_status chuyển in_progress -> completed",
+    "purpose": "Công cụ hỗ trợ thợ thực thi ca làm việc tại nhà khách: bấm giờ làm việc thực tế, check-in vị trí hiện trường, kê khai chi phí mua sắm linh kiện và hoàn thành đơn hàng.",
+    "components": [
+      "BigTimerDigits: Đồng hồ đếm thời gian thực tế dạng số lớn font chữ IBM Plex Mono tabular-nums",
+      "TimerControlButtons: Nút 'Bắt đầu tính giờ' (chuyển in_progress), Nút 'Tạm dừng', Nút 'Hoàn thành ca làm'",
+      "OnsiteActionsToolbar: Nút '+ Kê khai chi phí phát sinh' (Modal 2.7), Nút 'Hủy ca bất khả kháng' (Modal 2.8)",
+      "EmergencyAlertTrigger: Nút 'Báo cáo sự cố khẩn cấp' (Drawer 2.9) kết nối trực ban",
+      "CustomerInfoCard: Tên khách, địa chỉ, số điện thoại bấm gọi ngay, nút chỉ đường Google Maps",
+      "GPSCheckInBadge: Hiển thị trạng thái định vị tọa độ thợ đã đến đúng vị trí nhà khách"
+    ],
+    "businessRules": [
+      "Thời gian đếm giờ thực tế được dùng để đối soát doanh thu đối với các gói dịch vụ tính theo giờ (hourly).",
+      "Bấm 'Hoàn thành ca làm' sẽ chuyển trạng thái đơn sang 'completed', tự động tính tổng tiền (gốc + phát sinh).",
+      "Dữ liệu bấm giờ được lưu trữ bền vững, không bị mất nếu thợ vô tình tải lại trình duyệt."
+    ],
+    "notes": "Giao diện tối ưu độ tương phản cao, phím bấm kích thước lớn dễ chạm ngay cả khi thợ đang đeo găng tay bảo hộ."
+  },
+  {
+    "id": "screen_2_3",
+    "num": "2.3",
+    "module": "PHÂN HỆ 2: ĐỐI TÁC THỢ",
+    "moduleTag": "provider",
+    "title": "Ví Thu Nhập & Lịch Ca Làm Việc (Wallet & Schedule)",
+    "subtitle": "Báo cáo doanh thu quyết toán, biểu đồ thu nhập 7 ngày và lịch làm việc cố định",
+    "type": "PAGE WALLET & SCHEDULE",
+    "role": "Đối tác Thợ (Provider)",
+    "image": "19_2.3_Vi_Thu_Nhap_Va_Lich_Ca.png",
+    "dbTables": [
+      "bookings",
+      "availability_schedules",
+      "availability_exceptions",
+      "reviews"
+    ],
+    "rls": "Thợ chỉ xem số liệu doanh thu và lịch ca của chính mình",
+    "purpose": "Giúp đối tác quản lý tài chính minh bạch: kiểm tra thu nhập tích lũy, theo dõi biểu đồ doanh thu tuần, xem lịch làm việc đã đăng ký và nộp đơn xin nghỉ đột xuất.",
+    "components": [
+      "WalletKpiCards: Tổng thu nhập đã thanh toán (VND), Số ca hoàn thành trong tháng, Điểm uy tín trung bình",
+      "WeeklyRevenueBarChart: Biểu đồ cột SVG biểu diễn doanh thu 7 ngày gần nhất",
+      "WorkingScheduleTable: Bảng lịch ca làm việc cố định theo từng thứ trong tuần (Thứ 2 đến Chủ nhật)",
+      "ScheduleConfigButton: Nút 'Cài đặt lịch làm việc & Nghỉ phép' (mở Modal 2.6)",
+      "RecentCompletedJobs: Danh sách các đơn hàng đã quyết toán thù lao thành công gần đây"
+    ],
+    "businessRules": [
+      "Doanh thu chỉ được ghi nhận vào ví khi đơn hàng có status = 'completed' và payment_status = 'paid'.",
+      "Điểm uy tín được đồng bộ tự động từ bảng reviews.",
+      "Thợ có thể bấm rút tiền hoặc xem bảng kê chi tiết từng giao dịch thù lao."
+    ],
+    "notes": "Biểu đồ cột SVG nhẹ và sắc nét, thể hiện rõ mức tăng trưởng thu nhập theo từng ngày trong tuần."
+  },
+  {
+    "id": "screen_2_4",
+    "num": "2.4",
+    "module": "PHÂN HỆ 2: ĐỐI TÁC THỢ",
+    "moduleTag": "provider",
+    "title": "Cấu Hình Năng Lực & Khu Vực Hoạt Động (Skills & Areas)",
+    "subtitle": "Quản lý danh sách dịch vụ nhận làm, địa bàn phục vụ và lý lịch kinh nghiệm nghề",
+    "type": "PAGE CAPABILITIES",
+    "role": "Đối tác Thợ (Provider)",
+    "image": "20_2.4_Cau_Hinh_Nang_Luc_Va_Khu_Vuc.png",
+    "dbTables": [
+      "provider_profiles",
+      "provider_services",
+      "provider_areas",
+      "ward",
+      "services"
+    ],
+    "rls": "Thợ cập nhật năng lực, thông tin định danh CCCD bị khóa sửa sau khi duyệt",
+    "purpose": "Cho phép thợ linh hoạt mở rộng hoặc thu hẹp chuyên môn dịch vụ và danh sách Phường/Xã mình có thể di chuyển làm việc, tối ưu hóa cơ hội nhận việc trên Job Board.",
+    "components": [
+      "VerifiedIdentityBox: Thông tin định danh đã xác thực (Họ tên, SĐT, Số CCCD bị khóa Readonly an toàn)",
+      "ExperienceBioEditor: Textarea cập nhật đoạn giới thiệu kinh nghiệm và tay nghề của bản thân",
+      "SkillServicesCheckboxes: Lưới chọn các dịch vụ kỹ thuật mà thợ có chuyên môn tiếp nhận",
+      "OperatingWardsMultiSelect: Bộ chọn danh sách Phường/Xã nhận làm việc",
+      "SaveCapabilitiesButton: Nút 'Lưu thay đổi năng lực' kèm Toast thông báo thành công"
+    ],
+    "businessRules": [
+      "Số CCCD (id_card_number) sau khi được Admin phê duyệt (verified) sẽ không cho phép tự ý sửa đổi.",
+      "Bảng provider_services và provider_areas sẽ được cập nhật đồng thời trong transaction an toàn.",
+      "Khi thêm dịch vụ hoặc khu vực mới, thợ sẽ nhận được đơn hàng mới trên Job Board ngay lập tức."
+    ],
+    "notes": "Giao diện tổ chức dạng lưới khoa học, chia nhóm kỹ năng theo danh mục dịch vụ giúp thợ dễ tích chọn."
+  },
+  {
+    "id": "screen_2_5",
+    "num": "2.5",
+    "module": "PHÂN HỆ 2: ĐỐI TÁC THỢ",
+    "moduleTag": "provider",
+    "title": "Thanh Trạng Thái Nhận Việc & GPS (Header Component)",
+    "subtitle": "Thành phần tiêu đề toàn cục điều khiển trạng thái trực tuyến và cập nhật tọa độ GPS",
+    "type": "HEADER COMPONENT",
+    "role": "Đối tác Thợ (Provider)",
+    "image": "17_2.1_San_Nhan_Viec_Lam_Job_Board.png",
+    "dbTables": [
+      "provider_profiles"
+    ],
+    "rls": "Cập nhật is_available_online, lattitude, longtitude",
+    "purpose": "Thành phần hiển thị trên đầu toàn bộ các trang của Provider Portal, cho phép thợ bật/tắt nhận đơn chỉ bằng 1 nút gạt và cập nhật tọa độ GPS tức thì.",
+    "components": [
+      "OnlineToggleSwitch: Nút gạt chuyển trạng thái: 'Đang nhận việc' (xanh lá) <-> 'Tạm dừng nhận đơn' (màu xám)",
+      "LiveGPSRefreshButton: Nút biểu tượng vệ tinh cập nhật tọa độ hiện tại qua Geolocation API",
+      "CoordinateBadge: Nhãn hiển thị vĩ độ, kinh độ rút gọn (ví dụ: '10.7769° N, 106.7009° E')",
+      "NetworkStatusDot: Chấm xanh báo kết nối WebSocket Supabase Realtime ổn định"
+    ],
+    "businessRules": [
+      "Khi gạt tắt nhận việc, thợ sẽ không xuất hiện trong danh sách thợ khả dụng ở Booking Wizard của khách.",
+      "Tọa độ GPS được cập nhật vào provider_profiles (lattitude, longtitude) để tính khoảng cách di chuyển.",
+      "Hệ thống tự động nhắc nhở cập nhật GPS nếu thợ di chuyển qua địa bàn phường khác."
+    ],
+    "notes": "Thành phần nhỏ nhưng là mắt xích cốt lõi trong thuật toán điều phối thông minh của hệ thống."
+  },
+  {
+    "id": "screen_2_6",
+    "num": "2.6",
+    "module": "PHÂN HỆ 2: ĐỐI TÁC THỢ",
+    "moduleTag": "provider",
+    "title": "Thiết Lập Lịch Cố Định & Xin Nghỉ Phép (Schedule Modal)",
+    "subtitle": "Cấu hình khung giờ làm việc cố định trong tuần và đăng ký nghỉ đột xuất",
+    "type": "MODAL",
+    "role": "Đối tác Thợ (Provider)",
+    "image": "21_2.6_Thiet_Lap_Lich_Co_Dinh_Xin_Nghi.png",
+    "dbTables": [
+      "availability_schedules",
+      "availability_exceptions"
+    ],
+    "rls": "Ràng buộc end_time > start_time và thợ chỉ cấu hình lịch của bản thân",
+    "purpose": "Cho phép thợ chủ động sắp xếp thời gian làm việc: khai báo khung giờ rảnh cố định từ Thứ 2 đến Chủ nhật, hoặc đăng ký ngày nghỉ phép đột xuất để không bị phân công ca làm.",
+    "components": [
+      "Tab 1 - Lịch cố định tuần: Chọn thứ trong tuần (0..6), chọn giờ bắt đầu và kết thúc, nút thêm/xóa khung giờ",
+      "Tab 2 - Đăng ký nghỉ đột xuất: Chọn ngày nghỉ (exception_date), chọn khung giờ nghỉ, nhập lý do nghỉ",
+      "TimeRangePicker: Bộ chọn giờ với kiểm tra ràng buộc end_time phải lớn hơn start_time",
+      "SaveScheduleButton: Nút 'Lưu thiết lập lịch làm việc'"
+    ],
+    "businessRules": [
+      "Ràng buộc CSDL: availability_schedules.end_time > availability_schedules.start_time.",
+      "Các ngày có bản ghi trong availability_exceptions sẽ được coi là bận trong thuật toán lọc thợ ở Booking Wizard.",
+      "Không cho phép đăng ký nghỉ đột xuất trùng vào khung giờ đã có đơn hàng ở trạng thái 'confirmed'."
+    ],
+    "notes": "Tôn trọng quyền tự chủ thời gian của đối tác lao động, đồng thời đảm bảo không làm gián đoạn lịch của khách."
+  },
+  {
+    "id": "screen_2_7",
+    "num": "2.7",
+    "module": "PHÂN HỆ 2: ĐỐI TÁC THỢ",
+    "moduleTag": "provider",
+    "title": "Kê Khai Chi Phí Vật Tư Phát Sinh (Incidental Cost Modal)",
+    "subtitle": "Hộp thoại kê khai chi phí mua linh kiện thay thế kèm hóa đơn tại hiện trường",
+    "type": "MODAL",
+    "role": "Đối tác Thợ (Provider)",
+    "image": "22_2.7_Ke_Khai_Chi_Phi_Vat_Tu_Phat_Sinh.png",
+    "dbTables": [
+      "bookings"
+    ],
+    "rls": "Gọi RPC rpc_update_incidental_cost cập nhật total_incidental và ghi audit log",
+    "purpose": "Khi phát sinh nhu cầu mua sắm ống nước, dây điện, van khóa... tại hiện trường, thợ sử dụng hộp thoại này để nhập số tiền và bằng chứng hóa đơn, tự động cộng vào tổng hóa đơn thanh toán.",
+    "components": [
+      "AmountVndInput: Ô nhập số tiền phát sinh (VND, ràng buộc >= 0)",
+      "ReasonTextarea: Ô nhập lý do phát sinh chi tiết (ví dụ: 'Thay thế ống nối PVC Tiền Phong phi 27')",
+      "ReceiptAttachment: Nút chụp ảnh hoặc tải lên hóa đơn bán lẻ vật tư",
+      "TotalPreviewSlip: Bảng tính toán lại: Phí dịch vụ gốc + Chi phí vật tư mới = Tổng thanh toán mới",
+      "SubmitIncidentalButton: Nút 'Lưu chi phí & Gửi thông báo cho khách'"
+    ],
+    "businessRules": [
+      "Hàm RPC rpc_update_incidental_cost kiểm tra nghiêm ngặt: số tiền phát sinh phải >= 0.",
+      "CSDL tự động ghi nhận thay đổi vào lịch sử kiểm toán booking_status_history để chống gian lận.",
+      "Khách hàng sẽ nhận được thông báo biến động chi phí tức thì trên màn hình Live Tracking (1.3)."
+    ],
+    "notes": "Minh bạch hóa chi phí vật tư, loại bỏ hoàn toàn tình trạng thợ tự ý thu tiền ngoài trái quy định."
+  },
+  {
+    "id": "screen_2_8",
+    "num": "2.8",
+    "module": "PHÂN HỆ 2: ĐỐI TÁC THỢ",
+    "moduleTag": "provider",
+    "title": "Từ Chối Đơn & Hủy Ca Làm Việc (Reject / Cancel Modal)",
+    "subtitle": "Hộp thoại ghi nhận lý do từ chối đơn hàng hoặc hủy ca khẩn cấp kèm cảnh báo tỷ lệ nhận việc",
+    "type": "MODAL",
+    "role": "Đối tác Thợ (Provider)",
+    "image": "23_2.8_Tu_Choi_Don_Va_Huy_Ca.png",
+    "dbTables": [
+      "bookings",
+      "booking_status_history"
+    ],
+    "rls": "Gọi RPC rpc_transition_booking_status chuyển trạng thái sang rejected hoặc cancelled",
+    "purpose": "Ghi nhận lý do thợ từ chối ca mới hoặc hủy ca đã nhận do sự cố bất khả kháng (hỏng xe, tai nạn, sức khỏe), phục vụ đánh giá tỷ lệ hoàn thành ca của đối tác.",
+    "components": [
+      "WarningNotice: Cảnh báo về tỷ lệ hủy ca và ảnh hưởng tới điểm xếp hạng phân phối đơn",
+      "ReasonSelectDropdown: Các lý do: 'Trùng lịch đột xuất', 'Xe hỏng trên đường', 'Khu vực ngập nước', 'Khác'",
+      "DetailedReasonTextarea: Ô nhập giải trình cụ thể (bắt buộc)",
+      "ConfirmButton: Nút đỏ 'Xác nhận từ chối / hủy ca'",
+      "DismissButton: Nút 'Quay lại tiếp tục ca làm'"
+    ],
+    "businessRules": [
+      "Bắt buộc nhập lý do (reason NOT NULL) để ghi vào bảng booking_status_history.",
+      "Hệ thống tự động kích hoạt điều phối lại đơn hàng về trạng thái 'pending' để thợ khác tiếp nhận.",
+      "Thợ hủy ca quá 3 lần trong tuần sẽ bị gắn cờ kiểm duyệt trên Admin Dashboard."
+    ],
+    "notes": "Cơ chế quản lý kỷ luật chặt chẽ nhưng công bằng, bảo đảm tỷ lệ đáp ứng dịch vụ cho khách hàng."
+  },
+  {
+    "id": "screen_2_9",
+    "num": "2.9",
+    "module": "PHÂN HỆ 2: ĐỐI TÁC THỢ",
+    "moduleTag": "provider",
+    "title": "Báo Cáo Sự Cố Đối Tác (Provider Incident Drawer)",
+    "subtitle": "Ngăn kéo khẩn cấp kết nối trực tiếp với Ban điều phối 24/7 khi gặp sự cố hiện trường",
+    "type": "DRAWER",
+    "role": "Đối tác Thợ (Provider)",
+    "image": "24_2.9_Bao_Cao_Su_Co_Doi_Tac.png",
+    "dbTables": [
+      "support_tickets",
+      "bookings"
+    ],
+    "rls": "Tự động gán mức độ ưu tiên priority = 'urgent'",
+    "purpose": "Kênh báo cáo khẩn cấp dành cho thợ khi gặp tình huống bất thường tại hiện trường: khách vắng mặt không liên lạc được, địa chỉ ảo, tranh chấp hoặc mất an toàn lao động.",
+    "components": [
+      "IncidentTypePicker: Chọn loại sự cố: 'Khách không có nhà', 'Địa chỉ không tồn tại', 'Tranh chấp hiện trường', 'Mất an toàn'",
+      "UrgentDescriptionTextarea: Mô tả tình huống khẩn cấp tại hiện trường",
+      "CameraPhotoCapture: Chụp ảnh hiện trường làm bằng chứng đối soát",
+      "SendAlertButton: Nút đỏ lớn 'Phát tín hiệu khẩn cấp tới Trực ban 24/7'",
+      "DirectHotlinePill: Nút bấm gọi ngay Hotline Trưởng ban Điều phối"
+    ],
+    "businessRules": [
+      "Phiếu được tạo luôn có priority = 'urgent' và kích hoạt chuông cảnh báo trên Admin Dashboard (3.1).",
+      "Hệ thống tự động lưu tọa độ GPS hiện tại của thợ khi bấm gửi báo cáo.",
+      "Ban điều phối cam kết gọi lại hỗ trợ thợ trong vòng 5 phút."
+    ],
+    "notes": "Lá chắn an toàn bảo vệ quyền lợi và sự an tâm của người lao động trong mọi tình huống."
+  },
+  {
+    "id": "screen_3_1",
+    "num": "3.1",
+    "module": "PHÂN HỆ 3: QUẢN TRỊ VIÊN",
+    "moduleTag": "admin",
+    "title": "Dashboard Tổng Quan & Điều Phối Trung Tâm",
+    "subtitle": "Trung tâm chỉ huy giám sát doanh thu, điều phối đơn kẹt và kiểm soát vận hành toàn mạng lưới",
+    "type": "PAGE (ADMIN COMMAND HUB)",
+    "role": "Quản trị viên (Admin)",
+    "image": "25_3.1_Admin_Dashboard_Tong_Quan.png",
+    "dbTables": [
+      "bookings",
+      "provider_profiles",
+      "users",
+      "support_tickets"
+    ],
+    "rls": "Hàm is_admin() kiểm tra quyền Admin tối cao",
+    "purpose": "Bảng chỉ huy điều hành cung cấp góc nhìn toàn cảnh về tình hình kinh doanh, số ca đang chạy, cảnh báo đơn kẹt quá 15 phút chưa có thợ nhận và các vé khiếu nại khẩn cấp.",
+    "components": [
+      "KpiRowCards: Doanh thu thực nhận tháng, Đơn hàng đang chạy / chờ điều phối, Hồ sơ thợ chờ duyệt KYC, Vé hỗ trợ đang mở",
+      "RevenueLineChart: Biểu đồ đường SVG biểu diễn xu hướng doanh thu 6 tháng gần nhất",
+      "DispatchHeatmap: Bản đồ nhiệt điều phối phân bố vị trí thợ trực tuyến và đơn hàng đang chờ",
+      "StuckOrdersDispatchTable: Bảng danh sách đơn hàng cần can thiệp điều phối thủ công",
+      "QuickActionButtons: Nút 'Xem log kiểm toán' (Drawer 3.5), Nút 'Điều phối thợ thủ công'"
+    ],
+    "businessRules": [
+      "Chỉ người dùng có users.role = 'admin' mới truy cập được phân hệ này qua middleware bảo mật.",
+      "Đơn hàng pending quá 15 phút tự động chuyển sang màu đỏ cảnh báo trên bảng điều phối.",
+      "Biểu đồ doanh thu tự động tổng hợp từ các đơn hàng completed & paid."
+    ],
+    "notes": "Giao diện Framed Sheet cao cấp với tông nền tối sang trọng, hiển thị số liệu dạng tabular-nums sắc nét."
+  },
+  {
+    "id": "screen_3_2",
+    "num": "3.2",
+    "module": "PHÂN HỆ 3: QUẢN TRỊ VIÊN",
+    "moduleTag": "admin",
+    "title": "Quản Lý Danh Mục & Cấu Hình Biểu Giá (Pricing Config)",
+    "subtitle": "Cấu hình cây phân cấp dịch vụ, định lượng thời gian và quản trị biểu giá niêm yết",
+    "type": "PAGE PRICING CONFIG",
+    "role": "Quản trị viên (Admin)",
+    "image": "26_3.2_Admin_Quan_Ly_Danh_Muc_Bieu_Gia.png",
+    "dbTables": [
+      "service_categories",
+      "services"
+    ],
+    "rls": "Toàn quyền CRUD trên service_categories và services",
+    "purpose": "Trung tâm quản lý sản phẩm dịch vụ: thiết lập cây danh mục cha/con, điều chỉnh đơn giá niêm yết, quy định hình thức tính phí (theo giờ / cố định) và bật/tắt kích hoạt dịch vụ.",
+    "components": [
+      "CategoryTreeTable: Bảng cây danh mục (Tên danh mục, Slug URL, Danh mục cha parent_id, Công tắc trạng thái status)",
+      "ServicesDataTable: Bảng danh sách dịch vụ (Tên gói, Danh mục, Đơn giá VND, Hình thức tính phí, Thời lượng dự kiến, Switch is_active)",
+      "AddCategoryServiceButton: Nút '+ Thêm Danh mục mới' (Modal 3.6) và '+ Thêm Dịch vụ mới' (Modal 3.7)",
+      "QuickFilterSearch: Thanh tìm kiếm theo tên dịch vụ hoặc lọc theo danh mục cha"
+    ],
+    "businessRules": [
+      "Ràng buộc CSDL: services.price >= 0 và services.estimated_duration > 0.",
+      "Tắt kích hoạt một danh mục sẽ tự động ẩn toàn bộ dịch vụ con thuộc danh mục đó ở giao diện khách hàng.",
+      "Mọi thay đổi biểu giá có hiệu lực ngay lập tức với các đơn hàng tạo mới."
+    ],
+    "notes": "Bảng dữ liệu hỗ trợ chỉnh sửa nhanh trực tiếp (inline editing) với cơ chế lưu tự động tiện lợi."
+  },
+  {
+    "id": "screen_3_3",
+    "num": "3.3",
+    "module": "PHÂN HỆ 3: QUẢN TRỊ VIÊN",
+    "moduleTag": "admin",
+    "title": "Xét Duyệt Hồ Sơ Đối Tác (KYC Review)",
+    "subtitle": "Quy trình thẩm định giấy tờ tùy thân CCCD, bằng cấp chuyên môn và cấp quyền hành nghề",
+    "type": "PAGE KYC REVIEW",
+    "role": "Quản trị viên (Admin)",
+    "image": "27_3.3_Admin_Xet_Duyet_Ho_So_Tho_KYC.png",
+    "dbTables": [
+      "provider_profiles",
+      "users",
+      "provider_services",
+      "provider_areas"
+    ],
+    "rls": "Chỉ Admin mới có quyền cập nhật verification_status",
+    "purpose": "Hàng rào kiểm soát chất lượng đầu vào của thợ: thẩm định số CCCD, đối chiếu ảnh chụp giấy tờ gốc, xem xét kinh nghiệm và ra quyết định phê duyệt (Verified) hoặc từ chối kèm lý do.",
+    "components": [
+      "FilterTabs: Chờ duyệt (Pending) | Đã phê duyệt (Verified) | Đã từ chối (Rejected)",
+      "KycReviewCard: Thẻ hồ sơ thợ (Avatar, Họ tên, SĐT, Số CCCD, Kinh nghiệm, Kỹ năng đăng ký, Phường/xã hoạt động)",
+      "DocumentInspectionTrigger: Nút mở ảnh phóng to CCCD 2 mặt (Modal 3.8)",
+      "QuickApproveButton: Nút xanh 'Phê duyệt (Verified)' cấp quyền hành nghề ngay",
+      "RejectWithReasonButton: Nút đỏ 'Từ chối' kèm ô nhập lý do giải trình gửi về cho thợ"
+    ],
+    "businessRules": [
+      "Khi phê duyệt thành công, provider_profiles.verification_status chuyển thành 'verified'.",
+      "Thợ đã verified lập tức xuất hiện trên View công khai provider_public_profiles và được quyền nhận đơn.",
+      "Khi từ chối, lý do được ghi lại và thợ nhận được thông báo nộp lại ở màn hình 0.4."
+    ],
+    "notes": "Tính năng kiểm tra trùng số CCCD tự động giúp ngăn chặn triệt để hành vi giả mạo danh tính."
+  },
+  {
+    "id": "screen_3_4",
+    "num": "3.4",
+    "module": "PHÂN HỆ 3: QUẢN TRỊ VIÊN",
+    "moduleTag": "admin",
+    "title": "Quản Lý Người Dùng & Giải Quyết Khiếu Nại",
+    "subtitle": "Giao diện chia 3 tab quản trị tài khoản, xử lý tranh chấp và kiểm duyệt nội dung đánh giá",
+    "type": "PAGE SPLIT TABS",
+    "role": "Quản trị viên (Admin)",
+    "image": "28_3.4_Admin_Quan_Ly_Nguoi_Dung_Khieu_Nai.png",
+    "dbTables": [
+      "users",
+      "support_tickets",
+      "reviews"
+    ],
+    "rls": "Toàn quyền quản trị tài khoản và kiểm duyệt nội dung",
+    "purpose": "Nền tảng vận hành tập trung giải quyết 3 nghiệp vụ quan trọng: khóa/mở khóa tài khoản người dùng, phân loại và phản hồi khiếu nại khách hàng, và xóa các đánh giá sao ác ý vi phạm tiêu chuẩn cộng đồng.",
+    "components": [
+      "Tab 1 - Quản lý Tài khoản: Bảng danh sách người dùng, vai trò (customer/provider/admin), Switch khóa tài khoản is_active",
+      "Tab 2 - Xử lý Khiếu nại: Bảng danh sách vé hỗ trợ, mức độ ưu tiên, Nút 'Xử lý' mở Drawer 3.9",
+      "Tab 3 - Kiểm duyệt Đánh giá: Bảng danh sách reviews từ khách, Nút 'Xóa vi phạm' (kích hoạt trigger tính lại sao thợ)",
+      "SearchUserBar: Thanh tìm kiếm theo tên, số điện thoại hoặc email định danh"
+    ],
+    "businessRules": [
+      "Gạt switch users.is_active = FALSE sẽ khóa tài khoản ngay lập tức; phiên đăng nhập của người đó bị chặn (màn hình 0.5).",
+      "Xóa một đánh giá vi phạm trong bảng reviews sẽ kích hoạt trigger tính lại trung bình sao của thợ.",
+      "Mọi thao tác quản trị đều được lưu vết trong hệ thống kiểm toán."
+    ],
+    "notes": "Thiết kế tab thông minh giúp quản trị viên dễ dàng chuyển đổi qua lại giữa các tác vụ điều hành hàng ngày."
+  },
+  {
+    "id": "screen_3_5",
+    "num": "3.5",
+    "module": "PHÂN HỆ 3: QUẢN TRỊ VIÊN",
+    "moduleTag": "admin",
+    "title": "Tra Cứu Chi Tiết Đơn & Lịch Sử Kiểm Toán (Audit Log)",
+    "subtitle": "Ngăn kéo truy vết toàn diện thông tin đơn hàng và dòng thời gian thay đổi trạng thái",
+    "type": "DRAWER AUDIT LOG",
+    "role": "Quản trị viên (Admin)",
+    "image": "29_3.5_Admin_Chi_Tiet_Don_Hang_Kiem_Toan.png",
+    "dbTables": [
+      "bookings",
+      "booking_status_history",
+      "users",
+      "services"
+    ],
+    "rls": "Quyền truy xuất nhật ký kiểm toán hệ thống",
+    "purpose": "Cung cấp bằng chứng minh bạch tuyệt đối khi đối soát hoặc giải quyết tranh chấp: xem lịch sử từng giây thay đổi trạng thái, ai là người thực hiện, vai trò gì và lý do thay đổi là gì.",
+    "components": [
+      "BookingMasterSummary: Thẻ thông tin gốc của đơn hàng #booking_id (Khách, Thợ, Dịch vụ, Địa chỉ, Thời gian)",
+      "AuditLogTimeline: Dòng thời gian chi tiết từng bước: Trạng thái trước -> Trạng thái sau, Người thực hiện (kèm badge vai trò), Thời gian chính xác, Lý do giải trình",
+      "FinancialBreakdownCard: Chi tiết cơ cấu tài chính (Giá gói gốc, Chi phí vật tư phát sinh, Tổng tiền, Trạng thái thanh toán)",
+      "FinancialAdjustmentButton: Nút mở hộp thoại điều chỉnh thanh toán / hoàn tiền (Modal 3.6)"
+    ],
+    "businessRules": [
+      "Dữ liệu trong bảng booking_status_history là bất biến (immutable), không thể bị xóa hay sửa đổi.",
+      "Mọi bước chuyển trạng thái (kể cả do hệ thống tự động hay người dùng thao tác) đều có bản ghi kiểm toán tương ứng.",
+      "Hỗ trợ xuất file báo cáo phục vụ kiểm toán kế toán định kỳ."
+    ],
+    "notes": "Trụ cột bảo đảm tính minh bạch, pháp lý và độ tin cậy tuyệt đối của nền tảng Gia Đình Xanh."
+  },
+  {
+    "id": "screen_3_6",
+    "num": "3.6",
+    "module": "PHÂN HỆ 3: QUẢN TRỊ VIÊN",
+    "moduleTag": "admin",
+    "title": "Thêm Danh Mục Dịch Vụ Mới (Add Category Modal)",
+    "subtitle": "Hộp thoại khởi tạo nhánh danh mục dịch vụ mới trong cây phân cấp hệ thống",
+    "type": "MODAL",
+    "role": "Quản trị viên (Admin)",
+    "image": "30_3.6_Admin_Them_Danh_Muc_Moi.png",
+    "dbTables": [
+      "service_categories"
+    ],
+    "rls": "Chỉ Admin mới có quyền INSERT vào service_categories",
+    "purpose": "Cho phép Quản trị viên bổ sung các nhóm ngành dịch vụ mới vào danh mục hệ thống (ví dụ: Bảo trì Năng lượng mặt trời, Chăm sóc cây cảnh...) để mở rộng thị trường.",
+    "components": [
+      "CategoryNameInput: Ô nhập tên danh mục (category_name)",
+      "SlugInput: Ô nhập đường dẫn tĩnh thân thiện SEO (slug - Unique)",
+      "ParentCategorySelect: Dropdown chọn danh mục cấp cha (nếu tạo danh mục con, hoặc để trống nếu là danh mục gốc)",
+      "StatusRadioGroup: Chọn trạng thái hiển thị: Kích hoạt (active) hoặc Ẩn (inactive)",
+      "IconUploader: Tải lên biểu tượng SVG đại diện cho danh mục",
+      "SaveCategoryButton: Nút 'Tạo danh mục mới'"
+    ],
+    "businessRules": [
+      "service_categories.slug phải là duy nhất trên toàn hệ thống.",
+      "parent_id phải tham chiếu tới một category_id hợp lệ tồn tại trong bảng.",
+      "Khi danh mục mới được tạo với trạng thái active, nó sẽ lập tức xuất hiện trên trang chủ khách hàng."
+    ],
+    "notes": "Hỗ trợ cấu trúc phân cấp đa tầng linh hoạt, đáp ứng sự mở rộng không giới hạn của danh mục sản phẩm."
+  },
+  {
+    "id": "screen_3_7",
+    "num": "3.7",
+    "module": "PHÂN HỆ 3: QUẢN TRỊ VIÊN",
+    "moduleTag": "admin",
+    "title": "Thêm & Chỉnh Sửa Dịch Vụ (Add/Edit Service Modal)",
+    "subtitle": "Hộp thoại cấu hình chi tiết gói dịch vụ, giá cước, thời lượng và định dạng tính phí",
+    "type": "MODAL",
+    "role": "Quản trị viên (Admin)",
+    "image": "31_3.7_Admin_Them_Sua_Dich_Vu.png",
+    "dbTables": [
+      "services",
+      "service_categories"
+    ],
+    "rls": "Quyền INSERT / UPDATE trên bảng services",
+    "purpose": "Biểu mẫu tạo mới hoặc tinh chỉnh thông tin một gói dịch vụ cụ thể: đặt tên gói, gán vào danh mục, thiết lập đơn giá niêm yết, chọn cách tính giá (cố định hay theo giờ) và thời lượng dự kiến.",
+    "components": [
+      "ServiceTitleInput: Tên gói dịch vụ (ví dụ: 'Vệ sinh máy lạnh treo tường 1 - 1.5 HP')",
+      "CategoryDropdown: Chọn danh mục cha tương ứng",
+      "PricingTypeSegment: Chọn hình thức tính giá: Theo giờ (hourly) | Giá trọn gói (fixed)",
+      "PriceNumberInput: Đơn giá niêm yết (VND, kiểm tra ràng buộc >= 0)",
+      "DurationInput: Thời lượng ước tính thực hiện (phút, ràng buộc > 0)",
+      "DescriptionTextarea: Mô tả chi tiết các bước công việc thực hiện trong gói",
+      "ActiveToggle: Công tắc bật/tắt dịch vụ (services.is_active)"
+    ],
+    "businessRules": [
+      "Ràng buộc CSDL: price >= 0 và estimated_duration > 0 được kiểm tra ở cấp schema PostgreSQL.",
+      "pricing_type là kiểu ENUM ('hourly', 'fixed').",
+      "Sửa giá dịch vụ chỉ áp dụng cho các đơn hàng phát sinh sau thời điểm lưu, không ảnh hưởng đơn cũ."
+    ],
+    "notes": "Kiểm tra dữ liệu nhập nghiêm ngặt ngay trên giao diện giúp ngăn ngừa các lỗi sai sót giá cước."
+  },
+  {
+    "id": "screen_3_8",
+    "num": "3.8",
+    "module": "PHÂN HỆ 3: QUẢN TRỊ VIÊN",
+    "moduleTag": "admin",
+    "title": "Chi Tiết Đối Tác Thợ & Xét Duyệt (KYC Detail Modal)",
+    "subtitle": "Hộp thoại kiểm tra chuyên sâu ảnh chụp CCCD gốc, đối chiếu dữ liệu và ra quyết định",
+    "type": "MODAL KYC INSPECTION",
+    "role": "Quản trị viên (Admin)",
+    "image": "32_3.8_Admin_Chi_Tiet_Tho_Xet_Duyet.png",
+    "dbTables": [
+      "provider_profiles",
+      "users",
+      "provider_services",
+      "provider_areas"
+    ],
+    "rls": "Cập nhật provider_profiles.verification_status = 'verified' hoặc 'rejected'",
+    "purpose": "Cung cấp góc nhìn phóng to chi tiết toàn bộ hồ sơ đăng ký của thợ: soi rõ từng chi tiết trên ảnh chụp mặt trước và mặt sau thẻ CCCD gắn chip, đối chiếu số hiệu và kiểm tra danh sách phường nhận việc.",
+    "components": [
+      "IdCardViewer: Trình xem ảnh CCCD 2 mặt độ nét cao kèm tính năng phóng to, xoay ảnh",
+      "IdentityDataComparison: Bảng đối chiếu số CCCD khai báo với ảnh chụp thực tế",
+      "RegisteredSkillsList: Danh sách các dịch vụ kỹ thuật mà đối tác đăng ký nhận làm",
+      "OperatingAreasList: Danh sách Phường/Xã hoạt động thợ đăng ký",
+      "AdminNotesTextarea: Ô nhập ghi chú thẩm định nội bộ hoặc lý do từ chối cụ thể",
+      "ActionGroup: Nút xanh 'Phê duyệt hồ sơ (Verified)' và Nút đỏ 'Từ chối hồ sơ (Reject)'"
+    ],
+    "businessRules": [
+      "Quyết định phê duyệt sẽ lập tức kích hoạt quyền hạn của thợ trên toàn hệ thống.",
+      "Nếu từ chối, ghi chú giải trình sẽ hiển thị trực tiếp cho thợ tại màn hình 0.4.",
+      "Mọi quyết định xét duyệt đều ghi nhận ID của Admin thực hiện phục vụ kiểm tra chéo."
+    ],
+    "notes": "Hộp thoại kiểm tra đa năng giúp nhân viên thẩm định thao tác chuẩn xác, nhanh chóng trong 60 giây."
+  },
+  {
+    "id": "screen_3_9",
+    "num": "3.9",
+    "module": "PHÂN HỆ 3: QUẢN TRỊ VIÊN",
+    "moduleTag": "admin",
+    "title": "Xử Lý & Cập Nhật Phiếu Hỗ Trợ (Ticket Detail Drawer)",
+    "subtitle": "Ngăn kéo tương tác giải quyết khiếu nại, trao đổi và cập nhật trạng thái hỗ trợ khách hàng",
+    "type": "DRAWER TICKET RESOLUTION",
+    "role": "Quản trị viên (Admin)",
+    "image": "33_3.9_Admin_Xu_Ly_Phieu_Ho_Tro.png",
+    "dbTables": [
+      "support_tickets",
+      "users",
+      "bookings"
+    ],
+    "rls": "Toàn quyền UPDATE trạng thái support_tickets",
+    "purpose": "Công cụ làm việc của đội ngũ CSKH: tiếp nhận chi tiết khiếu nại, xem xét mã đơn hàng phát sinh sự cố, cập nhật mức độ khẩn cấp, ghi chú phương án xử lý và đổi trạng thái vé.",
+    "components": [
+      "TicketHeader: Mã vé khiếu nại, Người gửi (Họ tên, SĐT, Email), Thời gian tạo",
+      "BookingContextCard: Tóm tắt thông tin đơn hàng liên quan (Thợ phụ trách, Khách hàng, Dịch vụ)",
+      "PriorityDropdown: Cập nhật mức độ ưu tiên: Thấp | Trung bình | Cao | Khẩn cấp",
+      "StatusSegmentedControl: Cập nhật trạng thái: Mới mở (Open) -> Đang xử lý -> Đã giải quyết -> Đã đóng",
+      "InternalNotesSection: Ô ghi chú tiến trình xử lý nội bộ giữa các điều phối viên",
+      "SaveTicketProgressButton: Nút 'Lưu tiến độ xử lý & Gửi phản hồi cho khách'"
+    ],
+    "businessRules": [
+      "Khi chuyển trạng thái sang 'resolved' hoặc 'closed', hệ thống sẽ gửi thông báo hoàn tất cho người gửi.",
+      "Vé có priority = 'urgent' luôn được ghim ở vị trí đầu danh sách cần xử lý.",
+      "Lịch sử tương tác trong vé được lưu trữ phục vụ đánh giá mức độ hài lòng của khách hàng."
+    ],
+    "notes": "Thiết kế ngăn kéo tiện dụng giúp điều phối viên vừa xử lý khiếu nại vừa đối chiếu dữ liệu trên màn hình chính."
+  },
+  {
+    "id": "screen_appendix_1",
+    "num": "3.10",
+    "module": "PHỤ LỤC BỔ TRỢ",
+    "moduleTag": "appendix",
+    "title": "Biểu Giá Niêm Yết Dịch Vụ Minh Bạch (Public Pricing Charter)",
+    "subtitle": "Bảng cam kết đơn giá công khai minh bạch không phát sinh chi phí ẩn",
+    "type": "MODAL / STATIONERY CHARTER",
+    "role": "Dùng chung (Khách hàng & Đối tác)",
+    "image": "34_Bieu_Gia_Niem_Yet_Dich_Vu.png",
+    "dbTables": [
+      "services",
+      "service_categories"
+    ],
+    "rls": "Truy vấn dữ liệu công khai",
+    "purpose": "Văn bản cam kết uy tín thương hiệu Gia Đình Xanh: niêm yết công khai biểu giá mọi dịch vụ, định lượng tiêu chuẩn và cam kết đền bù nếu thợ tự ý thu thêm tiền ngoài thỏa thuận.",
+    "components": [
+      "CharterHeader: Tôn chỉ dịch vụ gia đình tử tế, tận tâm và minh bạch tuyệt đối",
+      "ComprehensivePricingGrid: Bảng biểu giá đầy đủ phân theo từng nhóm dịch vụ (Sửa điện, Sửa nước, Máy lạnh, Vệ sinh)",
+      "UnitRateColumn: Đơn giá niêm yết chính xác dạng VND tabular-nums",
+      "ScopeOfWorkColumn: Phạm vi công việc cụ thể và linh kiện kèm theo trong đơn giá",
+      "CommitmentBadges: 4 cam kết vàng: Đúng giá niêm yết, Thợ đã xác thực CCCD, Bảo hành 30 ngày, Hỗ trợ 24/7"
+    ],
+    "businessRules": [
+      "Toàn bộ đơn giá được trích xuất trực tiếp từ bảng services theo thời gian thực.",
+      "Mọi khoản chi phí phát sinh bắt buộc phải có hóa đơn và sự đồng thuận của khách qua ứng dụng.",
+      "Khách hàng có quyền từ chối thanh toán nếu thợ báo giá sai lệch so với bảng niêm yết này."
+    ],
+    "notes": "Phong cách thiết kế Care Charter như một bản khế ước trang trọng, tạo dựng niềm tin sâu sắc cho khách hàng."
+  },
+  {
+    "id": "screen_appendix_2",
+    "num": "3.11",
+    "module": "PHỤ LỤC BỔ TRỢ",
+    "moduleTag": "appendix",
+    "title": "Bảng Trạng Thái Kết Nối Backend & Database Supabase",
+    "subtitle": "Màn hình kiểm thử hệ thống giám sát kết nối 16 bảng PostgreSQL, Views và RPC Stored Procedures",
+    "type": "MODAL / SYSTEM HEALTH MONITOR",
+    "role": "Kỹ sư hệ thống & Quản trị viên",
+    "image": "35_Trang_Thai_Backend_Supabase.png",
+    "dbTables": [
+      "16 bảng PostgreSQL",
+      "View provider_public_profiles",
+      "4 Stored Procedures (RPC)"
+    ],
+    "rls": "Kiểm tra toàn diện cơ chế Row Level Security (RLS)",
+    "purpose": "Bảng kiểm tra sức khỏe hệ thống phục vụ nghiệm thu kỹ thuật: đo độ trễ kết nối Supabase, kiểm tra số lượng bản ghi trong từng bảng, xác minh tính sẵn sàng của 4 hàm RPC và trạng thái RLS.",
+    "components": [
+      "HealthBadge: Chấm xanh báo kết nối cơ sở dữ liệu Supabase PostgreSQL 16 hoạt động hoàn hảo",
+      "LatencyIndicator: Độ trễ phản hồi kết nối mạng (ms)",
+      "DatabaseTablesAuditGrid: Lưới hiển thị 16 bảng CSDL kèm số lượng bản ghi và trạng thái RLS enabled",
+      "RpcStatusChecklist: Kiểm tra trạng thái 4 hàm RPC kiểm toán giao dịch (rpc_transition_booking_status, rpc_update_incidental_cost, rpc_confirm_booking_payment, rpc_create_support_ticket)",
+      "EnvironmentInfoBox: Phiên bản PostgreSQL, trạng thái Extension, chứng chỉ bảo mật SSL"
+    ],
+    "businessRules": [
+      "Toàn bộ 16 bảng nghiệp vụ đều bắt buộc kích hoạt Row Level Security (ENABLE ROW LEVEL SECURITY).",
+      "Mọi giao dịch chuyển trạng thái và tài chính đều thực thi qua Stored Procedures để đảm bảo tính ACID.",
+      "Hệ thống cảnh báo tức thì nếu có bất kỳ bảng nào bị lỗi kết nối hoặc mất quyền truy cập."
+    ],
+    "notes": "Minh chứng kỹ thuật vững chắc khẳng định chất lượng triển khai chuẩn Production của toàn bộ dự án."
+  },
+  {
+    "id": "component_library_summary",
+    "num": "99",
+    "module": "THƯ VIỆN COMPONENT",
+    "moduleTag": "architecture",
+    "title": "Tổng Kết Thư Viện Thành Phần UI & Design Tokens",
+    "subtitle": "Hệ thống quy chuẩn thiết kế Warm Minimalism và các thành phần tái sử dụng",
+    "type": "SUMMARY & SYSTEM TOKENS",
+    "role": "Tài liệu kỹ thuật UI/UX",
+    "dbTables": [
+      "16 Bảng PostgreSQL"
+    ],
+    "rls": "Warm Minimalism Design System",
+    "isSummary": true,
+    "description": "Tổng hợp toàn bộ các thành phần giao diện, quy chuẩn thiết kế, bảng màu, typography và hướng dẫn vận hành hệ thống.",
+    "designTokens": {
+      "colors": [
+        {
+          "name": "Deep Forest Green",
+          "hex": "#1B4332",
+          "usage": "Màu chủ đạo thương hiệu, Primary Button, Tiêu đề nổi bật"
+        },
+        {
+          "name": "Forest Green Dark",
+          "hex": "#143326",
+          "usage": "Trạng thái Hover nút bấm chính, Thanh điều hướng thợ"
+        },
+        {
+          "name": "Soft Sage Tint",
+          "hex": "#EBF2EE",
+          "usage": "Nền trạng thái đang chọn, Badge thành công, Nền hóa đơn"
+        },
+        {
+          "name": "Warm Terracotta",
+          "hex": "#E07A5F",
+          "usage": "Điểm sao đánh giá, Biểu tượng trái tim yêu thích, Điểm nhấn ấm áp"
+        },
+        {
+          "name": "Warm Charcoal Ink",
+          "hex": "#1F2430",
+          "usage": "Màu chữ chính, đảm bảo độ tương phản cao trên nền sáng"
+        },
+        {
+          "name": "Airy Off-White",
+          "hex": "#F8F9FA",
+          "usage": "Nền trang tổng thể, mang lại không gian thoáng đãng"
+        }
+      ],
+      "typography": [
+        {
+          "role": "Tiêu đề & Nút bấm",
+          "font": "Plus Jakarta Sans (600, 700, 800)",
+          "style": "Hình học bo tròn thân thiện, hiện đại"
+        },
+        {
+          "role": "Nội dung & Biểu mẫu",
+          "font": "Inter (400, 500, 600)",
+          "style": "Dễ đọc, tối ưu hiển thị trên mọi kích thước màn hình"
+        },
+        {
+          "role": "Số liệu, Đơn giá & Mã đơn",
+          "font": "IBM Plex Mono (tabular-nums)",
+          "style": "Căn thẳng cột số, hỗ trợ đối soát kế toán chuẩn xác"
+        }
+      ],
+      "shapes": [
+        {
+          "name": "Nút bấm dáng viên thuốc (Pill)",
+          "radius": "9999px",
+          "usage": "Tất cả nút bấm chính, filter chip, nút chuyển chế độ"
+        },
+        {
+          "name": "Thẻ nội dung (Cards)",
+          "radius": "16px",
+          "usage": "Thẻ dịch vụ, thẻ thợ, bảng cấu hình, biên nhận thanh toán"
+        }
+      ]
+    }
+  }
+];
+    let currentIndex = 0;
+    let activeFilter = 'all';
+
+    const stage = document.getElementById('slideStage');
+    const counter = document.getElementById('slideCounter');
+    const progressFill = document.getElementById('progressFill');
+    const btnPrev = document.getElementById('btnPrev');
+    const btnNext = document.getElementById('btnNext');
+    const btnFirst = document.getElementById('btnFirst');
+    const btnLast = document.getElementById('btnLast');
+
+    const gridDrawer = document.getElementById('gridDrawer');
+    const btnToggleGrid = document.getElementById('btnToggleGrid');
+    const btnCloseGrid = document.getElementById('btnCloseGrid');
+    const drawerGridList = document.getElementById('drawerGridList');
+    const drawerSearchInput = document.getElementById('drawerSearchInput');
+
+    const lightboxModal = document.getElementById('lightboxModal');
+    const lightboxImg = document.getElementById('lightboxImg');
+    const btnCloseLightbox = document.getElementById('btnCloseLightbox');
+
+    const notesModal = document.getElementById('notesModal');
+    const btnToggleNotes = document.getElementById('btnToggleNotes');
+    const btnCloseNotes = document.getElementById('btnCloseNotes');
+    const notesContent = document.getElementById('notesContent');
+    const notesTitle = document.getElementById('notesTitle');
+
+    const btnToggleFullscreen = document.getElementById('btnToggleFullscreen');
+
+    function renderSlide(index) {
+      if (index < 0) index = 0;
+      if (index >= slides.length) index = slides.length - 1;
+      currentIndex = index;
+
+      const slide = slides[index];
+
+      // Update Top Counter & Progress
+      counter.textContent = `Slide ${index + 1} / ${slides.length}`;
+      const pct = ((index + 1) / slides.length) * 100;
+      progressFill.style.width = `${pct}%`;
+
+      // Update Nav Buttons
+      btnPrev.disabled = (index === 0);
+      btnFirst.disabled = (index === 0);
+      btnNext.disabled = (index === slides.length - 1);
+      btnLast.disabled = (index === slides.length - 1);
+
+      // Render Content based on Slide Type
+      if (slide.isCover) {
+        stage.innerHTML = `
+          <div class="cover-body">
+            <div class="cover-top-badge">🌿 DỰ ÁN GIA ĐÌNH XANH · THIẾT KẾ WARM MINIMALISM</div>
+            <div>
+              <h1 class="cover-main-heading">${slide.title}</h1>
+              <p class="cover-sub-heading">${slide.subtitle}</p>
+              <div style="font-size:15px; color:#A7F3D0; margin-bottom:24px; max-width:800px; line-height:1.6;">
+                ${slide.description}
+              </div>
+            </div>
+            <div class="cover-grid">
+              <div class="cover-kpi-card">
+                <div class="cover-kpi-num">35</div>
+                <div class="cover-kpi-label">Màn hình &amp; Hộp thoại chuẩn Retina 2x</div>
+              </div>
+              <div class="cover-kpi-card">
+                <div class="cover-kpi-num">16</div>
+                <div class="cover-kpi-label">Bảng PostgreSQL &amp; 4 Stored Procedures</div>
+              </div>
+              <div class="cover-kpi-card">
+                <div class="cover-kpi-num">4</div>
+                <div class="cover-kpi-label">Phân hệ nghiệp vụ phân quyền RLS độc lập</div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else if (slide.isArchitecture) {
+        stage.innerHTML = `
+          <div class="slide-header">
+            <div class="slide-meta">
+              <span class="module-pill pill-${slide.moduleTag}">${slide.module}</span>
+              <span class="screen-id">${slide.num}</span>
+              <span class="screen-type-badge">${slide.type}</span>
+            </div>
+            <div class="slide-titles-wrap">
+              <div class="slide-main-title">${slide.title}</div>
+              <div class="slide-subtitle">${slide.subtitle}</div>
+            </div>
+            <div class="role-badge">${slide.role}</div>
+          </div>
+          <div class="slide-body" style="grid-template-columns: 1fr;">
+            <div class="arch-grid">
+              ${slide.modulesSummary.map(m => `
+                <div class="arch-card">
+                  <div class="arch-card-header">
+                    <div class="arch-card-title">${m.name}</div>
+                    <div class="arch-card-count">${m.count}</div>
+                  </div>
+                  <p class="spec-desc" style="font-size:14px; color:#475569;">${m.desc}</p>
+                  <div style="margin-top:auto; padding-top:10px; border-top:1px dashed var(--border); font-size:12px; color:var(--primary); font-weight:600;">
+                    ✓ Ánh xạ 1-1 với CSDL Supabase PostgreSQL
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      } else if (slide.isMatrix) {
+        stage.innerHTML = `
+          <div class="slide-header">
+            <div class="slide-meta">
+              <span class="module-pill pill-${slide.moduleTag}">${slide.module}</span>
+              <span class="screen-id">${slide.num}</span>
+              <span class="screen-type-badge">${slide.type}</span>
+            </div>
+            <div class="slide-titles-wrap">
+              <div class="slide-main-title">${slide.title}</div>
+              <div class="slide-subtitle">${slide.subtitle}</div>
+            </div>
+            <div class="role-badge">Tất cả vai trò</div>
+          </div>
+          <div class="slide-body" style="grid-template-columns: 1fr; overflow-y:auto; padding:20px 28px;">
+            <div style="background:#FFF; border:1px solid var(--border); border-radius:12px; overflow:hidden;">
+              <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
+                <thead>
+                  <tr style="background:#F8FAFC; border-bottom:1px solid var(--border); font-family:'Plus Jakarta Sans', sans-serif; font-weight:700; color:var(--primary);">
+                    <th style="padding:10px 14px;">Mã</th>
+                    <th style="padding:10px 14px;">Tên Giao Diện / Màn Hình</th>
+                    <th style="padding:10px 14px;">Loại</th>
+                    <th style="padding:10px 14px;">Phân Hệ</th>
+                    <th style="padding:10px 14px;">Bảng Dữ Liệu PostgreSQL</th>
+                    <th style="padding:10px 14px; text-align:center;">Hành Động</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${slides.filter(s => s.image).map((s, idx) => `
+                    <tr style="border-bottom:1px solid #F1F5F9; hover:background:#F8FAFC;">
+                      <td style="padding:8px 14px; font-family:'IBM Plex Mono', monospace; font-weight:700; color:var(--accent-warm);">${s.num}</td>
+                      <td style="padding:8px 14px; font-weight:600; color:var(--text);">${s.title}</td>
+                      <td style="padding:8px 14px;"><span class="screen-type-badge">${s.type}</span></td>
+                      <td style="padding:8px 14px;"><span class="module-pill pill-${s.moduleTag}" style="font-size:10px;">${s.module.replace('PHÂN HỆ ', '')}</span></td>
+                      <td style="padding:8px 14px; font-family:'IBM Plex Mono', monospace; font-size:11px; color:#475569;">${s.dbTables ? s.dbTables.join(', ') : 'N/A'}</td>
+                      <td style="padding:8px 14px; text-align:center;">
+                        <button onclick="goToSlide(${slides.indexOf(s)})" style="background:var(--primary); color:#FFF; border:none; padding:4px 10px; border-radius:var(--radius-pill); font-size:11px; font-weight:600; cursor:pointer;">Xem Slide →</button>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      } else if (slide.isSummary) {
+        stage.innerHTML = `
+          <div class="slide-header">
+            <div class="slide-meta">
+              <span class="module-pill pill-${slide.moduleTag}">${slide.module}</span>
+              <span class="screen-id">${slide.num}</span>
+              <span class="screen-type-badge">${slide.type}</span>
+            </div>
+            <div class="slide-titles-wrap">
+              <div class="slide-main-title">${slide.title}</div>
+              <div class="slide-subtitle">${slide.subtitle}</div>
+            </div>
+            <div class="role-badge">Design System</div>
+          </div>
+          <div class="slide-body" style="grid-template-columns: 1fr;">
+            <div class="summary-grid">
+              <div class="spec-card">
+                <div class="spec-title">🎨 Bảng Màu Chuẩn (Warm Minimalism Color Palette)</div>
+                <div class="color-swatch-list">
+                  ${slide.designTokens.colors.map(c => `
+                    <div class="swatch-item">
+                      <div class="swatch-color" style="background:${c.hex};"></div>
+                      <div class="swatch-meta">
+                        <div class="swatch-hex">${c.hex}</div>
+                        <div class="swatch-name">${c.name}</div>
+                      </div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+
+              <div class="spec-card">
+                <div class="spec-title">🔤 Hệ Thống Chữ Viết (Typography)</div>
+                <div style="display:flex; flex-direction:column; gap:10px;">
+                  ${slide.designTokens.typography.map(t => `
+                    <div style="padding:10px; background:#F8FAFC; border-radius:8px; border:1px solid #E2E8F0;">
+                      <div style="font-size:12px; font-weight:700; color:var(--primary); text-transform:uppercase;">${t.role}</div>
+                      <div style="font-size:14px; font-weight:600; color:var(--text); margin:2px 0;">${t.font}</div>
+                      <div style="font-size:12px; color:var(--text-muted);">${t.style}</div>
+                    </div>
+                  `).join('')}
+                </div>
+                <div class="spec-title" style="margin-top:16px;">🔘 Quy Cách Bo Góc (Border Radius)</div>
+                <div style="display:flex; gap:10px;">
+                  ${slide.designTokens.shapes.map(s => `
+                    <div style="flex:1; padding:10px; background:#F8FAFC; border-radius:8px; border:1px solid #E2E8F0;">
+                      <div style="font-size:12px; font-weight:700; color:var(--accent-warm);">${s.name}</div>
+                      <div style="font-family:'IBM Plex Mono', monospace; font-size:13px; font-weight:600;">${s.radius}</div>
+                      <div style="font-size:11px; color:var(--text-muted); margin-top:2px;">${s.usage}</div>
+                    </div>
+                  `).join('')}
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      } else {
+        // Standard Screen Slide (35 Screens)
+        stage.innerHTML = `
+          <div class="slide-header">
+            <div class="slide-meta">
+              <span class="module-pill pill-${slide.moduleTag}">${slide.module}</span>
+              <span class="screen-id">${slide.num}</span>
+              <span class="screen-type-badge">${slide.type}</span>
+            </div>
+            <div class="slide-titles-wrap">
+              <div class="slide-main-title">${slide.title}</div>
+              <div class="slide-subtitle">${slide.subtitle}</div>
+            </div>
+            <div class="role-badge">${slide.role}</div>
+          </div>
+
+          <div class="slide-body">
+            <!-- Left Preview -->
+            <div class="preview-panel">
+              <div class="preview-header">
+                <div class="preview-dots">
+                  <span class="dot dot-red"></span>
+                  <span class="dot dot-yellow"></span>
+                  <span class="dot dot-green"></span>
+                </div>
+                <div>Retina 2x UI Capture · ${slide.image || ''}</div>
+              </div>
+              <div class="preview-media" onclick="openLightbox('anh-giao-dien-du-an/${slide.image}')">
+                <img src="anh-giao-dien-du-an/${slide.image}" alt="${slide.title}" loading="lazy">
+                <button class="preview-overlay-btn" onclick="event.stopPropagation(); openLightbox('anh-giao-dien-du-an/${slide.image}')">
+                  🔍 Phóng to ảnh gốc
+                </button>
+              </div>
+            </div>
+
+            <!-- Right Specifications -->
+            <div class="spec-panel">
+              <!-- Purpose -->
+              <div class="spec-card">
+                <div class="spec-title">🎯 Mục Đích Nghiệp Vụ &amp; Production Flow</div>
+                <p class="spec-desc">${slide.purpose || slide.description}</p>
+                <div style="margin-top:8px;">
+                  <span style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase;">CSDL Liên Kết:</span>
+                  <div class="tag-cloud">
+                    ${(slide.dbTables || []).map(t => `<span class="db-tag">${t}</span>`).join('')}
+                    ${slide.rls ? `<span class="rls-tag">🛡️ ${slide.rls}</span>` : ''}
+                  </div>
+                </div>
+              </div>
+
+              <!-- UI Components -->
+              <div class="spec-card">
+                <div class="spec-title">🧩 Thành Phần UI &amp; Component Bóc Tách</div>
+                <ul class="comp-list">
+                  ${(slide.components || []).map(c => `<li>${c}</li>`).join('')}
+                </ul>
+              </div>
+
+              <!-- Business Rules -->
+              ${slide.businessRules ? `
+                <div class="spec-card">
+                  <div class="spec-title">⚡ Quy Tắc Nghiệp Vụ &amp; Ràng Buộc Dữ Liệu</div>
+                  <ul class="rule-list">
+                    ${slide.businessRules.map(r => `<li>${r}</li>`).join('')}
+                  </ul>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }
+
+      // Update Notes modal if open
+      updateNotesContent(slide);
+
+      // Highlight in Drawer if open
+      highlightActiveThumbnail(index);
+    }
+
+    function updateNotesContent(slide) {
+      notesTitle.textContent = `📝 Ghi chú: ${slide.num} - ${slide.title}`;
+      notesContent.innerHTML = `
+        <div>
+          <strong style="color:#A7F3D0;">Bảng CSDL ánh xạ:</strong>
+          <div style="font-family:'IBM Plex Mono', monospace; font-size:12px; color:#FDE68A; margin-top:4px;">
+            ${(slide.dbTables || []).join(' · ')}
+          </div>
+        </div>
+        <div>
+          <strong style="color:#A7F3D0;">Cơ chế bảo mật RLS / RPC:</strong>
+          <div style="font-family:'IBM Plex Mono', monospace; font-size:12px; color:#FDE68A; margin-top:4px;">
+            ${slide.rls || 'Chưa thiết lập ràng buộc bổ sung'}
+          </div>
+        </div>
+        <div>
+          <strong style="color:#A7F3D0;">Mô tả chi tiết:</strong>
+          <div style="margin-top:4px;">
+            ${slide.notes || slide.purpose || slide.description || 'Không có ghi chú kỹ thuật bổ sung.'}
+          </div>
+        </div>
+      `;
+    }
+
+    function goToSlide(index) {
+      renderSlide(index);
+      closeGrid();
+    }
+
+    function nextSlide() {
+      if (currentIndex < slides.length - 1) {
+        renderSlide(currentIndex + 1);
+      }
+    }
+
+    function prevSlide() {
+      if (currentIndex > 0) {
+        renderSlide(currentIndex - 1);
+      }
+    }
+
+    // Grid Drawer Setup
+    function buildGridThumbnails() {
+      drawerGridList.innerHTML = slides.map((s, idx) => {
+        const imgHtml = s.image
+          ? `<img src="anh-giao-dien-du-an/${s.image}" alt="${s.title}" loading="lazy">`
+          : `<div style="font-size:32px; color:#6B7280;">${s.isCover ? '🌿' : '📊'}</div>`;
+
+        return `
+          <div class="thumb-card ${idx === currentIndex ? 'active' : ''}" data-index="${idx}" data-module="${s.moduleTag}" onclick="goToSlide(${idx})">
+            <div class="thumb-img-wrap">
+              ${imgHtml}
+            </div>
+            <div class="thumb-info">
+              <div class="thumb-num">${s.num} · ${s.type}</div>
+              <div class="thumb-title">${s.title}</div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function highlightActiveThumbnail(index) {
+      const cards = drawerGridList.querySelectorAll('.thumb-card');
+      cards.forEach((c, idx) => {
+        if (idx === index) {
+          c.classList.add('active');
+        } else {
+          c.classList.remove('active');
+        }
+      });
+    }
+
+    function filterGrid() {
+      const query = drawerSearchInput.value.toLowerCase().trim();
+      const cards = drawerGridList.querySelectorAll('.thumb-card');
+
+      cards.forEach(card => {
+        const idx = parseInt(card.dataset.index, 10);
+        const slide = slides[idx];
+        const matchModule = (activeFilter === 'all' || slide.moduleTag === activeFilter);
+        const matchQuery = !query ||
+          slide.title.toLowerCase().includes(query) ||
+          slide.num.toLowerCase().includes(query) ||
+          (slide.subtitle && slide.subtitle.toLowerCase().includes(query)) ||
+          (slide.dbTables && slide.dbTables.some(t => t.toLowerCase().includes(query)));
+
+        if (matchModule && matchQuery) {
+          card.style.display = 'flex';
+        } else {
+          card.style.display = 'none';
+        }
+      });
+    }
+
+    function openGrid() {
+      gridDrawer.classList.add('open');
+      drawerSearchInput.focus();
+    }
+
+    function closeGrid() {
+      gridDrawer.classList.remove('open');
+    }
+
+    // Lightbox Modal
+    function openLightbox(src) {
+      lightboxImg.src = src;
+      lightboxModal.classList.add('open');
+    }
+
+    function closeLightbox() {
+      lightboxModal.classList.remove('open');
+      lightboxImg.src = '';
+    }
+
+    // Tech Notes Modal
+    function toggleNotes() {
+      notesModal.classList.toggle('open');
+    }
+
+    // Fullscreen Toggle
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    }
+
+    // Event Listeners
+    btnNext.addEventListener('click', nextSlide);
+    btnPrev.addEventListener('click', prevSlide);
+    btnFirst.addEventListener('click', () => renderSlide(0));
+    btnLast.addEventListener('click', () => renderSlide(slides.length - 1));
+
+    document.getElementById('progressTrack').addEventListener('click', (e) => {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const ratio = (e.clientX - rect.left) / rect.width;
+      const targetIdx = Math.floor(ratio * slides.length);
+      renderSlide(targetIdx);
+    });
+
+    btnToggleGrid.addEventListener('click', openGrid);
+    btnCloseGrid.addEventListener('click', closeGrid);
+
+    btnToggleNotes.addEventListener('click', toggleNotes);
+    btnCloseNotes.addEventListener('click', () => notesModal.classList.remove('open'));
+
+    btnToggleFullscreen.addEventListener('click', toggleFullscreen);
+
+    btnCloseLightbox.addEventListener('click', closeLightbox);
+    lightboxModal.addEventListener('click', (e) => {
+      if (e.target === lightboxModal) closeLightbox();
+    });
+
+    // Filter Buttons in Grid
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        activeFilter = btn.dataset.filter;
+        filterGrid();
+      });
+    });
+
+    drawerSearchInput.addEventListener('input', filterGrid);
+
+    // Keyboard Shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        if (e.key === 'Escape') {
+          e.target.blur();
+          closeGrid();
+        }
+        return;
+      }
+
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        prevSlide();
+      } else if (e.key === 'Home') {
+        e.preventDefault();
+        renderSlide(0);
+      } else if (e.key === 'End') {
+        e.preventDefault();
+        renderSlide(slides.length - 1);
+      } else if (e.key === 'f' || e.key === 'F') {
+        e.preventDefault();
+        toggleFullscreen();
+      } else if (e.key === 'g' || e.key === 'G' || e.key === 'o' || e.key === 'O') {
+        e.preventDefault();
+        if (gridDrawer.classList.contains('open')) {
+          closeGrid();
+        } else {
+          openGrid();
+        }
+      } else if (e.key === 'n' || e.key === 'N') {
+        e.preventDefault();
+        toggleNotes();
+      } else if (e.key === 'Escape') {
+        closeLightbox();
+        closeGrid();
+        notesModal.classList.remove('open');
+      }
+    });
+
+    // Init
+    buildGridThumbnails();
+    renderSlide(0);
+  </script>
+</body>
+</html>

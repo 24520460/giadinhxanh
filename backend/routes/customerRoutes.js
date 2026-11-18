@@ -217,6 +217,8 @@ async function handleCustomerRoutes(ctx) {
       user_id: body.user_id || "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
       booking_id: body.booking_id ? normalizeId(body.booking_id) : null,
       subject: String(body.subject || "Yêu cầu hỗ trợ").trim(),
+      description: String(body.description || "").trim(),
+      image_url: body.image_url ? String(body.image_url).trim() : null,
       status: "open",
       priority: body.priority || "medium",
       created_at: nowIso,

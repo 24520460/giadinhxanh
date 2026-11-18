@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Design Tokens 2.0</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0;font-family:'Plus Jakarta Sans',sans-serif;background:#ffffff;color:#0f172a}
+a{color:#0f3826}a:hover{color:#092619}
+</style>
+</helmet>
+<div style="width:960px;height:820px;box-sizing:border-box;background:#ffffff;padding:36px;display:flex;flex-direction:column;gap:24px;overflow:hidden">
+  <div>
+    <span style="font-size:11px;font-weight:800;color:#059669;text-transform:uppercase">Design System 2.0</span>
+    <h2 style="margin:4px 0 0;font-size:26px;font-weight:800;color:#0f172a">Modern Organic Living Tokens</h2>
+    <p style="margin:4px 0 0;font-size:13px;color:#64748b">Quy chuẩn màu sắc, phông chữ và bo góc thế hệ mới</p>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+    <div style="border:1px solid #e2e8f0;border-radius:12px;padding:16px">
+      <div style="height:48px;background:#0f3826;border-radius:8px"></div>
+      <div style="font-size:13px;font-weight:700;margin-top:8px">Emerald Deep</div>
+      <div style="font-size:11px;color:#64748b">#0F3826 · Primary Brand</div>
+    </div>
+    <div style="border:1px solid #e2e8f0;border-radius:12px;padding:16px">
+      <div style="height:48px;background:#10b981;border-radius:8px"></div>
+      <div style="font-size:13px;font-weight:700;margin-top:8px">Mint Glow</div>
+      <div style="font-size:11px;color:#64748b">#10B981 · Active &amp; Verified</div>
+    </div>
+    <div style="border:1px solid #e2e8f0;border-radius:12px;padding:16px">
+      <div style="height:48px;background:#f59e0b;border-radius:8px"></div>
+      <div style="font-size:13px;font-weight:700;margin-top:8px">Sunstone Amber</div>
+      <div style="font-size:11px;color:#64748b">#F59E0B · Rating Stars</div>
+    </div>
+  </div>
+
+  <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:12px">
+    <div style="font-size:14px;font-weight:800;color:#0f3826">🔤 Typography &amp; Scale</div>
+    <div style="display:flex;justify-content:space-between;font-size:13px">
+      <span>Headings &amp; Hero Titles:</span>
+      <strong>Plus Jakarta Sans (600, 700, 800)</strong>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:13px">
+      <span>Body Text &amp; UI Controls:</span>
+      <strong>Inter Display (400, 500, 600)</strong>
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:13px">
+      <span>Prices, Time &amp; Tabular Data:</span>
+      <strong style="color:#0f3826">IBM Plex Mono (tabular-nums)</strong>
+    </div>
+  </div>
+
+  <div style="border:1px solid #e2e8f0;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:12px">
+    <div style="font-size:14px;font-weight:800;color:#0f3826">🔘 Border Radii &amp; Elevation</div>
+    <div style="display:flex;gap:12px">
+      <div style="flex:1;background:#f8fafc;padding:12px;border-radius:8px;text-align:center">
+        <div style="font-size:12px;font-weight:700">Pill (9999px)</div>
+        <div style="font-size:11px;color:#64748b;margin-top:2px">Primary CTA Buttons</div>
+      </div>
+      <div style="flex:1;background:#f8fafc;padding:12px;border-radius:8px;text-align:center">
+        <div style="font-size:12px;font-weight:700">Cards (16px)</div>
+        <div style="font-size:11px;color:#64748b;margin-top:2px">Service &amp; Provider Cards</div>
+      </div>
+      <div style="flex:1;background:#f8fafc;padding:12px;border-radius:8px;text-align:center">
+        <div style="font-size:12px;font-weight:700">Subtle Shadow</div>
+        <div style="font-size:11px;color:#64748b;margin-top:2px">Diffused 10px / 15px</div>
+      </div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":960,"height":820}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

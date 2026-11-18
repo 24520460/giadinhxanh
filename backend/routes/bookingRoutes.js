@@ -269,10 +269,17 @@ async function handleBookingRoutes(ctx) {
       }
     }
 
+    const chosenProv = chosenProviderId
+      ? (db.provider_profiles || []).find((p) => String(p.provider_id) === String(chosenProviderId))
+      : null;
+    const resolvedCompanyId =
+      body.company_id || (svc && svc.company_id) || (chosenProv && chosenProv.company_id) || 501;
+
     const newBooking = {
       booking_id: nextId,
       customer_id: customerId,
       provider_id: chosenProviderId,
+      company_id: resolvedCompanyId,
       dispatch_type: isBroadcast ? "broadcast" : "direct",
       service_id: serviceId,
       scheduled_time: scheduledIso,

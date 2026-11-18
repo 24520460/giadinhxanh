@@ -3,7 +3,7 @@
   "cleanUrls": true,
   "functions": {
     "app.js": {
-      "includeFiles": "{index.html,styles.css,app.js,db-mock.js,assets/**/*}"
+      "includeFiles": "{public/**/*,backend/**/*}"
     }
   }
 }

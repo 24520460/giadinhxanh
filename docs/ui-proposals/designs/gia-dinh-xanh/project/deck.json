@@ -1,0 +1,86 @@
+{
+  "v": 4,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-11-05T01:40:36.625Z"
+  },
+  "lists": "css",
+  "title": "Gia Đình Xanh — Kiến Trúc Giao Diện & Component",
+  "order": [
+    "cover",
+    "architecture",
+    "screen_0_1",
+    "screen_0_2",
+    "screen_0_3",
+    "screen_0_4",
+    "screen_0_5",
+    "screen_1_1",
+    "screen_1_2",
+    "screen_1_3",
+    "screen_1_4",
+    "screen_1_5",
+    "screen_1_6",
+    "screen_1_7",
+    "screen_1_8",
+    "screen_1_9",
+    "screen_1_10",
+    "screen_1_11",
+    "screen_2_1",
+    "screen_2_2",
+    "screen_2_3",
+    "screen_2_4",
+    "screen_2_6",
+    "screen_2_7",
+    "screen_2_8",
+    "screen_2_9",
+    "screen_3_1",
+    "screen_3_2",
+    "screen_3_3",
+    "screen_3_4",
+    "screen_3_5",
+    "screen_3_6",
+    "screen_3_7",
+    "screen_3_8",
+    "screen_3_9",
+    "screen_appendix_1",
+    "screen_appendix_2"
+  ],
+  "cover": "cover",
+  "sections": {
+    "s1": {
+      "description": "Tổng quan Hệ thống",
+      "start": "cover"
+    },
+    "s2": {
+      "description": "Phân hệ 0: Xác thực & Onboarding",
+      "start": "screen_0_1"
+    },
+    "s3": {
+      "description": "Phân hệ 1: Khách hàng (Customer Portal)",
+      "start": "screen_1_1"
+    },
+    "s4": {
+      "description": "Phân hệ 2: Đối tác Thợ (Provider Portal)",
+      "start": "screen_2_1"
+    },
+    "s5": {
+      "description": "Phân hệ 3: Quản trị viên (Admin Portal)",
+      "start": "screen_3_1"
+    },
+    "s6": {
+      "description": "Phụ lục & Thư viện Component",
+      "start": "screen_appendix_1"
+    }
+  },
+  "faces": {
+    "plus-jakarta-sans": {
+      "family": "Plus Jakarta Sans",
+      "href": "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap"
+    },
+    "inter": {
+      "family": "Inter",
+      "href": "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+    }
+  },
+  "designSystems": []
+}

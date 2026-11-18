@@ -6,6 +6,7 @@ const BOOTSTRAP_TABLES = [
   "ward",
   "users",
   "customer_profiles",
+  "company_profiles",
   "provider_profiles",
   "service_categories",
   "services",
@@ -171,11 +172,40 @@ async function fetchBootstrapData(isProd = false) {
   if (client) {
     try {
       const results = await Promise.all(BOOTSTRAP_TABLES.map((t) => fetchSupabaseTable(client, t)));
-      const hasError = results.some((r) => r.error);
+      const hasError = results.some((r) => r.error && r.name !== "company_profiles");
       if (!hasError) {
         const remoteDb = { session: localDb.session };
         results.forEach((r) => {
-          remoteDb[r.name] = r.data || [];
+          if (r.name === "company_profiles" && (r.error || !Array.isArray(r.data) || r.data.length === 0)) {
+            remoteDb.company_profiles = localDb.company_profiles || [];
+          } else {
+            remoteDb[r.name] = r.data || [];
+          }
+        });
+        // Hybrid backfill for B2B2C company_id if Supabase has not migrated company_schema_migration.sql yet
+        const seedCompanyMapProv = new Map((localDb.provider_profiles || []).map((p) => [Number(p.provider_id), p.company_id]));
+        const seedCompanyMapSvc = new Map((localDb.services || []).map((s) => [Number(s.service_id), s.company_id]));
+        const seedCompanyMapBk = new Map((localDb.bookings || []).map((b) => [Number(b.booking_id), b.company_id]));
+        (remoteDb.provider_profiles || []).forEach((p, idx) => {
+          if (p.company_id == null) {
+            p.company_id = seedCompanyMapProv.get(Number(p.provider_id)) ?? (idx % 2 === 0 ? 501 : 502);
+          }
+        });
+        (remoteDb.services || []).forEach((s, idx) => {
+          if (s.company_id == null) {
+            s.company_id = seedCompanyMapSvc.get(Number(s.service_id)) ?? (idx % 2 === 0 ? 501 : 502);
+          }
+        });
+        (remoteDb.bookings || []).forEach((b) => {
+          if (b.company_id == null && seedCompanyMapBk.has(Number(b.booking_id))) {
+            b.company_id = seedCompanyMapBk.get(Number(b.booking_id));
+          }
+        });
+        const existingUserIds = new Set((remoteDb.users || []).map((u) => String(u.user_id)));
+        (localDb.users || []).forEach((u) => {
+          if (u.role === "company" && !existingUserIds.has(String(u.user_id))) {
+            remoteDb.users.push(u);
+          }
         });
         remoteDb.provinces = remoteDb.province;
         remoteDb.wards = remoteDb.ward;

@@ -8,6 +8,7 @@ const { autoExpirePendingBookings } = require("./services/bookingService");
 
 const handleSystemRoutes = require("./routes/systemRoutes");
 const handleAuthRoutes = require("./routes/authRoutes");
+const handleCompanyRoutes = require("./routes/companyRoutes");
 const handleProviderRoutes = require("./routes/providerRoutes");
 const handleBookingRoutes = require("./routes/bookingRoutes");
 const handleCustomerRoutes = require("./routes/customerRoutes");
@@ -26,8 +27,14 @@ const MIME_TYPES = {
   ".ico": "image/x-icon"
 };
 
+const PUBLIC_DIR = path.join(ROOT_DIR, "public");
+
 function readStaticFile(relPath) {
-  const candidates = [path.join(ROOT_DIR, relPath), path.join(process.cwd(), relPath)];
+  const candidates = [
+    path.join(PUBLIC_DIR, relPath),
+    path.join(process.cwd(), "public", relPath),
+    path.join(ROOT_DIR, relPath)
+  ];
   for (const p of candidates) {
     try {
       if (fs.existsSync(p) && fs.statSync(p).isFile()) {
@@ -46,6 +53,7 @@ const staticDbMock = readStaticFile("db-mock.js");
 const ROUTE_HANDLERS = [
   handleSystemRoutes,
   handleAuthRoutes,
+  handleCompanyRoutes,
   handleProviderRoutes,
   handleBookingRoutes,
   handleCustomerRoutes,
@@ -91,7 +99,7 @@ function resolveStaticCandidate(pathname) {
   const normalized = path.normalize(clean);
   if (normalized.startsWith("..")) return null;
 
-  for (const base of [ROOT_DIR, process.cwd()]) {
+  for (const base of [PUBLIC_DIR, path.join(process.cwd(), "public"), ROOT_DIR]) {
     const full = path.join(base, normalized);
     if (full.startsWith(base) && fs.existsSync(full) && fs.statSync(full).isFile()) {
       return full;

@@ -1,6 +1,6 @@
 const { parseBody, sendJson } = require("../utils/http");
 const { requireAuth } = require("../middleware/auth");
-const { saveLocalDb, recomputeProviderRating } = require("../db/localStore");
+const { saveLocalDb, recomputeProviderRating, computeProviderPublicProfiles } = require("../db/localStore");
 const { dispatchNotification, logAudit } = require("../services/auditService");
 
 async function handleAdminRoutes(ctx) {
@@ -363,6 +363,92 @@ async function handleAdminRoutes(ctx) {
     db.service_categories.push(newCat);
     saveLocalDb(db);
     sendJson(res, 201, { ok: true, category: newCat });
+    return true;
+  }
+
+  // PATCH /api/admin/companies/:id/verify — Admin duyệt / từ chối hồ sơ Công ty
+  const compVerifyMatch = pathname.match(/^\/api\/admin\/companies\/([^/]+)\/verify$/);
+  if (method === "PATCH" && compVerifyMatch) {
+    const companyId = Number(compVerifyMatch[1]);
+    const body = await parseBody(req);
+    const nextStatus = ["verified", "rejected", "pending", "banned"].includes(body.verification_status)
+      ? body.verification_status
+      : "verified";
+
+    const comp = (db.company_profiles || []).find((c) => Number(c.company_id) === companyId);
+    if (!comp) {
+      sendJson(res, 404, { ok: false, error: "Không tìm thấy hồ sơ công ty." });
+      return true;
+    }
+    comp.verification_status = nextStatus;
+    comp.updated_at = new Date().toISOString();
+
+    const u = (db.users || []).find((x) => String(x.user_id) === String(comp.user_id));
+    if (u && nextStatus === "banned") {
+      u.is_active = false;
+    } else if (u && nextStatus === "verified") {
+      u.is_active = true;
+    }
+
+    db.provider_public_profiles = computeProviderPublicProfiles(db);
+    logAudit(db, {
+      actor_id: adminUser.user_id,
+      action: "VERIFY_COMPANY",
+      target_entity: "company_profiles",
+      target_id: companyId,
+      details: { verification_status: nextStatus },
+      isProd: false
+    });
+    if (comp.user_id) {
+      dispatchNotification(db, {
+        user_id: comp.user_id,
+        title:
+          nextStatus === "verified"
+            ? "Hồ sơ Công ty đã được phê duyệt!"
+            : "Cập nhật trạng thái hồ sơ Công ty",
+        body:
+          nextStatus === "verified"
+            ? `Công ty ${comp.company_name} đã được xác minh. Bạn có thể thêm nhân viên và đăng dịch vụ ngay.`
+            : `Hồ sơ Công ty chuyển sang trạng thái: ${nextStatus}`,
+        type: "company_kyc_update",
+        link: "/company/dashboard",
+        isProd: false
+      });
+    }
+    saveLocalDb(db);
+    sendJson(res, 200, { ok: true, company_profile: comp });
+    return true;
+  }
+
+  // PATCH /api/admin/companies/:id/toggle-active — Admin khóa / mở khóa Công ty
+  const compToggleMatch = pathname.match(/^\/api\/admin\/companies\/([^/]+)\/toggle-active$/);
+  if (method === "PATCH" && compToggleMatch) {
+    const companyId = Number(compToggleMatch[1]);
+    const comp = (db.company_profiles || []).find((c) => Number(c.company_id) === companyId);
+    if (!comp) {
+      sendJson(res, 404, { ok: false, error: "Không tìm thấy hồ sơ công ty." });
+      return true;
+    }
+    const u = (db.users || []).find((x) => String(x.user_id) === String(comp.user_id));
+    const nextActive = u ? !u.is_active : comp.verification_status === "banned";
+    if (u) {
+      u.is_active = nextActive;
+      u.updated_at = new Date().toISOString();
+    }
+    comp.verification_status = nextActive ? "verified" : "banned";
+    comp.updated_at = new Date().toISOString();
+
+    db.provider_public_profiles = computeProviderPublicProfiles(db);
+    logAudit(db, {
+      actor_id: adminUser.user_id,
+      action: nextActive ? "UNBAN_COMPANY" : "BAN_COMPANY",
+      target_entity: "company_profiles",
+      target_id: companyId,
+      details: { company_name: comp.company_name, is_active: nextActive },
+      isProd: false
+    });
+    saveLocalDb(db);
+    sendJson(res, 200, { ok: true, is_active: nextActive, company_profile: comp });
     return true;
   }
 

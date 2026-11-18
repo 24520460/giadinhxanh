@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { ROOT_DIR } = require("../config/env");
-const dbSeedModule = require(path.join(ROOT_DIR, "db-mock.js"));
+const dbSeedModule = require(path.join(ROOT_DIR, "public", "db-mock.js"));
 
 const DATA_DIR = path.join(ROOT_DIR, "backend", "data");
 const LOCAL_DB_PATH = path.join(DATA_DIR, "local-db.json");
@@ -78,13 +78,18 @@ function computeProviderPublicProfiles(db) {
   return (db.provider_profiles || [])
     .filter((pp) => {
       const u = (db.users || []).find((x) => x.user_id === pp.user_id);
-      return pp.verification_status === "verified" && u && u.is_active === true;
+      const comp = (db.company_profiles || []).find((c) => String(c.company_id) === String(pp.company_id));
+      const compOk = !comp || comp.verification_status === "verified";
+      return pp.verification_status === "verified" && u && u.is_active === true && compOk;
     })
     .map((pp) => {
       const u = (db.users || []).find((x) => x.user_id === pp.user_id);
+      const comp = (db.company_profiles || []).find((c) => String(c.company_id) === String(pp.company_id));
       return {
         provider_id: pp.provider_id,
         user_id: pp.user_id,
+        company_id: pp.company_id || null,
+        company_name: comp ? comp.company_name : "Công ty Đối tác Gia Đình Xanh",
         full_name: u ? u.full_name : "Thợ Gia Đình Xanh",
         avatar_url: pp.avatar_url,
         info: pp.info,

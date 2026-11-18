@@ -121,6 +121,84 @@
         created_at: '2026-05-01T00:00:00+07:00',
         updated_at: '2026-10-23T08:00:00+07:00',
       },
+      {
+        user_id: 'd3eebc99-9c0b-4ef8-bb6d-6bb9bd380d31',
+        full_name: 'Công ty TNHH Chăm Sóc Nhà An Bình',
+        phone_number: '02838112233',
+        email: 'contact@anbinhhome.vn',
+        role: 'company',
+        is_active: true,
+        created_at: '2026-05-15T08:00:00+07:00',
+        updated_at: '2026-10-20T09:00:00+07:00',
+      },
+      {
+        user_id: 'd3eebc99-9c0b-4ef8-bb6d-6bb9bd380d32',
+        full_name: 'Công ty DV Gia Đình Tâm Việt',
+        phone_number: '02838445566',
+        email: 'hello@tamvietcare.vn',
+        role: 'company',
+        is_active: true,
+        created_at: '2026-06-01T08:00:00+07:00',
+        updated_at: '2026-10-20T09:00:00+07:00',
+      },
+      {
+        user_id: 'd3eebc99-9c0b-4ef8-bb6d-6bb9bd380d33',
+        full_name: 'Công ty Vệ Sinh Xanh Sài Gòn',
+        phone_number: '02838778899',
+        email: 'kyc@vesinhxanhsg.vn',
+        role: 'company',
+        is_active: true,
+        created_at: '2026-10-22T10:00:00+07:00',
+        updated_at: '2026-10-22T10:00:00+07:00',
+      },
+    ];
+
+    // -------------------------------------------------------------------
+    // 1b. company_profiles (company_id BIGINT, user_id UUID, company_name, tax_code, address, ward_id, phone_number, description, logo_url, verification_status)
+    // -------------------------------------------------------------------
+    const company_profiles = [
+      {
+        company_id: 501,
+        user_id: 'd3eebc99-9c0b-4ef8-bb6d-6bb9bd380d31',
+        company_name: 'Công ty TNHH Chăm Sóc Nhà An Bình',
+        tax_code: '0315678901',
+        address: '128 Nguyễn Thị Thập, Phường Tân Phong, Quận 7',
+        ward_id: '27403',
+        phone_number: '02838112233',
+        description: 'Đơn vị cung ứng đội ngũ dọn dẹp nhà cửa và tổng vệ sinh căn hộ chuẩn 5 sao tại TP.HCM.',
+        logo_url: '/assets/cleaning-livingroom.jpg',
+        verification_status: 'verified',
+        created_at: '2026-05-15T08:10:00+07:00',
+        updated_at: '2026-10-20T09:00:00+07:00',
+      },
+      {
+        company_id: 502,
+        user_id: 'd3eebc99-9c0b-4ef8-bb6d-6bb9bd380d32',
+        company_name: 'Công ty DV Gia Đình Tâm Việt',
+        tax_code: '0316789012',
+        address: '45 Lê Duẩn, Phường Bến Nghé, Quận 1',
+        ward_id: '26734',
+        phone_number: '02838445566',
+        description: 'Chuyên cung cấp đầu bếp gia đình, nấu ăn dinh dưỡng và chăm sóc nội trợ cao cấp.',
+        logo_url: '/assets/cooking-family-meal.jpg',
+        verification_status: 'verified',
+        created_at: '2026-06-01T08:10:00+07:00',
+        updated_at: '2026-10-20T09:00:00+07:00',
+      },
+      {
+        company_id: 503,
+        user_id: 'd3eebc99-9c0b-4ef8-bb6d-6bb9bd380d33',
+        company_name: 'Công ty Vệ Sinh Xanh Sài Gòn',
+        tax_code: '0317890123',
+        address: '89 Điện Biên Phủ, Phường 25, Bình Thạnh',
+        ward_id: '26944',
+        phone_number: '02838778899',
+        description: 'Đơn vị mới đăng ký hồ sơ pháp lý, chuyên dịch vụ tổng vệ sinh chung cư và văn phòng.',
+        logo_url: '/assets/cleaning-deep.jpg',
+        verification_status: 'pending',
+        created_at: '2026-10-22T10:15:00+07:00',
+        updated_at: '2026-10-22T10:15:00+07:00',
+      },
     ];
 
     // -------------------------------------------------------------------
@@ -158,6 +236,7 @@
       {
         provider_id: 201,
         user_id: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b21',
+        company_id: 501,
         info: '5 năm kinh nghiệm dọn dẹp nhà cửa theo giờ, ủi quần áo và sắp xếp tủ đồ gia đình tại khu vực Quận 7 và Quận 1.',
         id_card_number: '079188004512',
         avatar_url: '/assets/provider-lan.jpg',
@@ -173,6 +252,7 @@
       {
         provider_id: 202,
         user_id: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b22',
+        company_id: 501,
         info: 'Thợ dọn dẹp chuyên sâu, tổng vệ sinh căn hộ và khử khuẩn không gian sống gia đình tại Quận 7 và TP. Thủ Đức.',
         id_card_number: '079092011834',
         avatar_url: '/assets/provider-tuan.jpg',
@@ -188,6 +268,7 @@
       {
         provider_id: 203,
         user_id: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b23',
+        company_id: 502,
         info: 'Nhận nấu ăn gia đình theo buổi, sơ chế thực phẩm và dọn dẹp gian bếp gọn gàng tại Quận 1, Quận 3, Quận 7.',
         id_card_number: '079191008291',
         avatar_url: '/assets/provider-ha.jpg',
@@ -203,25 +284,27 @@
       {
         provider_id: 204,
         user_id: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b24',
+        company_id: 501,
         info: 'Chuyên viên dọn dẹp nhà cửa và tổng vệ sinh căn hộ · 4 năm kinh nghiệm làm việc tại TP.HCM.',
         id_card_number: '079095023419',
         avatar_url: '/assets/provider-mai.jpg',
-        verification_status: 'pending',
-        average_rating: 0.0,
-        total_reviews: 0,
+        verification_status: 'verified',
+        average_rating: 4.75,
+        total_reviews: 12,
         lattitude: 10.7512,
         longtitude: 106.7098,
-        is_available_online: false,
+        is_available_online: true,
         created_at: '2026-10-22T16:45:00+07:00',
         updated_at: '2026-10-22T16:45:00+07:00',
       },
       {
         provider_id: 205,
         user_id: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b25',
+        company_id: 502,
         info: 'Nhận dọn nhà theo giờ khu vực Bình Thạnh, Quận 1.',
         id_card_number: '079097009182',
         avatar_url: '/assets/provider-tuan.jpg',
-        verification_status: 'rejected',
+        verification_status: 'banned',
         average_rating: 0.0,
         total_reviews: 0,
         lattitude: 10.8011,
@@ -264,6 +347,7 @@
       {
         service_id: 301,
         category_id: 1,
+        company_id: 501,
         title: 'Dọn dẹp nhà cửa theo giờ tiêu chuẩn',
         description: 'Lau dọn phòng khách, phòng ngủ, lau chùi bàn ghế, hút bụi sàn nhà, vệ sinh nhà tắm và thu gom rác sinh hoạt.',
         price: 85000,
@@ -277,6 +361,7 @@
       {
         service_id: 302,
         category_id: 1,
+        company_id: 501,
         title: 'Tổng vệ sinh căn hộ chuyên sâu (Deep Cleaning)',
         description: 'Làm sạch sâu toàn diện từ trần đến sàn, khử khuẩn bề mặt, lau kính mặt trong và xử lý vết ố nhà bếp, phòng tắm.',
         price: 450000,
@@ -290,6 +375,7 @@
       {
         service_id: 303,
         category_id: 2,
+        company_id: 502,
         title: 'Nấu bữa cơm gia đình theo buổi (3–4 món)',
         description: 'Sơ chế thực phẩm tươi sạch, nấu 3–4 món ăn nóng hổi theo khẩu vị gia đình (canh, món mặn, món xào) và dọn rửa sạch bếp.',
         price: 220000,
@@ -303,6 +389,7 @@
       {
         service_id: 304,
         category_id: 2,
+        company_id: 502,
         title: 'Đầu bếp gia đình theo giờ (Home Cooking & Tiệc nhỏ)',
         description: 'Lên thực đơn dinh dưỡng theo yêu cầu, nấu các món ăn chu đáo cho gia đình hoặc tiệc ấm cúng, trình bày đẹp mắt và vệ sinh bếp.',
         price: 110000,
@@ -316,6 +403,7 @@
       {
         service_id: 305,
         category_id: 1,
+        company_id: 501,
         title: 'Giặt vệ sinh bộ ghế Sofa vải hoặc Nệm ngủ',
         description: 'Hút bụi bề mặt, chà vết bẩn bằng dung dịch giặt chuyên dụng và hút khô nước bẩn cho 1 bộ ghế sofa hoặc 1 tấm nệm.',
         price: 380000,
@@ -329,6 +417,7 @@
       {
         service_id: 306,
         category_id: 2,
+        company_id: 502,
         title: 'Ủi quần áo & Sắp xếp tủ đồ theo giờ',
         description: 'Ủi phẳng quần áo công sở, trang phục gia đình và gấp xếp gọn gàng vào tủ theo phân loại của chủ nhà.',
         price: 90000,
@@ -722,6 +811,8 @@
         user_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
         booking_id: 1042,
         subject: 'Nhờ kiểm tra lại khoản phụ phí mua vật tư phát sinh trong đơn #1042',
+        description: 'Khách hàng đính kèm ảnh chụp hóa đơn túi rác & nước lau kính để đối chiếu.',
+        image_url: '/assets/cleaning-detail.jpg',
         status: 'open',
         priority: 'medium',
         created_at: '2026-10-23T14:40:00+07:00',
@@ -732,6 +823,7 @@
         user_id: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b22',
         booking_id: 1041,
         subject: 'Khách báo hủy lịch sát giờ hẹn do tòa nhà cúp nước, nhờ Admin ghi nhận lý do hủy ca',
+        image_url: null,
         status: 'in_progress',
         priority: 'high',
         created_at: '2026-10-22T07:20:00+07:00',
@@ -742,6 +834,7 @@
         user_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a12',
         booking_id: 1041,
         subject: 'Đề nghị cập nhật trạng thái hoàn tiền cho đơn đặt lịch #1041 đã hủy',
+        image_url: null,
         status: 'resolved',
         priority: 'urgent',
         created_at: '2026-10-22T07:18:00+07:00',
@@ -939,12 +1032,18 @@
       return store.provider_profiles
         .filter((p) => {
           const u = store.users.find((usr) => usr.user_id === p.user_id);
-          return p.verification_status === 'verified' && u && u.is_active;
+          const comp = (store.company_profiles || []).find((c) => Number(c.company_id) === Number(p.company_id));
+          const compValid = !comp || comp.verification_status === 'verified';
+          return p.verification_status === 'verified' && u && u.is_active && compValid;
         })
         .map((p) => {
           const u = store.users.find((usr) => usr.user_id === p.user_id);
+          const comp = (store.company_profiles || []).find((c) => Number(c.company_id) === Number(p.company_id));
           return {
             provider_id: p.provider_id,
+            user_id: p.user_id,
+            company_id: p.company_id || null,
+            company_name: comp ? comp.company_name : 'Công ty Đối tác Gia Đình Xanh',
             full_name: u.full_name,
             info: p.info,
             avatar_url: p.avatar_url,
@@ -971,11 +1070,21 @@
       }
     }
 
+    bookings.forEach((b) => {
+      if (b.company_id == null) {
+        const svc = services.find((s) => Number(s.service_id) === Number(b.service_id));
+        const prov = provider_profiles.find((p) => Number(p.provider_id) === Number(b.provider_id));
+        b.company_id = (svc && svc.company_id) || (prov && prov.company_id) || 501;
+      }
+    });
+
     const session = {
       customer_user_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
       customer_id: 101,
       provider_user_id: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b21',
       provider_id: 201,
+      company_user_id: 'd3eebc99-9c0b-4ef8-bb6d-6bb9bd380d31',
+      company_id: 501,
       admin_user_id: 'c2eebc99-9c0b-4ef8-bb6d-6bb9bd380c99'
     };
 
@@ -987,6 +1096,7 @@
       wards: ward,
       users,
       customer_profiles,
+      company_profiles,
       provider_profiles,
       service_categories: service_categories.map((c) => ({ ...c, name: c.category_name })),
       services,

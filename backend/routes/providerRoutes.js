@@ -49,22 +49,25 @@ async function handleProviderRoutes(ctx) {
     const body = await parseBody(req);
     const providerId = Number(body.provider_id || 201);
 
+    if (Array.isArray(body.service_ids)) {
+      sendJson(res, 403, {
+        ok: false,
+        error: "Quyền gán/quản lý dịch vụ thuộc về Công ty chủ quản. Thợ không thể tự đăng ký dịch vụ."
+      });
+      return true;
+    }
+
     if (isProd) {
       if (!client) {
         sendJson(res, 503, { ok: false, error: "Không có kết nối Supabase ở Production Mode." });
         return true;
-      }
-      if (Array.isArray(body.service_ids)) {
-        await client.from("provider_services").delete().eq("provider_id", providerId);
-        const pServices = body.service_ids.map((sid) => ({ provider_id: providerId, service_id: Number(sid) }));
-        if (pServices.length > 0) await client.from("provider_services").insert(pServices);
       }
       if (Array.isArray(body.ward_ids)) {
         await client.from("provider_areas").delete().eq("provider_id", providerId);
         const pAreas = body.ward_ids.map((wid) => ({ provider_id: providerId, ward_id: String(wid) }));
         if (pAreas.length > 0) await client.from("provider_areas").insert(pAreas);
       }
-      sendJson(res, 200, { ok: true, message: "Đã cập nhật kỹ năng và khu vực vào Supabase." });
+      sendJson(res, 200, { ok: true, message: "Đã cập nhật hồ sơ thợ vào Supabase." });
       return true;
     }
 
@@ -77,12 +80,6 @@ async function handleProviderRoutes(ctx) {
     if (body.avatar_url !== undefined) pp.avatar_url = String(body.avatar_url).trim();
     pp.updated_at = new Date().toISOString();
 
-    if (Array.isArray(body.service_ids)) {
-      db.provider_services = db.provider_services.filter((ps) => ps.provider_id !== providerId);
-      body.service_ids.forEach((sid, idx) => {
-        db.provider_services.push({ id_pro_ser: Date.now() + idx, provider_id: providerId, service_id: Number(sid) });
-      });
-    }
     if (Array.isArray(body.ward_ids)) {
       db.provider_areas = db.provider_areas.filter((pa) => pa.provider_id !== providerId);
       body.ward_ids.forEach((wid, idx) => {

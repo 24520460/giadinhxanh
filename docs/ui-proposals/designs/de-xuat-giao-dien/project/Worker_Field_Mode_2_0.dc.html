@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Worker Field Assistant 2.0 — Gia Đình Xanh</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:#0F172A;color:#FFFFFF}
+h1,h2,h3,h4,h5,h6{font-family:'Plus Jakarta Sans',sans-serif}
+a{color:#10B981;text-decoration:none}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width:390px;height:860px;box-sizing:border-box;background:#0F172A;display:flex;flex-direction:column;overflow:hidden">
+  
+  <!-- Field Mode Header -->
+  <header style="background:#0F3826;padding:16px 20px;display:flex;flex-direction:column;gap:12px;flex-shrink:0">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:36px;height:36px;border-radius:50%;background:#10B981;color:#0F3826;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px">
+          NL
+        </div>
+        <div>
+          <div style="font-size:11px;color:#A7F3D0;text-transform:uppercase">Kỹ Thuật Viên Master</div>
+          <div style="font-size:15px;font-weight:800;color:#FFFFFF">Nguyễn Văn Lộc</div>
+        </div>
+      </div>
+      <span style="background:#10B981;color:#0F3826;font-size:11px;font-weight:800;padding:4px 10px;border-radius:9999px">
+        ĐANG TRỰC CA
+      </span>
+    </div>
+
+    <!-- Daily Metrics Strip -->
+    <div style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);padding:10px 14px;border-radius:10px;display:flex;justify-content:space-between;font-size:12px">
+      <div>
+        <span style="color:#A7F3D0;font-size:10px;text-transform:uppercase;display:block">Thu nhập tạm tính:</span>
+        <strong style="font-size:14px;color:#FFFFFF">840.000 đ</strong>
+      </div>
+      <div style="text-align:right">
+        <span style="color:#A7F3D0;font-size:10px;text-transform:uppercase;display:block">Tiến độ hôm nay:</span>
+        <strong style="font-size:14px;color:#FFFFFF">3/4 Cuốc đạt 5★</strong>
+      </div>
+    </div>
+  </header>
+
+  <!-- Field Content Body -->
+  <main style="flex:1;background:#F8FAFC;padding:16px;display:flex;flex-direction:column;gap:14px;color:#0F172A;overflow-y:auto">
+    
+    <!-- Active Dispatch Order Card -->
+    <div style="background:#FFFFFF;border-radius:16px;padding:16px;border:1px solid #E2E8F0;box-shadow:0 2px 4px rgba(0,0,0,0.04)">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:10px;font-weight:800;color:#EA580C;background:#FFF7ED;padding:2px 8px;border-radius:4px;text-transform:uppercase">
+          CUỐC ĐANG THI CÔNG
+        </span>
+        <span style="font-weight:800;color:#0F3826;font-size:15px">345.600 đ</span>
+      </div>
+
+      <h3 style="font-size:15px;font-weight:800;margin:8px 0 2px;color:#0F172A">
+        Bảo Dưỡng UV-C (Daikin 1.5 HP)
+      </h3>
+      <div style="font-size:12px;color:#64748B;display:flex;align-items:center;gap:4px">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+        Căn hộ 1408, Tòa Aqua 1, Vinhomes Golden River
+      </div>
+
+      <!-- Live Job Timer -->
+      <div style="width:130px;height:130px;border-radius:50%;border:6px solid #E2F1E8;border-top-color:#0F3826;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:14px auto 10px;background:#FFFFFF">
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:700;color:#0F172A">00:38:45</div>
+        <div style="font-size:9px;font-weight:800;color:#059669;text-transform:uppercase">Thời Gian Thi Công</div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div style="display:grid;grid-template-columns:1fr 1.2fr;gap:8px;margin-top:10px">
+        <button style="padding:10px;background:#F8FAFC;border:1px solid #CBD5E1;border-radius:10px;font-size:11px;font-weight:700;color:#0F172A;cursor:pointer">
+          + Báo Giá Bổ Sung
+        </button>
+        <button style="padding:10px;background:#0F3826;color:#FFFFFF;border:none;border-radius:10px;font-size:11px;font-weight:700;cursor:pointer">
+          ✓ Nghiệm Thu Ảnh SOP
+        </button>
+      </div>
+    </div>
+
+    <!-- Incoming Urgent Job Radar Card -->
+    <div style="background:#FFFFFF;border-radius:16px;padding:16px;border:2px dashed #10B981">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:10px;font-weight:800;color:#059669;background:#EAF4EE;padding:2px 8px;border-radius:4px;text-transform:uppercase">
+          RADAR BẮT ĐƠN KHẨN CẤP
+        </span>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#EF4444;font-weight:700">Còn 24s</span>
+      </div>
+
+      <div style="font-size:14px;font-weight:800;margin-top:6px;color:#0F172A">
+        Xử lý chập điện nhảy Aptomat chính
+      </div>
+      <div style="font-size:11px;color:#64748B;margin-top:2px">
+        Cách 800m (Hai Bà Trưng, Q1) · Thu nhập KTV: <strong>210.000 đ</strong>
+      </div>
+
+      <button style="margin-top:12px;width:100%;padding:12px;background:#0F3826;color:#FFFFFF;border:none;border-radius:9999px;font-size:12px;font-weight:800;cursor:pointer">
+        NHẬN CUỐC NGAY (CHỜ TIẾP QUẢN)
+      </button>
+    </div>
+
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":860}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

@@ -14,7 +14,14 @@ async function handleAuthRoutes(ctx) {
     const phone = String(body.phone_number || "").trim();
     const email = String(body.email || "").trim();
     const password = String(body.password || "").trim();
-    const role = body.role === "provider" ? "provider" : "customer";
+    if (body.role === "provider") {
+      sendJson(res, 403, {
+        ok: false,
+        error: "Tài khoản Thợ (Provider) do Công ty đối tác tạo và quản lý trực tiếp. Vui lòng đăng ký Khách hàng hoặc Công ty."
+      });
+      return true;
+    }
+    const role = body.role === "company" ? "company" : "customer";
 
     if (!fullName || !phone) {
       sendJson(res, 400, { ok: false, error: "Họ tên và số điện thoại là bắt buộc." });
@@ -252,6 +259,7 @@ async function handleAuthRoutes(ctx) {
 
       let customerProfile = null;
       let providerProfile = null;
+      let companyProfile = null;
       if (matchedUser.role === "customer") {
         const { data: cp } = await client
           .from("customer_profiles")
@@ -266,6 +274,13 @@ async function handleAuthRoutes(ctx) {
           .eq("user_id", matchedUser.user_id)
           .maybeSingle();
         providerProfile = pp;
+      } else if (matchedUser.role === "company") {
+        const { data: comp } = await client
+          .from("company_profiles")
+          .select("*")
+          .eq("user_id", matchedUser.user_id)
+          .maybeSingle();
+        companyProfile = comp;
       }
 
       const finalUser = {
@@ -278,7 +293,8 @@ async function handleAuthRoutes(ctx) {
         user: finalUser,
         session: sessionData,
         customer_profile: customerProfile,
-        provider_profile: providerProfile
+        provider_profile: providerProfile,
+        company_profile: companyProfile
       });
       return true;
     }
@@ -304,6 +320,9 @@ async function handleAuthRoutes(ctx) {
     const providerProfile = db.provider_profiles
       ? db.provider_profiles.find((p) => String(p.user_id) === String(found.user_id))
       : null;
+    const companyProfile = db.company_profiles
+      ? db.company_profiles.find((c) => String(c.user_id) === String(found.user_id))
+      : null;
 
     const safeUser = {
       user_id: found.user_id,
@@ -320,7 +339,8 @@ async function handleAuthRoutes(ctx) {
       token: signAuthToken(safeUser),
       user: safeUser,
       customer_profile: customerProfile,
-      provider_profile: providerProfile
+      provider_profile: providerProfile,
+      company_profile: companyProfile
     });
     return true;
   }
@@ -332,11 +352,13 @@ async function handleAuthRoutes(ctx) {
       return true;
     }
     const body = await parseBody(req);
-    const requestedRole = ["customer", "provider", "admin"].includes(body.role) ? body.role : "customer";
+    const requestedRole = ["customer", "provider", "company", "admin"].includes(body.role) ? body.role : "customer";
     const found = (db.users || []).find((u) => u.role === requestedRole) || {
       user_id:
         requestedRole === "admin"
           ? "c2eebc99-9c0b-4ef8-bb6d-6bb9bd380c99"
+          : requestedRole === "company"
+          ? "d3eebc99-9c0b-4ef8-bb6d-6bb9bd380d31"
           : requestedRole === "provider"
           ? "b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b21"
           : "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",

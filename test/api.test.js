@@ -3,7 +3,7 @@ const assert = require('node:assert');
 const http = require('node:http');
 const path = require('node:path');
 const fs = require('node:fs');
-const dbMock = require('../db-mock.js');
+const dbMock = require('../public/db-mock.js');
 
 describe('Gia Đình Xanh - Database Mock & Schema Verification', () => {
   test('db-mock exports createInitialStore and initializes 16 required tables', () => {
@@ -614,13 +614,141 @@ describe('Gia Đình Xanh - Full-Stack REST API & RPC Verification', () => {
     assert.strictEqual(negInc.statusCode, 400);
   });
 
-  test('Clean Path SPA Routes: /home, /auth/login, /bookings/new, /provider/jobs, /admin/kyc return 200 HTML', async () => {
-    const paths = ['/home', '/auth/login', '/bookings/new', '/provider/jobs', '/admin/kyc'];
+  test('Clean Path SPA Routes: /home, /auth/login, /bookings/new, /provider/jobs, /admin/kyc and /company/* return 200 HTML', async () => {
+    const paths = [
+      '/home',
+      '/auth/login',
+      '/auth/register',
+      '/onboarding/company',
+      '/company/status',
+      '/bookings/new',
+      '/provider/jobs',
+      '/admin/kyc',
+      '/company/dashboard',
+      '/company/staff',
+      '/company/services'
+    ];
     for (const p of paths) {
       const res = await makeRequest('GET', p);
       assert.strictEqual(res.statusCode, 200, `${p} should return 200`);
       assert.ok(typeof res.raw === 'string' && res.raw.includes('<!DOCTYPE html>'), `${p} should serve SPA HTML`);
     }
+  });
+
+  test('Company B2B2C Workflow: Company registration, Admin KYC, Staff/Service management, Provider service restriction & Support Image', async () => {
+    await makeRequest('POST', '/api/supabase/reset-local');
+
+    // 1. Public registration for role 'provider' is blocked with 403
+    const regProv = await makeRequest('POST', '/api/auth/register', {
+      full_name: 'Self Register Prov',
+      phone_number: '0988777666',
+      password: 'password123',
+      role: 'provider'
+    });
+    assert.strictEqual(regProv.statusCode, 403);
+
+    // 2. Company registers & submits company onboarding
+    const regComp = await makeRequest('POST', '/api/auth/register', {
+      full_name: 'Công ty Test Mới',
+      phone_number: '0909555666',
+      email: 'comp_test@gd.vn',
+      password: 'password123',
+      role: 'company'
+    });
+    assert.strictEqual(regComp.statusCode, 201);
+    assert.strictEqual(regComp.data.user.role, 'company');
+    const compToken = regComp.data.token;
+    const compUserId = regComp.data.user.user_id;
+
+    const obComp = await makeRequest('POST', '/api/onboarding/company', {
+      user_id: compUserId,
+      company_name: 'Công ty Dịch Vụ Xanh Test',
+      tax_code: '0319000111',
+      phone_number: '0909555666',
+      ward_id: '27403',
+      address: '250 Nguyễn Thị Thập, Quận 7',
+      description: 'Đơn vị cung ứng dọn dẹp chuyên nghiệp'
+    });
+    assert.strictEqual(obComp.statusCode, 200);
+    assert.strictEqual(obComp.data.ok, true);
+    const newCompId = obComp.data.company_profile.company_id;
+
+    // 3. Admin verifies the new company and tests toggle-active
+    const adminSess = await makeRequest('POST', '/api/auth/demo-session', { role: 'admin' });
+    const adminAuth = { Authorization: `Bearer ${adminSess.data.token}` };
+    const verifyRes = await makeRequest('PATCH', `/api/admin/companies/${newCompId}/verify`, {
+      verification_status: 'verified'
+    }, adminAuth);
+    assert.strictEqual(verifyRes.statusCode, 200);
+    assert.strictEqual(verifyRes.data.company_profile.verification_status, 'verified');
+
+    // 4. Company creates a service and a provider, then bans/unbans the provider
+    const compAuth = { Authorization: `Bearer ${compToken}` };
+    const createSvc = await makeRequest('POST', '/api/company/services', {
+      company_id: newCompId,
+      category_id: 3,
+      title: 'Dọn dẹp văn phòng theo giờ',
+      pricing_type: 'hourly',
+      price: 110000,
+      estimated_duration: 120,
+      description: 'Dịch vụ thuộc công ty test'
+    }, compAuth);
+    assert.strictEqual(createSvc.statusCode, 201);
+    const createdSvcId = createSvc.data.service.service_id;
+
+    const updateSvc = await makeRequest('PUT', `/api/company/services/${createdSvcId}`, {
+      company_id: newCompId,
+      price: 125000
+    }, compAuth);
+    assert.strictEqual(updateSvc.statusCode, 200);
+    assert.strictEqual(updateSvc.data.service.price, 125000);
+
+    const toggleSvc = await makeRequest('PATCH', `/api/company/services/${createdSvcId}/toggle`, {
+      company_id: newCompId
+    }, compAuth);
+    assert.strictEqual(toggleSvc.statusCode, 200);
+    assert.strictEqual(toggleSvc.data.is_active, false);
+
+    const createProv = await makeRequest('POST', '/api/company/providers', {
+      company_id: newCompId,
+      full_name: 'Thợ Công Ty Mới',
+      phone_number: '0908333444',
+      id_card_number: '079098007766',
+      info: 'Thợ lành nghề 3 năm kinh nghiệm',
+      service_ids: [createdSvcId],
+      ward_ids: ['27403']
+    }, compAuth);
+    assert.strictEqual(createProv.statusCode, 201);
+    const newProvId = createProv.data.provider_profile.provider_id;
+
+    const banRes = await makeRequest('PATCH', `/api/company/providers/${newProvId}/toggle-ban`, {
+      company_id: newCompId
+    }, compAuth);
+    assert.strictEqual(banRes.statusCode, 200);
+    assert.strictEqual(banRes.data.is_active, false);
+
+    // 5. Provider cannot self-register services via PUT /api/provider/capabilities
+    const provSess = await makeRequest('POST', '/api/auth/demo-session', { role: 'provider' });
+    const provSelfSvc = await makeRequest('PUT', '/api/provider/capabilities', {
+      provider_id: 201,
+      service_ids: [301, 302]
+    }, { Authorization: `Bearer ${provSess.data.token}` });
+    assert.strictEqual(provSelfSvc.statusCode, 403);
+
+    // 6. Support ticket supports image_url attachment
+    const ticketRes = await makeRequest('POST', '/api/support-tickets', {
+      user_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      booking_id: 1042,
+      subject: 'Phiếu minh chứng hình ảnh',
+      description: 'Đính kèm ảnh kiểm tra chất lượng',
+      image_url: '/assets/cleaning-livingroom.jpg',
+      priority: 'high'
+    });
+    assert.strictEqual(ticketRes.statusCode, 201);
+    assert.strictEqual(ticketRes.data.ticket.image_url, '/assets/cleaning-livingroom.jpg');
+
+    // Reset local store cleanly
+    await makeRequest('POST', '/api/supabase/reset-local');
   });
 
   test('AI Chatbot Assistant: POST /api/ai/chat grounded domain reasoning & memory', async () => {

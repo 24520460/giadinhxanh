@@ -38,7 +38,7 @@
         </nav>
 
         <!-- DEV 4-PORTAL SWITCHER (Shown only in 'dev' mode) -->
-        <nav class="portal-switcher dev-only-el" id="devPortalSwitcher" data-ui="true" aria-label="Chuyển đổi 4 phân hệ">
+        <nav class="portal-switcher dev-only-el" id="devPortalSwitcher" data-ui="true" aria-label="Chuyển đổi 5 phân hệ">
           <button type="button" class="portal-tab" data-portal="0" aria-selected="false" onclick="GDXApp.switchPortal(0)">
             Phân hệ 0 · Xác thực (5)
           </button>
@@ -47,6 +47,9 @@
           </button>
           <button type="button" class="portal-tab" data-portal="2" aria-selected="false" onclick="GDXApp.switchPortal(2)">
             Phân hệ 2 · Đối tác Thợ (9)
+          </button>
+          <button type="button" class="portal-tab" data-portal="4" aria-selected="false" onclick="GDXApp.switchPortal(4)">
+            Phân hệ 4 · Công ty (3)
           </button>
           <button type="button" class="portal-tab" data-portal="3" aria-selected="false" onclick="GDXApp.switchPortal(3)">
             Phân hệ 3 · Quản trị Admin (9)
@@ -72,6 +75,7 @@
             <select id="userRoleSelect" class="user-role-select" onchange="GDXApp.handleUserRoleSwitch(this.value)" title="Chuyển góc nhìn vai trò trong Luồng Người dùng">
               <option value="1" selected>Khách hàng · Minh Thảo</option>
               <option value="2">Đối tác Thợ · Mai Lan</option>
+              <option value="4">Công ty · An Bình</option>
               <option value="3">Quản trị · Quang Hào</option>
               <option value="0">Tài khoản mới</option>
             </select>

@@ -1,0 +1,74 @@
+{
+  "v": 3,
+  "createdOnFiles": {
+    "v": 1,
+    "at": "2026-11-05T01:50:23.762Z"
+  },
+  "title": "Gia Đình Xanh 2.0 Enterprise UI System",
+  "launch": {
+    "view": "canvas"
+  },
+  "pages": [],
+  "boards": {
+    "Enterprise_Service_Catalog.dc.html": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 860,
+      "title": "Enterprise Service Catalog 2.0 (Bảng Giá & SLA Chuẩn Doanh Nghiệp)"
+    },
+    "Enterprise_Booking_Wizard.dc.html": {
+      "x": 1360,
+      "y": 0,
+      "w": 1280,
+      "h": 860,
+      "title": "Enterprise Booking Wizard 2.0 (Quy Trình Đặt Lịch Chuẩn 4 Bước)"
+    },
+    "Worker_Field_Mode_2_0.dc.html": {
+      "x": 2720,
+      "y": 0,
+      "w": 390,
+      "h": 860,
+      "title": "Worker Field Assistant 2.0 (Mobile Assistant)"
+    },
+    "Customer_Portal_2_0.dc.html": {
+      "x": 0,
+      "y": 980,
+      "w": 1280,
+      "h": 860,
+      "title": "Customer Executive Portal 2.0 (Cổng Khách Hàng VIP)"
+    },
+    "Admin_Command_Center_2_0.dc.html": {
+      "x": 1360,
+      "y": 980,
+      "w": 1280,
+      "h": 820,
+      "title": "Admin Command Center 2.0 (Dispatch Kanban)"
+    },
+    "Design_Tokens_2_0.dc.html": {
+      "x": 2720,
+      "y": 980,
+      "w": 960,
+      "h": 820,
+      "title": "Design Tokens 2.0 (Modern Organic)"
+    }
+  },
+  "order": [
+    "Enterprise_Service_Catalog.dc.html",
+    "Enterprise_Booking_Wizard.dc.html",
+    "Worker_Field_Mode_2_0.dc.html",
+    "Customer_Portal_2_0.dc.html",
+    "Admin_Command_Center_2_0.dc.html",
+    "Design_Tokens_2_0.dc.html"
+  ],
+  "notes": {
+    "n1": {
+      "x": 0,
+      "y": -200,
+      "text": "Gia Đình Xanh 2.0 — Hệ Thống Giao Diện Doanh Nghiệp Chuẩn Quốc Tế",
+      "kind": "title1",
+      "maxW": 3200
+    }
+  },
+  "designSystems": []
+}
