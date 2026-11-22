@@ -4175,424 +4175,239 @@ window.GDXApp = (() => {
     const totalAmount =
       svc.pricing_type === 'hourly' ? svc.price * state.bookingHours : svc.price;
 
+    const savedAddrs = (db.customer_addresses || []).filter((a) => Number(a.customer_id) === state.activeCustomerId);
+
     container.innerHTML = `
-      <div class="wizard-page-header" style="margin-bottom:24px;">
-        <div class="wizard-breadcrumb">
-          <button type="button" onclick="GDXApp.go('1.1')">Trang chủ</button>
-          <span>/</span>
-          <span>Cấu hình dịch vụ &amp; Đặt lịch hẹn</span>
-        </div>
-        <div class="screen-header" style="border-bottom:none; padding-bottom:0; margin-bottom:16px;">
-          <div>
-            <h1 class="screen-title">1.2. Tùy chỉnh Gói Dịch vụ &amp; Chọn Đối tác Thợ</h1>
-            <p class="screen-finding">Bảng: services, provider_public_profiles, provider_services, provider_areas, availability_schedules, bookings.</p>
-          </div>
-          <button type="button" class="ghost-btn btn-sm" onclick="GDXApp.go('1.1')">&larr; Quay lại trang chủ</button>
+      <div class="v3-wiz-page">
+        <div class="v3-wiz-header">
+          <h1 class="v3-wiz-title">Đặt lịch trong 4 chạm</h1>
+          <button type="button" class="v3-track-chip-btn" onclick="GDXApp.go('1.1')">&larr; Trang chủ</button>
         </div>
 
-        <!-- 4-Step Stepper Indicator Bar (from cau-hinh-dich-vu.html) -->
-        <div class="wizard-stepper" role="region" aria-label="Tiến trình cấu hình đặt lịch">
-          <div class="step-indicator is-active">
-            <span class="step-badge">1</span>
-            <div class="step-meta">
-              <span class="step-order">Bước 1</span>
-              <span class="step-name">Chọn dịch vụ</span>
-            </div>
-          </div>
-          <div class="step-indicator is-active">
-            <span class="step-badge">2</span>
-            <div class="step-meta">
-              <span class="step-order">Bước 2</span>
-              <span class="step-name">Lịch &amp; Giờ hẹn</span>
-            </div>
-          </div>
-          <div class="step-indicator is-active">
-            <span class="step-badge">3</span>
-            <div class="step-meta">
-              <span class="step-order">Bước 3</span>
-              <span class="step-name">Địa chỉ &amp; Ghi chú</span>
-            </div>
-          </div>
-          <div class="step-indicator is-active">
-            <span class="step-badge">4</span>
-            <div class="step-meta">
-              <span class="step-order">Bước 4</span>
-              <span class="step-name">Chọn Thợ &amp; Đặt lịch</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="wizard-layout">
-        <!-- Left Column: Configuration Cards -->
-        <div class="form-stack">
-          <!-- Step 1: Select Category, Service & Duration -->
-          <div class="wizard-main-content form-stack">
-            <div class="panel-header" style="margin-bottom:0;">
-              <div>
-                <h2 class="panel-title" style="font-size:1.35rem;">1. Chọn Hạng mục, Dịch vụ &amp; Thời lượng</h2>
-                <p class="field-hint">Chọn hạng mục chính, gói dịch vụ chi tiết và cấu hình thời lượng phù hợp</p>
+        <div class="v3-wiz-layout">
+          <!-- Left Main Card (Figma 1.2 1:1 + Direct Provider Selection) -->
+          <div class="v3-wiz-card">
+            <!-- 1. Chọn gói dịch vụ -->
+            <div class="v3-wiz-section">
+              <div class="v3-wiz-sec-head">
+                <h2 class="v3-wiz-sec-title">1. Chọn gói dịch vụ</h2>
+                <div class="v3-seg-tabs" style="padding:3px;">
+                  <button type="button" class="v3-seg-tab ${state.wizardCategory === '1' ? 'is-active' : ''}" style="padding:5px 12px; font-size:12.5px;" onclick="GDXApp.setWizardCategory('1')">
+                    Dọn dẹp nhà cửa
+                  </button>
+                  <button type="button" class="v3-seg-tab ${state.wizardCategory === '2' ? 'is-active' : ''}" style="padding:5px 12px; font-size:12.5px;" onclick="GDXApp.setWizardCategory('2')">
+                    Nấu ăn tại nhà
+                  </button>
+                </div>
               </div>
-              <span class="badge badge-positive">${svc.pricing_type === 'hourly' ? 'Tính theo giờ (Hourly)' : 'Trọn gói cố định (Fixed)'}</span>
-            </div>
 
-            <!-- 1A. Category Selection -->
-            <div class="field-group" style="margin-bottom:0;">
-              <label class="field-label" style="font-size:0.9375rem; font-weight:700;">Hạng mục dịch vụ chính:</label>
-              <div class="category-selector-grid">
-                <button type="button" class="category-select-card ${state.wizardCategory === '1' ? 'is-active' : ''}" onclick="GDXApp.setWizardCategory('1')">
-                  <div class="category-icon-box">🧹</div>
-                  <div>
-                    <strong style="font-family:var(--font-heading); font-size:1rem; display:block; color:var(--color-secondary);">Dọn dẹp nhà cửa (Home Cleaning)</strong>
-                    <span class="field-hint">Dọn dẹp theo giờ, tổng vệ sinh căn hộ chuyên sâu</span>
-                  </div>
-                </button>
-                <button type="button" class="category-select-card ${state.wizardCategory === '2' ? 'is-active' : ''}" onclick="GDXApp.setWizardCategory('2')">
-                  <div class="category-icon-box">🍳</div>
-                  <div>
-                    <strong style="font-family:var(--font-heading); font-size:1rem; display:block; color:var(--color-secondary);">Nấu ăn tại nhà (Home Cooking)</strong>
-                    <span class="field-hint">Nấu mâm cơm gia đình, đầu bếp theo giờ</span>
-                  </div>
-                </button>
-              </div>
-            </div>
-
-            <!-- 1B. Service Selection -->
-            <div class="field-group" style="margin-bottom:0;">
-              <label class="field-label" style="font-size:0.9375rem; font-weight:700;">Gói dịch vụ chi tiết (${categoryServices.length} gói có sẵn):</label>
-              <div class="services-selection-list" role="radiogroup" aria-label="Chọn gói dịch vụ">
-                ${categoryServices
+              <div class="v3-wiz-svc-grid">
+                ${(categoryServices.length > 0 ? categoryServices : activeServices.slice(0, 3))
                   .map((s) => {
-                    const isSel = s.service_id === svc.service_id;
-                    const img = getServiceImage(s);
+                    const isSel = String(s.service_id) === String(svc.service_id);
+                    const unit = s.pricing_type === 'hourly' ? '/h' : '';
                     return `
-                    <button type="button" class="service-select-item ${isSel ? 'is-selected' : ''}" onclick="GDXApp.go('1.2', {serviceId: ${s.service_id}})">
-                      <div class="select-item-left">
-                        <span class="select-checkbox" aria-hidden="true">${isSel ? '✓' : ''}</span>
-                        <img src="${img}" alt="${s.title}" class="select-item-thumb">
-                        <div class="select-item-details">
-                          <span class="select-item-title">${s.title}</span>
-                          <span class="select-item-sub">Thời lượng tiêu chuẩn ~${s.estimated_duration} phút · ${s.pricing_type === 'hourly' ? 'Tính phí theo giờ' : 'Đơn giá trọn gói cố định'}</span>
-                        </div>
-                      </div>
-                      <span class="select-item-rate num">${formatMoney(s.price)}${s.pricing_type === 'hourly' ? '/giờ' : '/lần'}</span>
+                    <button type="button" class="v3-wiz-svc-item ${isSel ? 'is-selected' : ''}" onclick="GDXApp.go('1.2', {serviceId: ${typeof s.service_id === 'string' ? `'${s.service_id}'` : s.service_id}})">
+                      <img src="${getServiceImage(s)}" alt="${s.title}" class="v3-wiz-svc-img">
+                      <div class="v3-wiz-svc-name">${s.title}</div>
+                      <div class="v3-wiz-svc-price num">${formatMoney(s.price).replace(' đ', 'đ')}${unit}</div>
                     </button>`;
                   })
                   .join('')}
               </div>
-            </div>
 
-            ${
-              svc.pricing_type === 'hourly'
-                ? `
-              <div class="field-group" style="padding-top:6px;">
-                <label class="field-label">Chọn thời lượng làm việc dự kiến (Đơn giá: ${formatMoney(svc.price)}/giờ)</label>
-                <div class="choice-grid-3">
+              ${
+                svc.pricing_type === 'hourly'
+                  ? `
+                <div class="v3-wiz-hours-row">
+                  <span class="v3-wiz-hours-label">Thời lượng:</span>
                   ${[2, 3, 4]
                     .map(
                       (h) => `
-                    <button type="button" class="choice-card ${state.bookingHours === h ? 'is-selected' : ''}" onclick="GDXApp.setBookingHours(${h})">
-                      <div>
-                        <div style="font-family:var(--font-heading); font-weight:700; font-size:1rem;">${h} giờ làm việc</div>
-                        <div class="field-hint num" style="color:var(--color-primary); font-weight:600;">${formatMoney(svc.price * h)}</div>
-                      </div>
+                    <button type="button" class="v3-appt-filter-pill ${state.bookingHours === h ? 'is-active' : ''}" onclick="GDXApp.setBookingHours(${h})">
+                      ${h} giờ
                     </button>`
                     )
                     .join('')}
-                </div>
-              </div>`
-                : `
-              <div class="panel-subtle" style="display:flex; justify-content:space-between; align-items:center;">
-                <div>
-                  <div style="font-family:var(--font-heading); font-weight:700;">Gói dịch vụ cố định trọn ca (~${svc.estimated_duration} phút)</div>
-                  <div class="field-hint">Áp dụng mức giá niêm yết trọn gói cho 1 lần thực hiện tiêu chuẩn</div>
-                </div>
-                <strong class="num" style="font-family:var(--font-heading); font-size:1.25rem; color:var(--color-primary);">${formatMoney(svc.price)}</strong>
-              </div>`
-            }
-          </div>
-
-          <!-- Step 2 & 3: Time, Ward & Address -->
-          <div class="wizard-main-content form-stack">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
-              <div>
-                <h2 class="panel-title" style="font-size:1.35rem;">2. Thời gian hẹn &amp; Địa chỉ phục vụ</h2>
-                <p class="field-hint">Xác nhận thời gian bắt đầu và địa chỉ nhà để hệ thống kiểm tra thợ trong khu vực</p>
-              </div>
-              ${
-                cust && (cust.default_address || cust.ward_id)
-                  ? `
-                <span class="badge badge-positive" style="font-size:0.75rem; padding:4px 10px; display:inline-flex; align-items:center; gap:6px;">
-                  <span class="status-dot is-online" style="width:7px; height:7px;"></span>
-                  Đã tự động điền từ Hồ sơ cá nhân
-                </span>`
+                </div>`
                   : ''
               }
             </div>
 
-            <div class="form-row-2">
-              <div class="field-group">
-                <label class="field-label" for="wizScheduledTime">Ngày giờ bắt đầu (bookings.scheduled_time)</label>
-                <input type="datetime-local" id="wizScheduledTime" class="input" value="${selectedTime}" min="${minBookingTime}" required>
+            <!-- 2. Ngày phục vụ, Giờ bắt đầu & Địa chỉ -->
+            <div class="v3-wiz-section">
+              <div class="v3-wiz-row-2">
+                <div class="v3-profile-field">
+                  <label for="wizScheduledTime">2. Ngày &amp; giờ phục vụ</label>
+                  <input type="datetime-local" id="wizScheduledTime" class="v3-profile-input" value="${selectedTime}" min="${minBookingTime}" required>
+                </div>
+                <div class="v3-profile-field">
+                  <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label for="wizAddress">Địa chỉ thực hiện</label>
+                    <button type="button" class="v3-prov-expand-btn" style="font-size:11.5px;" onclick="GDXApp.locateUserGPS('wizLat', 'wizLng', null, 'wizAddress', 'wizProvSelect', 'wizWardSelect')">
+                      &#128205; Định vị GPS
+                    </button>
+                  </div>
+                  <input type="text" id="wizAddress" class="v3-profile-input" value="${defaultAddressValue}" placeholder="Số nhà, tên đường, tòa căn hộ..." required>
+                </div>
               </div>
-              <div class="field-group">
-                <label class="field-label" for="wizProvSelect">Tỉnh / Thành phố (${provinces.length} tỉnh thành)</label>
-                <select id="wizProvSelect" class="select" onchange="GDXApp.handleProvinceChange('wizProvSelect', 'wizWardSelect')">
-                  ${provinces.map((p) => `<option value="${p.provinceId}" ${String(p.provinceId) === String(currentBookingProvId) ? 'selected' : ''}>${p.name}</option>`).join('')}
-                </select>
+
+              <div class="v3-wiz-row-2">
+                <div class="v3-profile-field">
+                  <label for="wizProvSelect">Tỉnh / Thành phố</label>
+                  <select id="wizProvSelect" class="v3-profile-input" onchange="GDXApp.handleProvinceChange('wizProvSelect', 'wizWardSelect')">
+                    ${provinces.map((p) => `<option value="${p.provinceId}" ${String(p.provinceId) === String(currentBookingProvId) ? 'selected' : ''}>${p.name}</option>`).join('')}
+                  </select>
+                </div>
+                <div class="v3-profile-field">
+                  <label for="wizWardSelect">Phường / Xã phục vụ</label>
+                  <select id="wizWardSelect" class="v3-profile-input">
+                    ${wardsToRender.map((w) => `<option value="${w.ward_id}" ${String(selectedWardId) === String(w.ward_id) ? 'selected' : ''}>${w.name}</option>`).join('')}
+                  </select>
+                </div>
+              </div>
+
+              ${
+                savedAddrs.length > 0
+                  ? `
+                <div class="wizard-address-chips">
+                  ${savedAddrs
+                    .map(
+                      (a) => `
+                    <button type="button" class="wizard-addr-chip" onclick="GDXApp.pickSavedAddress('${escapeQuotes(a.street_address)}', '${a.ward_id}', ${a.latitude || 10.741}, ${a.longitude || 106.702})">
+                      &#128205; <strong>${a.tag}</strong>: ${a.street_address.slice(0, 28)}${a.street_address.length > 28 ? '...' : ''}
+                    </button>`
+                    )
+                    .join('')}
+                </div>`
+                  : ''
+              }
+
+              <input type="hidden" id="wizLat" value="${cust && cust.latitude ? cust.latitude : 10.741205}">
+              <input type="hidden" id="wizLng" value="${cust && cust.longitude ? cust.longitude : 106.702110}">
+
+              <div class="v3-profile-field">
+                <label for="wizNotes">Ghi chú cho thợ (tùy chọn)</label>
+                <input type="text" id="wizNotes" class="v3-profile-input" value="Nhà có trẻ nhỏ, vui lòng gọi điện trước 10 phút khi đến sảnh căn hộ." placeholder="Ví dụ: Mang theo thang chữ A, gọi chuông cửa...">
               </div>
             </div>
 
-            ${
-              (db.customer_addresses || []).filter((a) => Number(a.customer_id) === state.activeCustomerId).length > 0
-                ? `
-              <div style="margin-bottom:8px;">
-                <label class="field-label" style="font-size:0.8125rem;">Chọn nhanh từ Sổ địa chỉ đã lưu (FR-CUST-003):</label>
-                <div class="wizard-address-chips">
-                  ${(db.customer_addresses || []).filter((a) => Number(a.customer_id) === state.activeCustomerId).map((a) => `
-                    <button type="button" class="wizard-addr-chip" onclick="GDXApp.pickSavedAddress('${escapeQuotes(a.street_address)}', '${a.ward_id}', ${a.latitude || 10.741}, ${a.longitude || 106.702})">
-                      📍 <strong>${a.tag}</strong>: ${a.street_address.slice(0, 32)}${a.street_address.length > 32 ? '...' : ''}
-                    </button>
-                  `).join('')}
-                </div>
-              </div>`
-                : ''
-            }
-
-            <div class="form-row-2">
-              <div class="field-group">
-                <label class="field-label" for="wizWardSelect">Phường / Xã phục vụ (bookings.ward_id)</label>
-                <select id="wizWardSelect" class="select">
-                  ${wardsToRender.map((w) => `<option value="${w.ward_id}" ${String(selectedWardId) === String(w.ward_id) ? 'selected' : ''}>${w.name}</option>`).join('')}
-                </select>
-              </div>
-              <div class="field-group">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
-                  <label class="field-label" for="wizAddress" style="margin-bottom:0;">Số nhà, tòa căn hộ chi tiết (bookings.address)</label>
-                  <button type="button" class="btn btn-secondary btn-sm" style="padding:2px 8px; font-size:11px; height:24px;" onclick="GDXApp.locateUserGPS('wizLat', 'wizLng', null, 'wizAddress', 'wizProvSelect', 'wizWardSelect')" title="Tự động nhận diện số nhà, tên đường qua GPS">
-                    ${Icons.pin()} Nhận diện từ GPS
+            <!-- 3. Chọn Thợ đề xuất / Tự chọn thợ cụ thể -->
+            <div class="v3-wiz-section">
+              <div class="v3-wiz-sec-head">
+                <h2 class="v3-wiz-sec-title">3. Chọn Thợ đề xuất gần bạn</h2>
+                <div class="v3-seg-tabs" style="padding:3px;">
+                  <button type="button" class="v3-seg-tab ${state.wizardProviderMode !== 'direct' ? 'is-active' : ''}" style="padding:5px 12px; font-size:12.5px;" onclick="GDXApp.setWizardProviderMode('broadcast')">
+                    &#9889; Rải đơn nhanh
+                  </button>
+                  <button type="button" class="v3-seg-tab ${state.wizardProviderMode === 'direct' ? 'is-active' : ''}" style="padding:5px 12px; font-size:12.5px;" onclick="GDXApp.setWizardProviderMode('direct')">
+                    &#128100; Tự chọn thợ (${baseEligibleProviders.length})
                   </button>
                 </div>
-                <input type="text" id="wizAddress" class="input" value="${defaultAddressValue}" placeholder="Ví dụ: KTX Khu A, Đường Tạ Quang Bửu" required>
-              </div>
-            </div>
-
-            <!-- Tọa độ định vị GPS ẩn lấy từ hồ sơ khách hàng phục vụ tính khoảng cách -->
-            <input type="hidden" id="wizLat" value="${cust && cust.latitude ? cust.latitude : 10.741205}">
-            <input type="hidden" id="wizLng" value="${cust && cust.longitude ? cust.longitude : 106.702110}">
-
-            <div class="field-group">
-              <label class="field-label" for="wizNotes">Ghi chú dặn dò đối tác thợ (bookings.notes)</label>
-              <textarea id="wizNotes" class="textarea" rows="2" placeholder="Ví dụ: Mang theo thang chữ A, gọi chuông cửa B-1802 khi tới sảnh...">Nhà có trẻ nhỏ, vui lòng gọi điện trước 10 phút khi đến sảnh căn hộ.</textarea>
-            </div>
-          </div>
-
-          <!-- Step 3: Select Provider Mode (Broadcast vs Direct) -->
-          <div class="wizard-main-content form-stack">
-            <div class="panel-header" style="margin-bottom:0;">
-              <div>
-                <h2 class="panel-title" style="font-size:1.35rem;">3. Lựa chọn Đối tác Thợ thực hiện</h2>
-                <p class="field-hint">Chọn rải đơn để nhận việc nhanh nhất hoặc tự tay chỉ định một đối tác thợ cụ thể</p>
-              </div>
-            </div>
-
-            <!-- Provider Mode Selector (2 Options) -->
-            <div class="provider-mode-grid">
-              <div class="provider-mode-card ${state.wizardProviderMode !== 'direct' ? 'is-selected' : ''}" onclick="GDXApp.setWizardProviderMode('broadcast')">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                  <div style="display:flex; align-items:center; gap:10px;">
-                    <span style="font-size:1.4rem;">⚡</span>
-                    <strong style="font-family:var(--font-heading); font-size:1.0625rem; color:var(--color-secondary);">Rải đơn cho tất cả Đối tác khả dụng</strong>
-                  </div>
-                  <span class="badge badge-positive">Khuyên dùng</span>
-                </div>
-                <p class="field-hint" style="margin-top:2px;">
-                  Hệ thống tự động phát thông báo tới <strong>Hòm thư nhận việc</strong> của toàn bộ đối tác thợ đã xác minh CCCD quanh khu vực nhà bạn. Đối tác nào xác nhận trước sẽ được giao ca làm ngay.
-                </p>
-                <div style="display:flex; align-items:center; gap:6px; font-size:0.8125rem; color:var(--color-primary); font-weight:600; margin-top:4px;">
-                  ✓ Tối ưu thời gian chờ · Thợ nhận việc nhanh nhất
-                </div>
               </div>
 
-              <div class="provider-mode-card ${state.wizardProviderMode === 'direct' ? 'is-selected' : ''}" onclick="GDXApp.setWizardProviderMode('direct')">
-                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-                  <div style="display:flex; align-items:center; gap:10px;">
-                    <span style="font-size:1.4rem;">👤</span>
-                    <strong style="font-family:var(--font-heading); font-size:1.0625rem; color:var(--color-secondary);">Tự chọn Đối tác Thợ cụ thể</strong>
-                  </div>
-                  <span class="badge badge-neutral">Chỉ định riêng</span>
+              ${
+                state.wizardProviderMode === 'direct'
+                  ? `
+                <div class="v3-wiz-row-2" style="margin-bottom:4px;">
+                  <input
+                    type="text"
+                    id="directProviderSearchInput"
+                    class="v3-profile-input"
+                    value="${escapeQuotes(state.directProviderSearch || '')}"
+                    placeholder="Tìm theo tên Thợ hoặc Công ty..."
+                    oninput="GDXApp.setDirectProviderSearch(this.value)"
+                  >
+                  <select
+                    id="directProviderCompanySelect"
+                    class="v3-profile-input"
+                    onchange="GDXApp.setDirectProviderCompanyFilter(this.value)"
+                    aria-label="Lọc theo Công ty Đối tác"
+                  >
+                    <option value="all" ${companyFilterId === 'all' ? 'selected' : ''}>Tất cả Công ty (${verifiedCompanies.length})</option>
+                    ${verifiedCompanies.map((c) => `<option value="${c.company_id}" ${String(companyFilterId) === String(c.company_id) ? 'selected' : ''}>${c.company_name}</option>`).join('')}
+                  </select>
                 </div>
-                <p class="field-hint" style="margin-top:2px;">
-                  Chủ động duyệt danh sách hồ sơ thợ lành nghề, đối chiếu khoảng cách địa lý, lịch trình làm việc và số sao đánh giá để chọn thợ ưng ý nhất.
-                </p>
-                <div style="display:flex; align-items:center; gap:6px; font-size:0.8125rem; color:var(--color-primary); font-weight:600; margin-top:4px;">
-                  ✓ Thích hợp khi muốn đặt thợ quen hoặc thợ nhiều sao
-                </div>
-              </div>
-            </div>
 
-            ${
-              state.wizardProviderMode === 'direct'
-                ? `
-              <div class="form-stack" style="gap:12px; margin-top:10px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
-                  <strong style="font-size:0.9375rem; color:var(--color-secondary);">Danh sách Đối tác Thợ sẵn sàng phục vụ (${eligibleProviders.length} thợ)</strong>
-                  <span class="field-hint">Tìm kiếm theo tên thợ hoặc công ty quản lý</span>
-                </div>
-                <div class="form-row-2" style="gap:10px;">
-                  <div class="field-group" style="margin-bottom:0;">
-                    <input
-                      type="text"
-                      id="directProviderSearchInput"
-                      class="input"
-                      value="${escapeQuotes(state.directProviderSearch || '')}"
-                      placeholder="Tìm theo tên Thợ hoặc tên Công ty..."
-                      oninput="GDXApp.setDirectProviderSearch(this.value)"
-                    >
-                  </div>
-                  <div class="field-group" style="margin-bottom:0;">
-                    <select
-                      id="directProviderCompanySelect"
-                      class="select"
-                      onchange="GDXApp.setDirectProviderCompanyFilter(this.value)"
-                      aria-label="Lọc theo Công ty Đối tác"
-                    >
-                      <option value="all" ${companyFilterId === 'all' ? 'selected' : ''}>Tất cả Công ty Đối tác (${verifiedCompanies.length})</option>
-                      ${verifiedCompanies.map((c) => `<option value="${c.company_id}" ${String(companyFilterId) === String(c.company_id) ? 'selected' : ''}>${c.company_name}</option>`).join('')}
-                    </select>
-                  </div>
-                </div>
-                ${
-                  eligibleProviders.length > 0
-                    ? eligibleProviders
-                        .map((p) => {
-                          const fullProv = (db.provider_profiles || []).find((fp) => fp.provider_id === p.provider_id);
-                          const compObj = (db.company_profiles || []).find((c) => Number(c.company_id) === Number(p.company_id || (fullProv && fullProv.company_id)));
-                          const companyLabel = p.company_name || (compObj && compObj.company_name) || 'Công ty Đối tác';
-                          const distKm =
-                            cust && fullProv
-                              ? calcDistanceKm(cust.latitude, cust.longitude, fullProv.lattitude, fullProv.longtitude)
-                              : '1.4';
-                          const schedules = (db.availability_schedules || []).filter((a) => a.provider_id === p.provider_id);
-                          const exceptions = (db.availability_exceptions || []).filter((e) => e.provider_id === p.provider_id);
-                          const isSelected = selectedProv && selectedProv.provider_id === p.provider_id;
+                <div class="v3-wiz-prov-list">
+                  ${
+                    eligibleProviders.length > 0
+                      ? eligibleProviders
+                          .map((p) => {
+                            const fullProv = (db.provider_profiles || []).find((fp) => fp.provider_id === p.provider_id);
+                            const compObj = (db.company_profiles || []).find((c) => Number(c.company_id) === Number(p.company_id || (fullProv && fullProv.company_id)));
+                            const companyLabel = p.company_name || (compObj && compObj.company_name) || 'Công ty Đối tác';
+                            const distKm =
+                              cust && fullProv
+                                ? calcDistanceKm(cust.latitude, cust.longitude, fullProv.lattitude, fullProv.longtitude)
+                                : '1.4';
+                            const isSelected = selectedProv && selectedProv.provider_id === p.provider_id;
 
-                          return `
-                          <div class="choice-card ${isSelected ? 'is-selected' : ''}" style="justify-content:space-between; align-items:center; flex-wrap:wrap;" onclick="GDXApp.selectBookingProvider(${p.provider_id})">
-                            <div style="display:flex; align-items:center; gap:14px; flex:1; min-width:240px;">
-                              <img src="${p.avatar_url || '/assets/provider-lan.jpg'}" alt="${p.full_name}" class="provider-avatar-lg">
-                              <div>
-                                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-                                  <strong style="font-family:var(--font-heading); font-size:1.0625rem;">${p.full_name}</strong>
-                                  <span class="badge badge-info">${companyLabel}</span>
-                                  <span class="star-rating num">${Icons.star(true)} ${Number(p.average_rating || 5).toFixed(2)}</span>
-                                  <span class="field-hint">(${p.total_reviews || 0} đánh giá)</span>
-                                  <span class="badge badge-positive">Cách nhà bạn ~${distKm} km</span>
-                                </div>
-                                <div class="field-hint" style="margin-top:4px;">${p.info || 'Thợ kỹ thuật đạt chuẩn Gia Đình Xanh'}</div>
-                                <div class="field-hint" style="margin-top:4px;">
-                                  Khung giờ làm việc: <strong>${schedules.length > 0 ? `${schedules[0].start_time} – ${schedules[0].end_time}` : '08:00 – 18:00'}</strong>
-                                  ${exceptions.length > 0 ? ` · Lưu ý: Nghỉ phép ngày ${exceptions[0].exception_date}` : ''}
-                                </div>
+                            return `
+                          <div class="v3-wiz-prov-card ${isSelected ? 'is-selected' : ''}" onclick="GDXApp.selectBookingProvider(${p.provider_id})">
+                            <img src="${p.avatar_url || '/assets/provider-lan.jpg'}" onerror="this.onerror=null; this.src='/assets/provider-lan.jpg';" alt="${p.full_name}" class="v3-wiz-prov-avatar">
+                            <div class="v3-wiz-prov-info">
+                              <div class="v3-wiz-prov-name">
+                                ${p.full_name} &middot; <span class="num">&#9733; ${Number(p.average_rating || 5).toFixed(2)} (${p.total_reviews || 42} đánh giá)</span>
+                              </div>
+                              <div class="v3-wiz-prov-meta">
+                                Cách bạn ~${distKm} km &middot; ${companyLabel} &middot;
+                                <button type="button" class="v3-prov-expand-btn" style="font-size:12.5px;" onclick="event.stopPropagation(); GDXApp.openModal('1.7', {providerId: ${p.provider_id}})">
+                                  Xem hồ sơ
+                                </button>
                               </div>
                             </div>
-                            <div style="display:flex; gap:8px; align-items:center;">
-                              <button type="button" class="ghost-btn btn-sm" onclick="event.stopPropagation(); GDXApp.openModal('1.7', {providerId: ${p.provider_id}})">
-                                Xem lịch &amp; Hồ sơ
-                              </button>
-                              <span class="badge ${isSelected ? 'badge-positive' : 'badge-neutral'}">
-                                ${isSelected ? '✓ Đã chọn' : 'Chọn thợ này'}
-                              </span>
-                            </div>
+                            <span class="v3-wiz-prov-pick ${isSelected ? 'is-selected' : ''}">
+                              ${isSelected ? '&#10003; Đã chọn' : 'Chọn thợ'}
+                            </span>
                           </div>`;
-                        })
-                        .join('')
-                    : `
-                    <div class="empty-state-card">
-                      <strong style="display:block; font-size:1.05rem; margin-bottom:6px;">Chưa có thợ trực tiếp sẵn sàng tại khung giờ này</strong>
-                      <p class="field-hint" style="max-width:540px; margin:0 auto;">
-                        Bạn có thể chuyển sang tùy chọn <strong>"Rải đơn cho tất cả Đối tác khả dụng"</strong> để hệ thống tự động tìm kiếm thợ nhận việc ngay.
-                      </p>
-                    </div>`
-                }
-              </div>`
-                : `
-              <div class="panel-subtle" style="display:flex; align-items:center; gap:16px; padding:16px 20px; border-radius:12px; background:#f0fdf4; border:1px solid #bbf7d0;">
-                <span style="font-size:1.8rem; flex-shrink:0;">⚡</span>
-                <div>
-                  <strong style="display:block; color:#166534; font-size:0.95rem; margin-bottom:2px;">Đang chọn chế độ: Rải đơn toàn mạng lưới thợ</strong>
-                  <p class="field-hint" style="margin:0; color:#15803d;">
-                    Ngay khi bạn nhấn "Hoàn tất &amp; Đặt lịch hẹn", đơn yêu cầu sẽ xuất hiện đồng thời trong <strong>Hòm thư Nhận việc</strong> của tất cả đối tác thợ quanh khu vực của bạn. Thợ nhận việc đầu tiên sẽ phụ trách ca làm của bạn.
-                  </p>
-                </div>
-              </div>`
-            }
-          </div>
-        </div>
-
-        <!-- Right Sidebar: Sticky Summary Card (from cau-hinh-dich-vu.html) -->
-        <aside class="wizard-sidebar">
-          <div class="wizard-summary-card" style="position:sticky; top:96px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px;">
-              <h2 class="panel-title" style="font-size:1.125rem;">Tóm tắt Yêu cầu Đặt lịch</h2>
-              <span class="badge badge-warning">Chờ xác nhận</span>
+                          })
+                          .join('')
+                      : `<div class="panel-subtle" style="text-align:center; padding:20px;">
+                          Chưa có thợ phù hợp bộ lọc. Bạn có thể chuyển sang <strong>Rải đơn nhanh</strong> để hệ thống tự điều phối.
+                        </div>`
+                  }
+                </div>`
+                  : `
+                <div class="v3-wiz-prov-card is-selected" style="cursor:pointer;" onclick="GDXApp.setWizardProviderMode('direct')">
+                  <div class="v3-kyc-avatar" style="width:52px; height:52px; font-size:20px;" aria-hidden="true">&#9889;</div>
+                  <div class="v3-wiz-prov-info">
+                    <div class="v3-wiz-prov-name">Rải đơn toàn mạng lưới thợ quanh bạn</div>
+                    <div class="v3-wiz-prov-meta">Hệ thống tự động gửi thông báo tới tất cả thợ xác minh gần nhất · Bấm nếu muốn tự chọn thợ cụ thể</div>
+                  </div>
+                  <span class="v3-wiz-prov-pick is-selected">&#10003; Khuyên dùng</span>
+                </div>`
+              }
             </div>
+          </div>
 
-            <div style="display:flex; gap:12px; align-items:center; padding-bottom:16px; margin-bottom:12px; border-bottom:1px solid var(--color-border);">
-              <img src="${getServiceImage(svc)}" alt="${svc.title}" style="width:68px; height:52px; border-radius:10px; object-fit:cover;">
-              <div>
-                <div style="font-family:var(--font-heading); font-weight:700; font-size:0.9375rem;">${svc.title}</div>
-                <div class="field-hint">${svc.pricing_type === 'hourly' ? `${state.bookingHours} giờ × ${formatMoney(svc.price)}` : `Trọn gói ~${svc.estimated_duration} phút`}</div>
+          <!-- Right Sticky Summary Card (Figma 1.2 1:1) -->
+          <aside class="v3-wiz-summary">
+            <h2 class="v3-wiz-sum-title">Tóm tắt đơn đặt lịch</h2>
+
+            <div class="v3-wiz-sum-detail">
+              <div class="v3-wiz-sum-svc">
+                ${svc.title}${svc.pricing_type === 'hourly' ? ` (${state.bookingHours} giờ)` : ''}
+              </div>
+              <div class="v3-wiz-sum-line num">
+                ${formatDateTime(selectedTime)} &middot; ${currentBookingWard ? currentBookingWard.name : ''}
+              </div>
+              <div class="v3-wiz-sum-line">
+                Thợ: ${
+                  state.wizardProviderMode === 'direct' && selectedProv
+                    ? `${selectedProv.full_name} (&#9733; ${Number(selectedProv.average_rating || 5).toFixed(2)})`
+                    : 'Điều phối tự động (Rải đơn)'
+                }
               </div>
             </div>
 
-            <div class="slip-row">
-              <span class="field-hint">Hình thức phân bổ</span>
-              <span class="slip-dots"></span>
-              <strong>${state.wizardProviderMode === 'direct' && selectedProv ? selectedProv.full_name : '⚡ Rải đơn toàn mạng lưới thợ'}</strong>
-            </div>
-            <div class="slip-row">
-              <span class="field-hint">Đơn giá dịch vụ</span>
-              <span class="slip-dots"></span>
-              <strong class="num">${formatMoney(totalAmount)}</strong>
-            </div>
-            <div class="slip-row">
-              <span class="field-hint">Phụ phí vật tư mua hộ</span>
-              <span class="slip-dots"></span>
-              <strong class="num">0 đ</strong>
-            </div>
-            <div class="slip-row">
-              <span class="field-hint">Thanh toán</span>
-              <span class="slip-dots"></span>
-              <span class="badge badge-neutral">Sau khi nghiệm thu</span>
-            </div>
+            <div class="v3-wiz-sum-total num">${formatMoney(totalAmount)}</div>
 
-            <div class="summary-price-box">
-              <div class="summary-price-label">Chi phí tạm tính (total_amount)</div>
-              <div class="summary-price-number num">${formatMoney(totalAmount)}</div>
-              <div class="field-hint" style="margin-top:4px;">Cam kết không phát sinh phụ phí ẩn</div>
-            </div>
-
-            <button type="button" class="primary-btn full-width" style="min-height:50px;" onclick="GDXApp.submitNewBooking()">
+            <button type="button" class="v3-wiz-submit-btn" onclick="GDXApp.submitNewBooking()">
               Hoàn tất &amp; Đặt lịch hẹn &rarr;
             </button>
-
-            <ul style="margin-top:18px; display:flex; flex-direction:column; gap:8px;">
-              <li style="display:flex; align-items:center; gap:8px; font-size:0.8125rem; color:var(--color-muted);">
-                <span style="color:var(--color-primary); font-weight:700;">✓</span>
-                Đối tác thợ đã đối chiếu CCCD rõ ràng
-              </li>
-              <li style="display:flex; align-items:center; gap:8px; font-size:0.8125rem; color:var(--color-muted);">
-                <span style="color:var(--color-primary); font-weight:700;">✓</span>
-                Theo dõi trực tiếp tiến độ &amp; nhật ký đơn hàng
-              </li>
-              <li style="display:flex; align-items:center; gap:8px; font-size:0.8125rem; color:var(--color-muted);">
-                <span style="color:var(--color-primary); font-weight:700;">✓</span>
-                Nghiệm thu hài lòng mới thanh toán hóa đơn
-              </li>
-            </ul>
-          </div>
-        </aside>
+          </aside>
+        </div>
       </div>
     `;
   }
