@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Enterprise Booking Wizard 2.0 — Gia Đình Xanh</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:#F8FAFC;color:#1E293B}
+h1,h2,h3,h4,h5,h6{font-family:'Plus Jakarta Sans',sans-serif}
+a{color:#0F3826;text-decoration:none}
+button,select,input,textarea{font-family:inherit}
+
+/* Tab Stepper CSS Logic */
+#step_radio_1:checked ~ .step-nav .step-btn-1,
+#step_radio_2:checked ~ .step-nav .step-btn-2,
+#step_radio_3:checked ~ .step-nav .step-btn-3,
+#step_radio_4:checked ~ .step-nav .step-btn-4 {
+  background: #0F3826 !important;
+  color: #FFFFFF !important;
+  border-color: #0F3826 !important;
+}
+
+#step_radio_1:checked ~ .wizard-body .view-step-1 { display: flex !important; }
+#step_radio_2:checked ~ .wizard-body .view-step-2 { display: flex !important; }
+#step_radio_3:checked ~ .wizard-body .view-step-3 { display: flex !important; }
+#step_radio_4:checked ~ .wizard-body .view-step-4 { display: flex !important; }
+
+.view-step { display: none; flex-direction: column; gap: 18px; }
+</style>
+</helmet>
+<div style="width:1280px;height:860px;box-sizing:border-box;background:#F8FAFC;display:flex;flex-direction:column;overflow:hidden">
+  
+  <!-- Hidden Radios for Multi-Step Interactive Navigation -->
+  <input type="radio" name="wizard_stage" id="step_radio_1" checked style="display:none">
+  <input type="radio" name="wizard_stage" id="step_radio_2" style="display:none">
+  <input type="radio" name="wizard_stage" id="step_radio_3" style="display:none">
+  <input type="radio" name="wizard_stage" id="step_radio_4" style="display:none">
+
+  <!-- Corporate Header Bar -->
+  <header style="height:64px;background:#FFFFFF;border-bottom:1px solid #E2E8F0;padding:0 32px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="width:36px;height:36px;border-radius:10px;background:#0F3826;color:#FFFFFF;display:flex;align-items:center;justify-content:center">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+      </div>
+      <div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:16px;color:#0F172A">HỢP ĐỒNG ĐẶT LỊCH DỊCH VỤ TRỰC TUYẾN</span>
+          <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;background:#EAF4EE;color:#059669;padding:2px 8px;border-radius:9999px">SOP-GDX-2026-BK</span>
+        </div>
+        <div style="font-size:11px;color:#64748B">Quy trình điều phối kỹ thuật số hóa theo tiêu chuẩn an toàn lao động</div>
+      </div>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:16px">
+      <div style="font-size:12px;color:#64748B">
+        Khách hàng: <strong style="color:#0F172A">Nguyễn Văn An</strong> (Cá nhân VIP)
+      </div>
+      <div style="height:24px;width:1px;background:#E2E8F0"></div>
+      <span style="font-size:11px;font-weight:700;color:#059669;background:#EAF4EE;padding:4px 10px;border-radius:9999px;display:flex;align-items:center;gap:6px">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Ký Quỹ Escrow An Toàn
+      </span>
+    </div>
+  </header>
+
+  <!-- Interactive 4-Step Stepper Navigation -->
+  <div class="step-nav" style="background:#FFFFFF;border-bottom:1px solid #E2E8F0;padding:12px 32px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;flex-shrink:0">
+    <label for="step_radio_1" class="step-btn-1" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid #E2E8F0;border-radius:12px;cursor:pointer;background:#F8FAFC;color:#64748B;font-size:12px;font-weight:700;transition:all 0.15s">
+      <span style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.25);border:1px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:11px">1</span>
+      <div>
+        <div style="font-size:10px;text-transform:uppercase;opacity:0.8">Bước 1</div>
+        <div style="font-size:12px">Thiết Bị &amp; Khảo Sát</div>
+      </div>
+    </label>
+
+    <label for="step_radio_2" class="step-btn-2" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid #E2E8F0;border-radius:12px;cursor:pointer;background:#F8FAFC;color:#64748B;font-size:12px;font-weight:700;transition:all 0.15s">
+      <span style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.25);border:1px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:11px">2</span>
+      <div>
+        <div style="font-size:10px;text-transform:uppercase;opacity:0.8">Bước 2</div>
+        <div style="font-size:12px">Mặt Bằng &amp; Chọn Thợ</div>
+      </div>
+    </label>
+
+    <label for="step_radio_3" class="step-btn-3" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid #E2E8F0;border-radius:12px;cursor:pointer;background:#F8FAFC;color:#64748B;font-size:12px;font-weight:700;transition:all 0.15s">
+      <span style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.25);border:1px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:11px">3</span>
+      <div>
+        <div style="font-size:10px;text-transform:uppercase;opacity:0.8">Bước 3</div>
+        <div style="font-size:12px">Add-on &amp; Bảo Hiểm</div>
+      </div>
+    </label>
+
+    <label for="step_radio_4" class="step-btn-4" style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid #E2E8F0;border-radius:12px;cursor:pointer;background:#F8FAFC;color:#64748B;font-size:12px;font-weight:700;transition:all 0.15s">
+      <span style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.25);border:1px solid currentColor;display:flex;align-items:center;justify-content:center;font-size:11px">4</span>
+      <div>
+        <div style="font-size:10px;text-transform:uppercase;opacity:0.8">Bước 4</div>
+        <div style="font-size:12px">Ký Quỹ &amp; Hóa Đơn VAT</div>
+      </div>
+    </label>
+  </div>
+
+  <!-- Wizard Main Grid: Form Body + Live Cost Ledger -->
+  <div class="wizard-body" style="flex:1;padding:24px 32px;display:grid;grid-template-columns:1.5fr 1fr;gap:24px;overflow:hidden">
+    
+    <!-- Left Main Form Container -->
+    <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:18px;padding:24px;overflow-y:auto;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
+      
+      <!-- STEP 1: Thiết Bị & Khảo Sát Kỹ Thuật -->
+      <div class="view-step view-step-1">
+        <div style="border-bottom:1px solid #F1F5F9;padding-bottom:14px">
+          <div style="font-size:11px;font-weight:800;color:#0F3826;text-transform:uppercase">Bước 1 / 4</div>
+          <h2 style="font-size:18px;font-weight:800;color:#0F172A;margin:2px 0 4px">Khai Báo Thiết Bị &amp; Hiện Trạng Kỹ Thuật</h2>
+          <p style="font-size:12px;color:#64748B;margin:0">
+            Cung cấp thông số chính xác giúp Kỹ thuật viên chuẩn bị sẵn đồ nghề, thang rút và linh kiện thay thế chuẩn hãng trước khi đến nhà.
+          </p>
+        </div>
+
+        <!-- Section: Device Type -->
+        <div>
+          <label style="font-size:12px;font-weight:700;color:#0F172A;display:block;margin-bottom:8px">1. Chủng loại điều hòa cần bảo trì:</label>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+            <div style="background:#EAF4EE;border:2px solid #0F3826;border-radius:10px;padding:12px;cursor:pointer">
+              <div style="font-weight:700;font-size:12px;color:#0F172A">Treo Tường Inverter</div>
+              <div style="font-size:11px;color:#059669;margin-top:2px">Tiết kiệm điện 1 - 2.5 HP</div>
+            </div>
+            <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:10px;padding:12px;cursor:pointer">
+              <div style="font-weight:700;font-size:12px;color:#0F172A">Treo Tường Mono</div>
+              <div style="font-size:11px;color:#64748B;margin-top:2px">Dòng cơ thông thường</div>
+            </div>
+            <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:10px;padding:12px;cursor:pointer">
+              <div style="font-weight:700;font-size:12px;color:#0F172A">Âm Trần Cassette</div>
+              <div style="font-size:11px;color:#64748B;margin-top:2px">Dành cho văn phòng/villa</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section: Brand & Power -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div>
+            <label style="font-size:12px;font-weight:700;color:#0F172A;display:block;margin-bottom:6px">Hãng sản xuất:</label>
+            <select style="width:100%;padding:10px 12px;border:1px solid #CBD5E1;border-radius:8px;font-size:12px;color:#1E293B;background:#FFFFFF">
+              <option selected>Daikin (Nhật Bản)</option>
+              <option>Panasonic (Nhật Bản)</option>
+              <option>Mitsubishi Electric / Heavy</option>
+              <option>Toshiba / Carrier</option>
+              <option>LG Dual Inverter</option>
+              <option>Samsung Digital Inverter</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:12px;font-weight:700;color:#0F172A;display:block;margin-bottom:6px">Công suất làm lạnh:</label>
+            <select style="width:100%;padding:10px 12px;border:1px solid #CBD5E1;border-radius:8px;font-size:12px;color:#1E293B;background:#FFFFFF">
+              <option selected>1.5 HP (12.000 BTU) — Phòng 15-20 m²</option>
+              <option>1.0 HP (9.000 BTU) — Phòng dưới 15 m²</option>
+              <option>2.0 HP (18.000 BTU) — Phòng 20-30 m²</option>
+              <option>2.5 HP trở lên (24.000+ BTU)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Section: Symptoms Checklist -->
+        <div>
+          <label style="font-size:12px;font-weight:700;color:#0F172A;display:block;margin-bottom:8px">
+            Hiện trạng và triệu chứng bất thường (Chọn các vấn đề đang gặp):
+          </label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#334155;background:#F8FAFC;padding:8px 12px;border-radius:8px;border:1px solid #E2E8F0;cursor:pointer">
+              <input type="checkbox" checked style="accent-color:#0F3826">
+              Chảy nước hoặc nhỏ giọt dàn lạnh
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#334155;background:#F8FAFC;padding:8px 12px;border-radius:8px;border:1px solid #E2E8F0;cursor:pointer">
+              <input type="checkbox" checked style="accent-color:#0F3826">
+              Có mùi hôi chua / nấm mốc khó chịu
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#334155;background:#F8FAFC;padding:8px 12px;border-radius:8px;border:1px solid #E2E8F0;cursor:pointer">
+              <input type="checkbox" style="accent-color:#0F3826">
+              Gió thổi yếu, máy không mát dù chỉnh 18°C
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#334155;background:#F8FAFC;padding:8px 12px;border-radius:8px;border:1px solid #E2E8F0;cursor:pointer">
+              <input type="checkbox" style="accent-color:#0F3826">
+              Quạt kêu rè rè, rung lắc khi chạy
+            </label>
+          </div>
+        </div>
+
+        <!-- Section: Photo Upload -->
+        <div>
+          <label style="font-size:12px;font-weight:700;color:#0F172A;display:block;margin-bottom:6px">Ảnh chụp hiện trường / Nhãn máy (Tùy chọn):</label>
+          <div style="border:2px dashed #CBD5E1;border-radius:10px;padding:16px;text-align:center;background:#F8FAFC">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" style="margin:0 auto 6px"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+            <div style="font-size:12px;font-weight:600;color:#0F3826">Kéo thả ảnh hoặc Nhấn để tải lên tem model máy</div>
+            <div style="font-size:11px;color:#94A3B8;margin-top:2px">Hỗ trợ JPG, PNG (Tối đa 3 ảnh dưới 10MB)</div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:flex-end;margin-top:10px">
+          <label for="step_radio_2" style="background:#0F3826;color:#FFFFFF;padding:12px 24px;border-radius:9999px;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px">
+            Tiếp Tục: Chọn Thời Gian &amp; Thợ →
+          </label>
+        </div>
+      </div>
+
+      <!-- STEP 2: Mặt Bằng & Chọn Thợ -->
+      <div class="view-step view-step-2">
+        <div style="border-bottom:1px solid #F1F5F9;padding-bottom:14px">
+          <div style="font-size:11px;font-weight:800;color:#0F3826;text-transform:uppercase">Bước 2 / 4</div>
+          <h2 style="font-size:18px;font-weight:800;color:#0F172A;margin:2px 0 4px">Địa Điểm Phục Vụ &amp; Tiêu Chuẩn Kỹ Thuật Viên</h2>
+          <p style="font-size:12px;color:#64748B;margin:0">
+            Xác lập vị trí thi công, đặc thù ban quản lý tòa nhà và chỉ định cấp bậc thợ mong muốn.
+          </p>
+        </div>
+
+        <div>
+          <label style="font-size:12px;font-weight:700;color:#0F172A;display:block;margin-bottom:6px">Địa chỉ thi công chính xác:</label>
+          <input type="text" value="Căn hộ 1408, Tòa Aqua 1, Vinhomes Golden River, Bến Nghé, Quận 1, TP.HCM" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #CBD5E1;border-radius:8px;font-size:12px;color:#1E293B">
+          <div style="display:flex;gap:12px;margin-top:8px">
+            <input type="text" placeholder="Ghi chú bảo vệ: Đăng ký thẻ khách tầng G" style="flex:1;padding:8px 12px;border:1px solid #E2E8F0;border-radius:6px;font-size:11px">
+            <span style="font-size:11px;color:#059669;display:flex;align-items:center;gap:4px">✓ Đã lưu sổ địa chỉ VIP</span>
+          </div>
+        </div>
+
+        <div>
+          <label style="font-size:12px;font-weight:700;color:#0F172A;display:block;margin-bottom:8px">Khung giờ hẹn mong muốn:</label>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+            <div style="background:#EAF4EE;border:2px solid #0F3826;border-radius:10px;padding:12px;cursor:pointer">
+              <div style="font-size:11px;font-weight:800;color:#059669">HẸN GIỜ CHÍNH XÁC</div>
+              <div style="font-size:13px;font-weight:700;color:#0F172A;margin-top:4px">Hôm nay · 14:00 - 15:30</div>
+              <div style="font-size:11px;color:#64748B;margin-top:2px">Cam kết đúng giờ ±10 phút</div>
+            </div>
+            <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:10px;padding:12px;cursor:pointer">
+              <div style="font-size:11px;font-weight:800;color:#EA580C">CẤP CỨU KHẨN CẤP</div>
+              <div style="font-size:13px;font-weight:700;color:#0F172A;margin-top:4px">Có mặt trong 30-45 phút</div>
+              <div style="font-size:11px;color:#64748B;margin-top:2px">Phụ phí ưu tiên: +50.000 đ</div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label style="font-size:12px;font-weight:700;color:#0F172A;display:block;margin-bottom:8px">Chỉ định cấp bậc Kỹ thuật viên phụ trách:</label>
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="background:#F8FAFC;border:2px solid #0F3826;border-radius:10px;padding:12px;display:flex;align-items:center;justify-content:space-between">
+              <div style="display:flex;align-items:center;gap:12px">
+                <div style="width:42px;height:42px;border-radius:50%;background:#0F3826;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px">NL</div>
+                <div>
+                  <div style="font-size:13px;font-weight:800;color:#0F172A">Nguyễn Văn Lộc (Master Technician)</div>
+                  <div style="font-size:11px;color:#64748B">Kinh nghiệm 7 năm · Bậc 4/7 · 486 cuốc đạt 5.0★</div>
+                </div>
+              </div>
+              <span style="font-size:11px;font-weight:800;color:#0F3826;background:#EAF4EE;padding:4px 10px;border-radius:9999px">ĐÃ CHỈ ĐỊNH</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;margin-top:10px">
+          <label for="step_radio_1" style="background:#F1F5F9;color:#475569;padding:12px 20px;border-radius:9999px;font-weight:700;font-size:12px;cursor:pointer">
+            ← Quay Lại Bước 1
+          </label>
+          <label for="step_radio_3" style="background:#0F3826;color:#FFFFFF;padding:12px 24px;border-radius:9999px;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px">
+            Tiếp Tục: Chọn Add-on &amp; Bảo Hiểm →
+          </label>
+        </div>
+      </div>
+
+      <!-- STEP 3: Add-on & Bảo Hiểm -->
+      <div class="view-step view-step-3">
+        <div style="border-bottom:1px solid #F1F5F9;padding-bottom:14px">
+          <div style="font-size:11px;font-weight:800;color:#0F3826;text-transform:uppercase">Bước 3 / 4</div>
+          <h2 style="font-size:18px;font-weight:800;color:#0F172A;margin:2px 0 4px">Dịch Vụ Gia Tăng &amp; Bảo Hiểm Rủi Ro Doanh Nghiệp</h2>
+          <p style="font-size:12px;color:#64748B;margin:0">
+            Nâng cấp giải pháp an tâm toàn diện cho không gian sống và tài sản gia đình.
+          </p>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <!-- Add-on 1 -->
+          <div style="border:1px solid #CBD5E1;border-radius:12px;padding:14px;display:flex;align-items:center;justify-content:space-between;background:#FFFFFF">
+            <div style="display:flex;align-items:flex-start;gap:12px">
+              <input type="checkbox" checked style="accent-color:#0F3826;margin-top:4px">
+              <div>
+                <div style="font-size:13px;font-weight:800;color:#0F172A">Khử Khuẩn Tia Cực Tím UV-C &amp; Phun Sương Nano Bạc</div>
+                <div style="font-size:11px;color:#64748B;margin-top:2px">Tiêu diệt 99.9% bào tử nấm mốc và vi khuẩn gây bệnh hô hấp trong đường gió.</div>
+              </div>
+            </div>
+            <div style="text-align:right">
+              <span style="font-size:13px;font-weight:800;color:#0F3826">+50.000 đ</span>
+              <div style="font-size:10px;color:#059669;font-weight:700">Đã chọn</div>
+            </div>
+          </div>
+
+          <!-- Add-on 2 -->
+          <div style="border:1px solid #CBD5E1;border-radius:12px;padding:14px;display:flex;align-items:center;justify-content:space-between;background:#FFFFFF">
+            <div style="display:flex;align-items:flex-start;gap:12px">
+              <input type="checkbox" checked style="accent-color:#0F3826;margin-top:4px">
+              <div>
+                <div style="font-size:13px;font-weight:800;color:#0F172A">Gói Bảo Hành Vàng Mở Rộng 90 Ngày</div>
+                <div style="font-size:11px;color:#64748B;margin-top:2px">Miễn phí 100% công kiểm tra xử lý lại trong 4 giờ nếu máy rò rỉ nước hoặc mùi chua.</div>
+              </div>
+            </div>
+            <div style="text-align:right">
+              <span style="font-size:13px;font-weight:800;color:#0F3826">+40.000 đ</span>
+              <div style="font-size:10px;color:#059669;font-weight:700">Đã chọn</div>
+            </div>
+          </div>
+
+          <!-- Add-on 3 -->
+          <div style="border:1px solid #E2E8F0;border-radius:12px;padding:14px;display:flex;align-items:center;justify-content:space-between;background:#FFFFFF">
+            <div style="display:flex;align-items:flex-start;gap:12px">
+              <input type="checkbox" style="accent-color:#0F3826;margin-top:4px">
+              <div>
+                <div style="font-size:13px;font-weight:800;color:#0F172A">Xịt Rửa Sâu Dàn Nóng Ban Công Bằng Bơm Áp Suất Cao</div>
+                <div style="font-size:11px;color:#64748B;margin-top:2px">Loại bỏ bụi cát bám cánh quạt tản nhiệt giúp máy giải nhiệt nhanh, giảm 20% điện năng.</div>
+              </div>
+            </div>
+            <div style="text-align:right">
+              <span style="font-size:13px;font-weight:800;color:#0F3826">+60.000 đ</span>
+              <div style="font-size:10px;color:#94A3B8">Chưa chọn</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Corporate Insurance Guaranteed -->
+        <div style="background:#FEF3C7;border:1px solid #FCD34D;border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:12px">
+          <div style="width:36px;height:36px;border-radius:8px;background:#D97706;color:#FFFFFF;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <div>
+            <div style="font-size:12px;font-weight:800;color:#92400E">ĐẶC QUYỀN DOANH NGHIỆP: BẢO HIỂM TÀI SẢN PVI TỰ ĐỘNG KÍCH HOẠT</div>
+            <div style="font-size:11px;color:#B45309;margin-top:1px">Mọi rủi ro chập cháy bo mạch hoặc trầy xước sàn gỗ được bồi thường tối đa 1.000.000.000 đ. Miễn phí 100%.</div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;margin-top:10px">
+          <label for="step_radio_2" style="background:#F1F5F9;color:#475569;padding:12px 20px;border-radius:9999px;font-weight:700;font-size:12px;cursor:pointer">
+            ← Quay Lại Bước 2
+          </label>
+          <label for="step_radio_4" style="background:#0F3826;color:#FFFFFF;padding:12px 24px;border-radius:9999px;font-weight:700;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px">
+            Tiếp Tục: Ký Quỹ &amp; Xuất Hóa Đơn VAT →
+          </label>
+        </div>
+      </div>
+
+      <!-- STEP 4: Ký Quỹ Escrow & Hóa Đơn VAT -->
+      <div class="view-step view-step-4">
+        <div style="border-bottom:1px solid #F1F5F9;padding-bottom:14px">
+          <div style="font-size:11px;font-weight:800;color:#0F3826;text-transform:uppercase">Bước 4 / 4</div>
+          <h2 style="font-size:18px;font-weight:800;color:#0F172A;margin:2px 0 4px">Ký Quỹ Escrow An Toàn &amp; Xuất Hóa Đơn VAT Điện Tử</h2>
+          <p style="font-size:12px;color:#64748B;margin:0">
+            Tiền được phong tỏa an toàn tại ngân hàng đối tác. Chỉ giải ngân khi bạn đã kiểm tra và ký biên bản hài lòng.
+          </p>
+        </div>
+
+        <!-- Corporate VAT Invoice Form -->
+        <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;padding:16px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+            <span style="font-size:12px;font-weight:800;color:#0F172A">Yêu Cầu Xuất Hóa Đơn VAT Doanh Nghiệp (8%):</span>
+            <label style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:700;color:#0F3826;cursor:pointer">
+              <input type="checkbox" checked style="accent-color:#0F3826"> Xuất Hóa Đơn Điện Tử
+            </label>
+          </div>
+          <div style="display:grid;grid-template-columns:1.2fr 1fr;gap:10px">
+            <input type="text" value="CÔNG TY CỔ PHẦN ĐẦU TƯ CÔNG NGHỆ GIA ĐÌNH XANH" style="padding:8px 10px;border:1px solid #CBD5E1;border-radius:6px;font-size:11px">
+            <input type="text" value="Mã Số Thuế: 0317892345" style="padding:8px 10px;border:1px solid #CBD5E1;border-radius:6px;font-size:11px">
+          </div>
+          <input type="text" value="Email nhận hóa đơn: ketoan@giadinhxanh.vn" style="width:100%;box-sizing:border-box;margin-top:8px;padding:8px 10px;border:1px solid #CBD5E1;border-radius:6px;font-size:11px">
+        </div>
+
+        <!-- Payment Escrow Selection -->
+        <div>
+          <label style="font-size:12px;font-weight:700;color:#0F172A;display:block;margin-bottom:8px">Phương thức ký quỹ trực tuyến:</label>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+            <div style="background:#EAF4EE;border:2px solid #0F3826;border-radius:10px;padding:12px;text-align:center;cursor:pointer">
+              <div style="font-size:11px;font-weight:800;color:#0F3826">VIETQR DYNAMIC</div>
+              <div style="font-size:10px;color:#059669;margin-top:2px">Miễn phí · Tự động khớp</div>
+            </div>
+            <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:10px;padding:12px;text-align:center;cursor:pointer">
+              <div style="font-size:11px;font-weight:800;color:#1E293B">THẺ DOANH NGHIỆP</div>
+              <div style="font-size:10px;color:#64748B;margin-top:2px">Visa / Mastercard / JCB</div>
+            </div>
+            <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:10px;padding:12px;text-align:center;cursor:pointer">
+              <div style="font-size:11px;font-weight:800;color:#1E293B">HẠN MỨC B2B 30 NGÀY</div>
+              <div style="font-size:10px;color:#64748B;margin-top:2px">Đối tác ký hợp đồng năm</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;margin-top:10px">
+          <label for="step_radio_3" style="background:#F1F5F9;color:#475569;padding:12px 20px;border-radius:9999px;font-weight:700;font-size:12px;cursor:pointer">
+            ← Quay Lại Bước 3
+          </label>
+          <button style="background:#0F3826;color:#FFFFFF;border:none;padding:14px 28px;border-radius:9999px;font-weight:800;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px">
+            ✓ XÁC NHẬN KÝ QUỸ &amp; ĐIỀU PHỐI KỸ THUẬT VIÊN
+          </button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Live Cost Ledger & Corporate Trust Center -->
+    <aside style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:18px;padding:22px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
+      <div>
+        <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #F1F5F9;padding-bottom:12px">
+          <div>
+            <div style="font-size:10px;font-weight:800;color:#0F3826;text-transform:uppercase">Hợp Đồng Dịch Vụ Điện Tử</div>
+            <h3 style="font-size:15px;font-weight:800;color:#0F172A;margin:2px 0 0">Bảng Phân Rã Chi Phí (Itemized Ledger)</h3>
+          </div>
+          <span style="font-size:10px;font-weight:700;background:#EAF4EE;color:#059669;padding:2px 8px;border-radius:9999px">DỰ THẢO</span>
+        </div>
+
+        <!-- Ledger Line Items -->
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px;font-size:12px">
+          <div style="display:flex;justify-content:space-between;color:#334155">
+            <span>Gói Bảo Dưỡng Pro Deep Clean (1.5 HP):</span>
+            <strong style="color:#0F172A">280.000 đ</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;color:#334155">
+            <span>Khử khuẩn tia UV-C &amp; Nano Bạc:</span>
+            <strong style="color:#0F172A">50.000 đ</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;color:#334155">
+            <span>Bảo hành vàng mở rộng 90 ngày:</span>
+            <strong style="color:#0F172A">40.000 đ</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;color:#334155">
+            <span>Bảo hiểm trách nhiệm tài sản PVI (1 Tỷ):</span>
+            <span style="color:#059669;font-weight:700">Miễn Phí 100%</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;color:#334155">
+            <span>Khuyến mại Doanh Nghiệp (Voucher GDX50):</span>
+            <span style="color:#EA580C;font-weight:700">-50.000 đ</span>
+          </div>
+
+          <div style="border-top:1px dashed #CBD5E1;padding-top:12px;margin-top:4px">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748B">
+              <span>Tạm tính (chưa VAT):</span>
+              <span>320.000 đ</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#64748B;margin-top:2px">
+              <span>Thuế GTGT VAT (8%):</span>
+              <span>25.600 đ</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;font-size:16px;font-weight:800;color:#0F3826;margin-top:8px">
+              <span>Tổng Tiền Ký Quỹ:</span>
+              <span>345.600 đ</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Escrow Dynamic VietQR Box -->
+        <div style="background:#F8FAFC;border:1px solid #CBD5E1;border-radius:12px;padding:14px;margin-top:16px;text-align:center">
+          <div style="font-size:10px;font-weight:800;color:#EA580C;text-transform:uppercase;letter-spacing:0.04em">MÃ THANH TOÁN KÝ QUỸ TỰ ĐỘNG</div>
+          <div style="width:110px;height:110px;background:#0F172A;border-radius:10px;margin:8px auto;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#A7F3D0;font-size:10px;font-family:'IBM Plex Mono',monospace">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-bottom:4px"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+            VIETQR ESCROW
+          </div>
+          <div style="font-family:'IBM Plex Mono',monospace;font-size:11px;font-weight:700;color:#0F3826">
+            Nội dung: GDX-BK24-AN99
+          </div>
+          <div style="font-size:10px;color:#64748B;margin-top:2px">Ngân hàng TMCP Quân Đội (MBBank) · Tự động giữ chỗ</div>
+        </div>
+      </div>
+
+      <!-- Corporate Assurance Bullets -->
+      <div style="background:#EAF4EE;border-radius:12px;padding:12px;margin-top:16px">
+        <div style="font-size:11px;font-weight:800;color:#0F3826;margin-bottom:6px">CAM KẾT 3 KHÔNG TỪ BAN GIÁM ĐỐC:</div>
+        <div style="font-size:10px;color:#1E293B;line-height:1.4;display:flex;flex-direction:column;gap:3px">
+          <div>• <strong>Không Tự Ý Báo Giá Ngoài:</strong> 100% tuân thủ giá niêm yết trên hệ thống.</div>
+          <div>• <strong>Không Nhận Tiền Mặt Trước:</strong> Toàn bộ tiền giữ an toàn qua Escrow.</div>
+          <div>• <strong>Hoàn Tiền 100%:</strong> Nếu Kỹ thuật viên không đáp ứng tiêu chuẩn SOP.</div>
+        </div>
+      </div>
+    </aside>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":860}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

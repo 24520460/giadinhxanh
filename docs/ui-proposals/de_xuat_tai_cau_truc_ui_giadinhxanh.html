@@ -1,0 +1,1811 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đề Xuất Tái Cấu Trúc UI/UX & Thiết Kế Giao Diện 2.0 — Gia Đình Xanh</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      /* Brand 2.0: Modern Organic Living */
+      --primary: #0F3826;
+      --primary-hover: #092619;
+      --primary-surface: #EAF4EE;
+      --emerald-vibrant: #10B981;
+      --emerald-glow: rgba(16, 185, 129, 0.15);
+      
+      --accent-warm: #E07A5F;
+      --accent-amber: #F59E0B;
+      --accent-flame: #EA580C;
+      
+      --text-main: #0F172A;
+      --text-body: #334155;
+      --text-muted: #64748B;
+      
+      --bg-page: #F8FAFC;
+      --bg-card: #FFFFFF;
+      --bg-elevated: #FFFFFF;
+      --border: #E2E8F0;
+      --border-subtle: #F1F5F9;
+      
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-pill: 9999px;
+      
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.06), 0 2px 4px -1px rgba(0,0,0,0.04);
+      --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.08), 0 4px 6px -2px rgba(0,0,0,0.04);
+      --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+      --shadow-inner: inset 0 2px 4px rgba(0,0,0,0.05);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-body);
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Top Navigation Header */
+    .header-bar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255, 255, 255, 0.94);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 0 32px;
+      height: 70px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand-group {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #0F3826 0%, #10B981 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #FFFFFF;
+      font-size: 20px;
+      font-weight: 800;
+      box-shadow: 0 4px 10px rgba(16, 185, 129, 0.3);
+    }
+
+    .brand-info h1 {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 17px;
+      font-weight: 800;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ver-tag {
+      background: var(--emerald-glow);
+      color: #059669;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: var(--radius-pill);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+
+    .brand-info p {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Tab Switcher */
+    .tab-nav {
+      display: flex;
+      gap: 6px;
+      background: #F1F5F9;
+      padding: 4px;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--border);
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      padding: 8px 18px;
+      border-radius: var(--radius-pill);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .tab-btn:hover {
+      color: var(--text-main);
+    }
+
+    .tab-btn.active {
+      background: var(--bg-card);
+      color: var(--primary);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 12px;
+    }
+
+    .btn-action {
+      background: var(--primary);
+      color: #FFFFFF;
+      border: none;
+      padding: 9px 18px;
+      border-radius: var(--radius-pill);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      transition: all 0.2s;
+    }
+
+    .btn-action:hover {
+      background: var(--primary-hover);
+      transform: translateY(-1px);
+    }
+
+    .btn-outline {
+      background: #FFFFFF;
+      color: var(--text-main);
+      border: 1px solid var(--border);
+    }
+
+    .btn-outline:hover {
+      background: #F8FAFC;
+      border-color: #CBD5E1;
+    }
+
+    /* Main Container */
+    .main-content {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 36px 32px 80px;
+    }
+
+    .tab-panel {
+      display: none;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Hero Banner */
+    .hero-banner {
+      background: linear-gradient(135deg, #0F3826 0%, #154D34 60%, #10B981 100%);
+      border-radius: var(--radius-lg);
+      padding: 48px;
+      color: #FFFFFF;
+      position: relative;
+      overflow: hidden;
+      margin-bottom: 36px;
+      box-shadow: var(--shadow-xl);
+    }
+
+    .hero-banner::after {
+      content: "";
+      position: absolute;
+      top: -50%;
+      right: -10%;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(245, 158, 11, 0.25) 0%, transparent 70%);
+      border-radius: 50%;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(8px);
+      padding: 6px 16px;
+      border-radius: var(--radius-pill);
+      font-size: 13px;
+      font-weight: 700;
+      color: #A7F3D0;
+      margin-bottom: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .hero-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 38px;
+      font-weight: 800;
+      line-height: 1.2;
+      max-width: 900px;
+      margin-bottom: 16px;
+    }
+
+    .hero-desc {
+      font-size: 16px;
+      color: #D1FAE5;
+      max-width: 820px;
+      line-height: 1.6;
+      margin-bottom: 28px;
+    }
+
+    .hero-stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      padding-top: 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.15);
+    }
+
+    .hero-stat-card {
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(6px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: var(--radius-md);
+      padding: 16px;
+    }
+
+    .stat-num {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 26px;
+      font-weight: 700;
+      color: #FDE68A;
+      margin-bottom: 4px;
+    }
+
+    .stat-label {
+      font-size: 13px;
+      color: #E2E8F0;
+    }
+
+    /* Section Styles */
+    .section-title-wrap {
+      margin-bottom: 24px;
+    }
+
+    .sec-tag {
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--emerald-vibrant);
+      margin-bottom: 4px;
+      display: block;
+    }
+
+    .sec-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .sec-desc {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* Comparison Grid: Before vs After */
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 28px;
+      margin-bottom: 36px;
+    }
+
+    .compare-card {
+      background: var(--bg-card);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border);
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+      display: flex;
+      flex-direction: column;
+    }
+
+    .compare-header {
+      padding: 18px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .compare-header.before {
+      background: #FFFBEB;
+      color: #92400E;
+    }
+
+    .compare-header.after {
+      background: #ECFDF5;
+      color: #065F46;
+    }
+
+    .compare-badge {
+      font-size: 12px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 4px 12px;
+      border-radius: var(--radius-pill);
+    }
+
+    .badge-before { background: #FEF3C7; color: #B45309; }
+    .badge-after { background: #D1FAE5; color: #047857; }
+
+    .compare-body {
+      padding: 24px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .pain-point-item {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      font-size: 14px;
+      color: #475569;
+    }
+
+    .icon-bullet {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .icon-warn { background: #FEE2E2; color: #DC2626; }
+    .icon-check { background: #DCFCE7; color: #16A34A; }
+
+    /* 4 Pillars Grid */
+    .pillars-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 20px;
+      margin-bottom: 40px;
+    }
+
+    .pillar-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.25s;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .pillar-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow-lg);
+      border-color: #10B981;
+    }
+
+    .pillar-icon {
+      width: 48px;
+      height: 48px;
+      border-radius: 14px;
+      background: var(--primary-surface);
+      color: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      margin-bottom: 16px;
+    }
+
+    .pillar-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text-main);
+      margin-bottom: 8px;
+    }
+
+    .pillar-desc {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* Interactive Prototype Simulator Container */
+    .proto-frame {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-xl);
+      margin-bottom: 40px;
+    }
+
+    .proto-toolbar {
+      background: #0F172A;
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      color: #E2E8F0;
+      border-bottom: 1px solid #1E293B;
+    }
+
+    .window-controls {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .w-dot { width: 12px; height: 12px; border-radius: 50%; }
+    .w-red { background: #EF4444; }
+    .w-yellow { background: #F59E0B; }
+    .w-green { background: #10B981; }
+
+    .proto-selector {
+      display: flex;
+      gap: 8px;
+    }
+
+    .proto-tab-btn {
+      background: #1E293B;
+      border: 1px solid #334155;
+      color: #94A3B8;
+      padding: 6px 14px;
+      border-radius: var(--radius-pill);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .proto-tab-btn.active {
+      background: var(--primary);
+      color: #A7F3D0;
+      border-color: #059669;
+    }
+
+    .proto-viewport {
+      background: #F8FAFC;
+      min-height: 600px;
+      padding: 32px;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    /* Mockup 1: Customer One-Flow Booking */
+    .mockup-customer-box {
+      width: 100%;
+      max-width: 1100px;
+      background: #FFFFFF;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      box-shadow: var(--shadow-lg);
+      overflow: hidden;
+      display: grid;
+      grid-template-columns: 1.4fr 1fr;
+    }
+
+    .mockup-main-col {
+      padding: 32px;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .mockup-side-col {
+      padding: 32px;
+      background: #FAFAFA;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Bento Grid Services */
+    .bento-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+    }
+
+    .bento-card {
+      background: #FFFFFF;
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+
+    .bento-card:hover {
+      border-color: var(--emerald-vibrant);
+      transform: translateY(-2px);
+    }
+
+    .bento-card.selected {
+      border-color: #0F3826;
+      background: #F0FDF4;
+    }
+
+    .bento-icon { font-size: 24px; margin-bottom: 6px; }
+    .bento-title { font-size: 13px; font-weight: 700; color: var(--text-main); }
+    .bento-price { font-family: 'IBM Plex Mono', monospace; font-size: 12px; font-weight: 700; color: #059669; margin-top: 4px; }
+
+    /* AI Matched Providers Pills */
+    .provider-pill-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 16px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .provider-pill-card:hover, .provider-pill-card.selected {
+      border-color: var(--primary);
+      box-shadow: 0 4px 12px rgba(15, 56, 38, 0.08);
+    }
+
+    .prov-avatar-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .prov-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: #E2E8F0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .prov-info h4 { font-size: 14px; font-weight: 700; color: var(--text-main); }
+    .prov-info p { font-size: 12px; color: var(--text-muted); }
+
+    .prov-rating {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent-amber);
+      background: #FFFBEB;
+      padding: 4px 10px;
+      border-radius: var(--radius-pill);
+      border: 1px solid #FDE68A;
+    }
+
+    /* Dynamic Receipt Slip 2.0 */
+    .receipt-slip-2 {
+      background: #FFFFFF;
+      border: 1px dashed var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .slip-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--text-body);
+    }
+
+    .slip-row.total {
+      padding-top: 12px;
+      border-top: 1px solid var(--border);
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .slip-row.total .price {
+      font-family: 'IBM Plex Mono', monospace;
+      color: var(--primary);
+    }
+
+    /* Mockup 2: Worker Field Mode (Mobile) */
+    .mockup-mobile-shell {
+      width: 390px;
+      height: 780px;
+      background: #0F172A;
+      border-radius: 44px;
+      border: 10px solid #1E293B;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .mobile-notch {
+      width: 140px;
+      height: 28px;
+      background: #1E293B;
+      margin: 0 auto;
+      border-radius: 0 0 16px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .notch-camera { width: 10px; height: 10px; border-radius: 50%; background: #000; }
+
+    .mobile-screen {
+      flex: 1;
+      background: #F8FAFC;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .mobile-header {
+      background: #0F3826;
+      color: #FFFFFF;
+      padding: 18px 20px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .mobile-status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .mobile-toggle {
+      background: #10B981;
+      color: #FFFFFF;
+      padding: 4px 12px;
+      border-radius: var(--radius-pill);
+      font-size: 12px;
+      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Big Circular Timer Widget */
+    .timer-circle-widget {
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      border: 8px solid #E2F1E8;
+      border-top-color: #10B981;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin: 20px auto 10px;
+      background: #FFFFFF;
+      box-shadow: var(--shadow-md);
+    }
+
+    .timer-huge {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 32px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .timer-sub {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--emerald-vibrant);
+      text-transform: uppercase;
+    }
+
+    /* Swipe To Accept Slider */
+    .swipe-track {
+      background: #E2E8F0;
+      height: 60px;
+      border-radius: var(--radius-pill);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 16px;
+      overflow: hidden;
+      box-shadow: var(--shadow-inner);
+    }
+
+    .swipe-thumb {
+      position: absolute;
+      left: 6px;
+      width: 48px;
+      height: 48px;
+      background: #0F3826;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #FFFFFF;
+      cursor: grab;
+      box-shadow: var(--shadow-md);
+      transition: transform 0.2s;
+    }
+
+    .swipe-text {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 700;
+      color: #475569;
+    }
+
+    /* Mockup 3: Admin Kanban Command Center */
+    .mockup-admin-box {
+      width: 100%;
+      max-width: 1200px;
+      background: #0F172A;
+      border-radius: 16px;
+      border: 1px solid #1E293B;
+      color: #FFFFFF;
+      overflow: hidden;
+    }
+
+    .admin-sub-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid #1E293B;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .admin-kpis {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      padding: 20px 24px;
+      background: #111C38;
+      border-bottom: 1px solid #1E293B;
+    }
+
+    .admin-kpi-tile {
+      background: #1E293B;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 14px;
+    }
+
+    .admin-kpi-val {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 22px;
+      font-weight: 700;
+      color: #38BDF8;
+    }
+
+    .admin-kanban {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      padding: 24px;
+    }
+
+    .kanban-col {
+      background: #1E293B;
+      border-radius: 12px;
+      border: 1px solid #334155;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .kanban-col-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 700;
+      color: #E2E8F0;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #334155;
+    }
+
+    .kanban-card {
+      background: #0F172A;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      cursor: grab;
+      transition: all 0.2s;
+    }
+
+    .kanban-card:hover {
+      border-color: #38BDF8;
+      transform: translateY(-2px);
+    }
+
+    .kanban-id {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent-amber);
+    }
+
+    .kanban-title { font-size: 12px; font-weight: 600; color: #F1F5F9; }
+    .kanban-foot { font-size: 11px; color: #94A3B8; display: flex; justify-content: space-between; margin-top: 4px; }
+
+    /* Benchmark Table */
+    .bench-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #FFFFFF;
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: var(--shadow-md);
+      margin-bottom: 36px;
+    }
+
+    .bench-table th, .bench-table td {
+      padding: 16px 20px;
+      text-align: left;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .bench-table th {
+      background: #F8FAFC;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    .bench-brand-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    /* Token Matrix */
+    .token-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      margin-bottom: 36px;
+    }
+
+    .token-card {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .token-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Roadmap Timeline */
+    .roadmap-list {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .roadmap-item {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .roadmap-phase {
+      background: var(--primary-surface);
+      color: var(--primary);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      border-right: 1px solid var(--border);
+    }
+
+    .phase-num {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 13px;
+      font-weight: 800;
+      color: #059669;
+    }
+
+    .phase-name {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 16px;
+      font-weight: 800;
+      margin-top: 4px;
+    }
+
+    .roadmap-detail {
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header Navigation -->
+  <header class="header-bar">
+    <div class="brand-group">
+      <div class="brand-mark">🌿</div>
+      <div class="brand-info">
+        <h1>Gia Đình Xanh 2.0 <span class="ver-tag">Bản Đề Xuất UI/UX</span></h1>
+        <p>Báo cáo tái cấu trúc trải nghiệm &amp; hệ thống giao diện tham khảo</p>
+      </div>
+    </div>
+
+    <!-- Main Navigation Tabs -->
+    <nav class="tab-nav">
+      <button class="tab-btn active" data-tab="tab-audit">🔍 1. Đánh Giá Hiện Trạng</button>
+      <button class="tab-btn" data-tab="tab-architecture">🏗️ 2. Kiến Trúc Tái Cấu Trúc</button>
+      <button class="tab-btn" data-tab="tab-prototypes">✨ 3. Giao Diện Mẫu (Interactive)</button>
+      <button class="tab-btn" data-tab="tab-tokens">🎨 4. Design System 2.0</button>
+      <button class="tab-btn" data-tab="tab-benchmarks">🌍 5. Tham Khảo Quốc Tế</button>
+      <button class="tab-btn" data-tab="tab-roadmap">🚀 6. Lộ Trình Triển Khai</button>
+    </nav>
+
+    <div class="header-actions">
+      <a href="slides_giao_dien_giadinhxanh.html" class="btn-action btn-outline" target="_blank" title="Xem bộ slide 35 màn hình hiện tại">
+        📊 Xem Slide Hiện Tại
+      </a>
+      <a href="#prototype" onclick="switchTab('tab-prototypes'); return false;" class="btn-action">
+        ✨ Trải Nghiệm Prototype
+      </a>
+    </div>
+  </header>
+
+  <!-- Main Body Content -->
+  <main class="main-content">
+
+    <!-- TAB 1: ĐÁNH GIÁ HIỆN TRẠNG & ĐIỂM NGHẼN -->
+    <section class="tab-panel active" id="tab-audit">
+      <div class="hero-banner">
+        <div class="hero-badge">BÁO CÁO TÁI CẤU TRÚC GIAO DIỆN &amp; NÂNG TẦM TRẢI NGHIỆM</div>
+        <h2 class="hero-title">Đưa Gia Đình Xanh từ "Bảng Biểu Tĩnh" Thành "Nền Tảng Dịch Vụ Thông Minh Chuẩn Quốc Tế"</h2>
+        <p class="hero-desc">
+          Sau khi kiểm toán toàn bộ 35 màn hình hiện tại, chúng tôi đề xuất chiến lược tái cấu trúc tập trung vào 3 giá trị cốt lõi: <strong>Giảm ma sát đặt lịch cho khách</strong>, <strong>Tối ưu thao tác 1 tay cho thợ di chuyển ngoài đường</strong>, và <strong>Số hóa bảng điều phối Kanban cho Admin</strong> mà vẫn bảo toàn 100% CSDL PostgreSQL 16 hiện có.
+        </p>
+        <div class="hero-stats">
+          <div class="hero-stat-card">
+            <div class="stat-num">-65%</div>
+            <div class="stat-label">Thời gian hoàn tất đặt lịch (từ 5 phút xuống 90 giây)</div>
+          </div>
+          <div class="hero-stat-card">
+            <div class="stat-num">1-Tap</div>
+            <div class="stat-label">Cử chỉ vuốt nhận việc nhanh cho thợ ngoài đường</div>
+          </div>
+          <div class="hero-stat-card">
+            <div class="stat-num">100%</div>
+            <div class="stat-label">Tương thích với 16 bảng PostgreSQL &amp; 4 RPC Supabase</div>
+          </div>
+          <div class="hero-stat-card">
+            <div class="stat-num">AAA</div>
+            <div class="stat-label">Độ tương phản tiếp cận WCAG cho người lớn tuổi</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title-wrap">
+        <span class="sec-tag">ĐỐI CHIẾU TRẢI NGHIỆM</span>
+        <h3 class="sec-title">So Sánh Trực Tiếp: UI Hiện Tại (1.0) vs UI Đề Xuất (2.0)</h3>
+        <p class="sec-desc">Phân tích chi tiết các điểm nghẽn của phiên bản 1.0 và phương án giải quyết triệt để trong bản 2.0</p>
+      </div>
+
+      <div class="comparison-grid">
+        <!-- Before Card -->
+        <div class="compare-card">
+          <div class="compare-header before">
+            <span style="font-weight:800; font-size:15px;">⚠️ Giao Diện Hiện Tại (Phiên bản 1.0)</span>
+            <span class="compare-badge badge-before">Điểm Nghẽn UI/UX</span>
+          </div>
+          <div class="compare-body">
+            <div class="pain-point-item">
+              <span class="icon-bullet icon-warn">✕</span>
+              <div>
+                <strong>Luồng đặt lịch phân mảnh qua 4 màn hình:</strong> Khách phải đi qua Trang chủ -> Máy tính giá -> Màn hình Wizard -> Mở modal hồ sơ thợ -> Mở modal thanh toán VietQR -> Modal đánh giá. Quá nhiều bước khiến tỷ lệ bỏ dở đơn (drop-off rate) cao.
+              </div>
+            </div>
+            <div class="pain-point-item">
+              <span class="icon-bullet icon-warn">✕</span>
+              <div>
+                <strong>Giao diện thợ khó thao tác khi lái xe:</strong> Thợ ngoài đường phải bấm các nút nhỏ trên bảng dữ liệu, khó check-in GPS khi trời nắng gắt hoặc đang đeo găng tay.
+              </div>
+            </div>
+            <div class="pain-point-item">
+              <span class="icon-bullet icon-warn">✕</span>
+              <div>
+                <strong>Admin ngập trong danh sách bảng tĩnh (Table Heavy):</strong> Quản trị viên chỉ nhìn thấy danh sách đơn phẳng, không trực quan hóa được đơn nào bị trễ SLA, đơn nào chưa có thợ nhận.
+              </div>
+            </div>
+            <div class="pain-point-item">
+              <span class="icon-bullet icon-warn">✕</span>
+              <div>
+                <strong>Phong cách Stationery giấy kraft thiếu hiện đại:</strong> Màu sắc trầm, viền đục lỗ tuy cổ điển nhưng tạo cảm giác như tài liệu in ấn hơn là một ứng dụng công nghệ trực tuyến năng động.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- After Card -->
+        <div class="compare-card">
+          <div class="compare-header after">
+            <span style="font-weight:800; font-size:15px;">✨ Giao Diện Đề Xuất Tái Cấu Trúc (Phiên bản 2.0)</span>
+            <span class="compare-badge badge-after">Đột Phá Trải Nghiệm</span>
+          </div>
+          <div class="compare-body">
+            <div class="pain-point-item">
+              <span class="icon-bullet icon-check">✓</span>
+              <div>
+                <strong>One-Flow Booking Engine (Đặt lịch 1 màn hình liền mạch):</strong> Gom việc chọn dịch vụ, AI gợi ý 3 thợ rảnh gần nhất, và tạo mã VietQR động vào 1 ngăn kéo tương tác duy nhất. Đặt dịch vụ trong 90 giây!
+              </div>
+            </div>
+            <div class="pain-point-item">
+              <span class="icon-bullet icon-check">✓</span>
+              <div>
+                <strong>Worker Field Mode (Chế độ Thợ Chống Chói Nắng):</strong> Cử chỉ trượt vuốt (Swipe to Accept), đồng hồ đếm giờ khổng lồ dạng bánh xe tròn Circular Timer, nút chụp hóa đơn phụ phí tức thì.
+              </div>
+            </div>
+            <div class="pain-point-item">
+              <span class="icon-bullet icon-check">✓</span>
+              <div>
+                <strong>SaaS Dispatch Kanban Command Center:</strong> Kéo thả đơn hàng giữa các cột: Chờ thợ -> Đang đến -> Đang làm -> Hoàn thành. Cảnh báo đơn kẹt bằng màu đỏ tức thì.
+              </div>
+            </div>
+            <div class="pain-point-item">
+              <span class="icon-bullet icon-check">✓</span>
+              <div>
+                <strong>Thiết kế Modern Organic Living:</strong> Tone màu Emerald Deep (#0F3826) cao cấp kết hợp Luminous Sage (#EAF4EE) và Warm Amber (#F59E0B), mang lại cảm giác sống động, sạch sẽ và tin cậy tuyệt đối.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 Core Pillars -->
+      <div class="section-title-wrap">
+        <span class="sec-tag">TRỤ CỘT ĐỀ XUẤT</span>
+        <h3 class="sec-title">4 Trụ Cột Tái Cấu Trúc Trải Nghiệm</h3>
+      </div>
+
+      <div class="pillars-grid">
+        <div class="pillar-card">
+          <div class="pillar-icon">⚡</div>
+          <div class="pillar-title">One-Flow Booking</div>
+          <div class="pillar-desc">Loại bỏ hoàn toàn form Wizard 5 bước. Thay bằng side-sheet thông minh tự động gợi ý thợ tốt nhất trong bán kính 2km.</div>
+        </div>
+        <div class="pillar-card">
+          <div class="pillar-icon">🏍️</div>
+          <div class="pillar-title">Worker Driver Mode</div>
+          <div class="pillar-desc">Giao diện phím to, chống chói, thao tác 1 tay, vuốt nhận việc và nhận diện giọng nói khi đang lái xe ngoài đường.</div>
+        </div>
+        <div class="pillar-card">
+          <div class="pillar-icon">📊</div>
+          <div class="pillar-title">Realtime Kanban Admin</div>
+          <div class="pillar-desc">Thay thế bảng quản trị truyền thống bằng bảng điều phối kéo thả Kanban kèm đồng hồ đếm ngược vi phạm SLA.</div>
+        </div>
+        <div class="pillar-card">
+          <div class="pillar-icon">🌿</div>
+          <div class="pillar-title">Modern Organic Design</div>
+          <div class="pillar-desc">Hệ thống Design Tokens 2.0 đa lớp, bo góc mềm mại 14-20px, viền kính mờ frosted glass và hiệu ứng vi chuyển động micro-interactions.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: KIẾN TRÚC TÁI CẤU TRÚC (ARCHITECTURE) -->
+    <section class="tab-panel" id="tab-architecture">
+      <div class="section-title-wrap">
+        <span class="sec-tag">SƠ ĐỒ HỆ THỐNG MỚI</span>
+        <h3 class="sec-title">Tái Cấu Trúc Kiến Trúc Luồng Người Dùng (Information Architecture 2.0)</h3>
+        <p class="sec-desc">Hợp nhất 34 màn hình phân mảnh thành 4 Trung tâm tương tác tinh gọn (Unified Interactive Hubs)</p>
+      </div>
+
+      <div style="background:#FFFFFF; border:1px solid var(--border); border-radius:var(--radius-lg); padding:32px; margin-bottom:36px; box-shadow:var(--shadow-sm);">
+        <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:24px;">
+          <!-- Hub 0 -->
+          <div style="border-top: 4px solid #F59E0B; padding-top:16px;">
+            <div style="font-size:12px; font-weight:800; color:#D97706; text-transform:uppercase;">Hub 0 · Xác Thực 2.0</div>
+            <h4 style="font-family:'Plus Jakarta Sans', sans-serif; font-size:16px; font-weight:800; margin:6px 0 12px; color:var(--text-main);">Smart Auth &amp; Fast KYC</h4>
+            <ul style="list-style:none; display:flex; flex-direction:column; gap:8px; font-size:13px; color:#475569;">
+              <li>• <strong>OTP 1-Chạm:</strong> Đăng nhập số điện thoại không cần nhớ mật khẩu</li>
+              <li>• <strong>Progressive Onboarding:</strong> Chỉ hỏi thông tin khi thực sự cần (đến bước thanh toán mới lưu địa chỉ)</li>
+              <li>• <strong>OCR Quét CCCD:</strong> Chụp ảnh CCCD tự động điền họ tên, số thẻ và quê quán cho thợ</li>
+            </ul>
+          </div>
+
+          <!-- Hub 1 -->
+          <div style="border-top: 4px solid #10B981; padding-top:16px;">
+            <div style="font-size:12px; font-weight:800; color:#059669; text-transform:uppercase;">Hub 1 · Khách Hàng 2.0</div>
+            <h4 style="font-family:'Plus Jakarta Sans', sans-serif; font-size:16px; font-weight:800; margin:6px 0 12px; color:var(--text-main);">Living Services Experience</h4>
+            <ul style="list-style:none; display:flex; flex-direction:column; gap:8px; font-size:13px; color:#475569;">
+              <li>• <strong>Bento Service Catalog:</strong> Gom dịch vụ theo giải pháp (Combo dọn nhà đón Tết, Combo bảo dưỡng máy lạnh)</li>
+              <li>• <strong>One-Sheet Booking:</strong> Đặt lịch trong 1 trang duy nhất không cần chuyển trang</li>
+              <li>• <strong>Floating Live HUD:</strong> Widget động nổi trên màn hình theo dõi vị trí thợ đang di chuyển</li>
+            </ul>
+          </div>
+
+          <!-- Hub 2 -->
+          <div style="border-top: 4px solid #3B82F6; padding-top:16px;">
+            <div style="font-size:12px; font-weight:800; color:#2563EB; text-transform:uppercase;">Hub 2 · Thợ Đối Tác 2.0</div>
+            <h4 style="font-family:'Plus Jakarta Sans', sans-serif; font-size:16px; font-weight:800; margin:6px 0 12px; color:var(--text-main);">Worker Field Assistant</h4>
+            <ul style="list-style:none; display:flex; flex-direction:column; gap:8px; font-size:13px; color:#475569;">
+              <li>• <strong>Swipe To Accept:</strong> Vuốt để nhận đơn chống chạm nhầm khi đang đi xe máy</li>
+              <li>• <strong>Circular Live Timer:</strong> Đồng hồ bánh xe trực quan báo rung khi ca làm sắp kết thúc</li>
+              <li>• <strong>Fast Incidental:</strong> Chụp ảnh hóa đơn vật tư tự động nhận diện số tiền cộng vào đơn</li>
+            </ul>
+          </div>
+
+          <!-- Hub 3 -->
+          <div style="border-top: 4px solid #8B5CF6; padding-top:16px;">
+            <div style="font-size:12px; font-weight:800; color:#7C3AED; text-transform:uppercase;">Hub 3 · Quản Trị 2.0</div>
+            <h4 style="font-family:'Plus Jakarta Sans', sans-serif; font-size:16px; font-weight:800; margin:6px 0 12px; color:var(--text-main);">Dispatch Command Center</h4>
+            <ul style="list-style:none; display:flex; flex-direction:column; gap:8px; font-size:13px; color:#475569;">
+              <li>• <strong>Realtime Kanban:</strong> Kéo thả đơn hàng, tự động báo động khi đơn quá 15 phút chưa nhận</li>
+              <li>• <strong>AI Dispatch Matcher:</strong> Tự động gợi ý thợ thay thế khi có ca hủy đột xuất</li>
+              <li>• <strong>Audit Git-Graph:</strong> Lịch sử trạng thái hiển thị trực quan dạng sơ đồ nhánh</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: GIAO DIỆN MẪU TƯƠNG TÁC (PROTOTYPES) -->
+    <section class="tab-panel" id="tab-prototypes">
+      <div class="section-title-wrap">
+        <span class="sec-tag">MOCKUP TƯƠNG TÁC TRỰC TIẾP</span>
+        <h3 class="sec-title">Giao Diện Đề Xuất Mới (Interactive Prototype Simulator)</h3>
+        <p class="sec-desc">Bấm chọn các tab để trải nghiệm giao diện đề xuất cho từng nhóm đối tượng người dùng</p>
+      </div>
+
+      <div class="proto-frame" id="prototype">
+        <div class="proto-toolbar">
+          <div class="window-controls">
+            <span class="w-dot w-red"></span>
+            <span class="w-dot w-yellow"></span>
+            <span class="w-dot w-green"></span>
+            <span style="font-size:12px; color:#94A3B8; margin-left:8px;">Gia Đình Xanh 2.0 UI Simulator</span>
+          </div>
+          <div class="proto-selector">
+            <button class="proto-tab-btn active" onclick="switchProto('customer')">👤 1. Khách Hàng (One-Flow Booking)</button>
+            <button class="proto-tab-btn" onclick="switchProto('worker')">🏍️ 2. Thợ Đối Tác (Mobile Field Mode)</button>
+            <button class="proto-tab-btn" onclick="switchProto('admin')">🛡️ 3. Quản Trị Admin (Kanban Dispatch)</button>
+          </div>
+        </div>
+
+        <div class="proto-viewport">
+          
+          <!-- PROTO 1: CUSTOMER PORTAL 2.0 -->
+          <div class="mockup-customer-box" id="protoCustomerView">
+            <div class="mockup-main-col">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div>
+                  <span style="font-size:11px; font-weight:800; color:#059669; text-transform:uppercase;">Đặt Dịch Vụ Nhanh</span>
+                  <h3 style="font-family:'Plus Jakarta Sans', sans-serif; font-size:20px; font-weight:800; color:var(--text-main);">Chọn Gói Dịch Vụ Cần Chăm Sóc</h3>
+                </div>
+                <div style="font-size:12px; color:#64748B; background:#F1F5F9; padding:6px 12px; border-radius:var(--radius-pill);">
+                  📍 Phường Bến Nghé, Quận 1
+                </div>
+              </div>
+
+              <!-- Bento Services Selection -->
+              <div class="bento-grid">
+                <div class="bento-card selected" onclick="selectService(this, 'Dọn dẹp nhà theo giờ', 90000)">
+                  <div class="bento-icon">🧹</div>
+                  <div class="bento-title">Dọn Dẹp Theo Giờ</div>
+                  <div class="bento-price">90.000 đ/giờ</div>
+                </div>
+                <div class="bento-card" onclick="selectService(this, 'Vệ sinh máy lạnh 1-1.5HP', 180000)">
+                  <div class="bento-icon">❄️</div>
+                  <div class="bento-title">Rửa Máy Lạnh Treo Tường</div>
+                  <div class="bento-price">180.000 đ/máy</div>
+                </div>
+                <div class="bento-card" onclick="selectService(this, 'Sửa ống nước & điện gia dụng', 150000)">
+                  <div class="bento-icon">🔧</div>
+                  <div class="bento-title">Sửa Điện Nước Cấp Tốc</div>
+                  <div class="bento-price">150.000 đ/ca</div>
+                </div>
+              </div>
+
+              <!-- Time & Duration -->
+              <div>
+                <label style="font-size:13px; font-weight:700; color:var(--text-main); display:block; margin-bottom:8px;">
+                  Khung Giờ Hẹn &amp; Thời Lượng
+                </label>
+                <div style="display:flex; gap:12px;">
+                  <button style="flex:1; padding:10px; background:#F0FDF4; border:1px solid #10B981; border-radius:10px; font-size:13px; font-weight:700; color:#0F3826; cursor:pointer;">
+                    Hôm nay · 14:00 - 17:00 (3 Giờ)
+                  </button>
+                  <button style="flex:1; padding:10px; background:#FFFFFF; border:1px solid var(--border); border-radius:10px; font-size:13px; font-weight:600; color:#64748B; cursor:pointer;">
+                    Ngày mai · Sáng 08:30
+                  </button>
+                  <button style="padding:10px 16px; background:#FFFFFF; border:1px solid var(--border); border-radius:10px; font-size:13px; cursor:pointer;">
+                    📅 Tự chọn...
+                  </button>
+                </div>
+              </div>
+
+              <!-- Matched Provider Top 2 -->
+              <div>
+                <label style="font-size:13px; font-weight:700; color:var(--text-main); display:block; margin-bottom:8px;">
+                  AI Đề Xuất Đối Tác Thợ Uy Tín Gần Bạn Nhất
+                </label>
+                <div style="display:flex; flex-direction:column; gap:8px;">
+                  <div class="provider-pill-card selected">
+                    <div class="prov-avatar-group">
+                      <div class="prov-avatar">ML</div>
+                      <div class="prov-info">
+                        <h4>Nguyễn Mai Lan <span style="font-size:11px; background:#DCFCE7; color:#15803D; padding:2px 6px; border-radius:4px;">Verified CCCD</span></h4>
+                        <p>Cách bạn 1.2 km · Đã hoàn thành 342 ca làm</p>
+                      </div>
+                    </div>
+                    <div class="prov-rating">★ 4.96 (188)</div>
+                  </div>
+
+                  <div class="provider-pill-card">
+                    <div class="prov-avatar-group">
+                      <div class="prov-avatar" style="background:#FEF3C7; color:#92400E;">TH</div>
+                      <div class="prov-info">
+                        <h4>Trần Quang Hùng <span style="font-size:11px; background:#DCFCE7; color:#15803D; padding:2px 6px; border-radius:4px;">Verified CCCD</span></h4>
+                        <p>Cách bạn 2.4 km · Chuyên gia điện lạnh 8 năm</p>
+                      </div>
+                    </div>
+                    <div class="prov-rating">★ 4.92 (95)</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Side Column: Instant Receipt & VietQR -->
+            <div class="mockup-side-col">
+              <div style="font-family:'Plus Jakarta Sans', sans-serif; font-size:16px; font-weight:800; color:var(--text-main);">
+                Biên Nhận Tạm Tính
+              </div>
+
+              <div class="receipt-slip-2">
+                <div class="slip-row">
+                  <span>Dịch vụ đã chọn:</span>
+                  <strong id="rcpServiceName">Dọn dẹp nhà theo giờ</strong>
+                </div>
+                <div class="slip-row">
+                  <span>Thời lượng quy chuẩn:</span>
+                  <span>3 giờ thực tế</span>
+                </div>
+                <div class="slip-row">
+                  <span>Thợ phụ trách:</span>
+                  <span style="color:#059669; font-weight:600;">Mai Lan (Verified)</span>
+                </div>
+                <div class="slip-row">
+                  <span>Phụ phí vật tư dự kiến:</span>
+                  <span>0 đ (Miễn phí dụng cụ)</span>
+                </div>
+                <div class="slip-row total">
+                  <span>Tổng tiền thanh toán:</span>
+                  <span class="price" id="rcpTotal">270.000 đ</span>
+                </div>
+              </div>
+
+              <!-- VietQR Snapshot -->
+              <div style="background:#FFFFFF; border:1px solid var(--border); border-radius:12px; padding:16px; text-align:center;">
+                <div style="font-size:11px; font-weight:800; color:var(--accent-flame); text-transform:uppercase; margin-bottom:6px;">
+                  ⚡ Chuyển Khoản Tự Động VietQR
+                </div>
+                <div style="width:130px; height:130px; margin:0 auto 8px; background:#1E293B; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#A7F3D0; font-family:'IBM Plex Mono', monospace; font-size:11px;">
+                  <span>[ VIETQR CODE ]</span>
+                  <span style="font-size:9px; color:#94A3B8; margin-top:4px;">NAPAS 24/7 AUTO</span>
+                </div>
+                <p style="font-size:11px; color:#64748B;">
+                  Cú pháp: <code style="font-family:'IBM Plex Mono', monospace; font-weight:700; color:var(--primary);">GDX 88392</code> (Tự động xác nhận sau 3 giây)
+                </p>
+              </div>
+
+              <button class="btn-action" style="width:100%; justify-content:center; padding:14px; font-size:14px;">
+                ✓ Xác Nhận Đặt Lịch &amp; Giữ Chỗ Ngay
+              </button>
+            </div>
+          </div>
+
+          <!-- PROTO 2: WORKER FIELD MODE (MOBILE) -->
+          <div class="mockup-mobile-shell" id="protoWorkerView" style="display:none;">
+            <div class="mobile-notch"><div class="notch-camera"></div></div>
+            <div class="mobile-screen">
+              <div class="mobile-header">
+                <div class="mobile-status-row">
+                  <div>
+                    <div style="font-size:12px; opacity:0.8;">Xin chào, Thợ đối tác</div>
+                    <div style="font-family:'Plus Jakarta Sans', sans-serif; font-size:17px; font-weight:800;">Nguyễn Mai Lan</div>
+                  </div>
+                  <div class="mobile-toggle">● Đang Nhận Đơn</div>
+                </div>
+                <div style="display:flex; justify-content:space-between; font-size:12px; background:rgba(255,255,255,0.1); padding:8px 12px; border-radius:8px;">
+                  <span>Thu nhập hôm nay: <strong>680.000 đ</strong></span>
+                  <span>Đã xong: <strong>3/4 ca</strong></span>
+                </div>
+              </div>
+
+              <div style="padding:16px; display:flex; flex-direction:column; gap:16px;">
+                <!-- Live Job Card -->
+                <div style="background:#FFFFFF; border-radius:16px; padding:16px; border:1px solid var(--border); box-shadow:var(--shadow-md);">
+                  <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                    <div>
+                      <span style="font-size:11px; font-weight:800; color:var(--accent-flame); background:#FFF7ED; padding:2px 8px; border-radius:4px;">CA LÀM HIỆN TẠI</span>
+                      <h4 style="font-size:15px; font-weight:800; color:var(--text-main); margin-top:4px;">Dọn Dẹp Căn Hộ 2PN</h4>
+                    </div>
+                    <div style="font-family:'IBM Plex Mono', monospace; font-size:14px; font-weight:700; color:#059669;">270.000 đ</div>
+                  </div>
+                  
+                  <p style="font-size:13px; color:#475569; margin:8px 0;">📍 128 Nguyễn Huệ, Phường Bến Nghé, Q1 (Cách 0.8 km)</p>
+                  
+                  <!-- Circular Timer -->
+                  <div class="timer-circle-widget">
+                    <div class="timer-huge">01:45:20</div>
+                    <div class="timer-sub">Đang tính giờ ca làm</div>
+                  </div>
+
+                  <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-top:14px;">
+                    <button style="padding:10px; background:#F8FAFC; border:1px solid var(--border); border-radius:10px; font-size:12px; font-weight:700; color:var(--text-main); cursor:pointer;">
+                      📷 + Báo Phụ Phí
+                    </button>
+                    <button style="padding:10px; background:#F0FDF4; border:1px solid #10B981; border-radius:10px; font-size:12px; font-weight:700; color:#0F3826; cursor:pointer;">
+                      ✓ Hoàn Thành Ca
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Incoming Job Swipe to Accept -->
+                <div style="background:#FFFFFF; border-radius:16px; padding:16px; border:2px dashed #10B981;">
+                  <div style="display:flex; justify-content:space-between;">
+                    <span style="font-size:11px; font-weight:800; color:#059669;">⚡ CÓ ĐƠN HÀNG MỚI GẦN BẠN</span>
+                    <span style="font-size:11px; color:#EF4444; font-weight:700;">Hết hạn sau 45s</span>
+                  </div>
+                  <h4 style="font-size:14px; font-weight:700; margin:6px 0;">Sửa van khóa nước rò rỉ</h4>
+                  <p style="font-size:12px; color:#64748B;">Cách 1.5 km · Thu nhập dự kiến: 180.000 đ</p>
+
+                  <div class="swipe-track">
+                    <div class="swipe-thumb">➔</div>
+                    <span class="swipe-text">Trượt sang phải để nhận đơn >></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- PROTO 3: ADMIN KANBAN COMMAND CENTER -->
+          <div class="mockup-admin-box" id="protoAdminView" style="display:none;">
+            <div class="admin-sub-header">
+              <div style="display:flex; align-items:center; gap:12px;">
+                <span style="font-family:'Plus Jakarta Sans', sans-serif; font-size:16px; font-weight:800;">🛡️ Bảng Điều Phối Khẩn Cấp (Realtime Dispatch Kanban)</span>
+                <span style="font-size:12px; background:#10B981; color:#0F172A; font-weight:800; padding:2px 8px; border-radius:4px;">LIVE SUPABASE REALTIME</span>
+              </div>
+              <div style="display:flex; gap:8px;">
+                <button class="btn-action" style="padding:6px 14px; font-size:12px; background:#334155;">Xuất Báo Cáo Ca</button>
+                <button class="btn-action" style="padding:6px 14px; font-size:12px; background:#10B981; color:#0F172A;">+ Tạo Đơn Thủ Công</button>
+              </div>
+            </div>
+
+            <div class="admin-kpis">
+              <div class="admin-kpi-tile">
+                <div style="font-size:12px; color:#94A3B8;">Doanh thu hôm nay</div>
+                <div class="admin-kpi-val" style="color:#10B981;">38.450.000 đ</div>
+              </div>
+              <div class="admin-kpi-tile">
+                <div style="font-size:12px; color:#94A3B8;">Số ca đang chạy</div>
+                <div class="admin-kpi-val">42 ca</div>
+              </div>
+              <div class="admin-kpi-tile">
+                <div style="font-size:12px; color:#94A3B8;">Đơn kẹt &gt; 15p (SLA Alert)</div>
+                <div class="admin-kpi-val" style="color:#EF4444;">2 đơn!</div>
+              </div>
+              <div class="admin-kpi-tile">
+                <div style="font-size:12px; color:#94A3B8;">Hồ sơ thợ chờ KYC</div>
+                <div class="admin-kpi-val" style="color:#F59E0B;">5 hồ sơ</div>
+              </div>
+            </div>
+
+            <div class="admin-kanban">
+              <!-- Col 1 -->
+              <div class="kanban-col">
+                <div class="kanban-col-head">
+                  <span>1. Chờ Thợ Nhận (Pending)</span>
+                  <span style="background:#334155; padding:2px 6px; border-radius:4px; font-size:11px;">3</span>
+                </div>
+                <div class="kanban-card" style="border-left:3px solid #EF4444;">
+                  <div class="kanban-id">#GDX-8841 · SLA: 18 phút (Kẹt!)</div>
+                  <div class="kanban-title">Vệ sinh máy lạnh Multi</div>
+                  <div class="kanban-foot"><span>Q. Bình Thạnh</span> <span>350.000 đ</span></div>
+                  <button style="margin-top:6px; background:#EF4444; color:#FFF; border:none; padding:4px; border-radius:4px; font-size:10px; font-weight:700; cursor:pointer;">⚡ Điều Phối Cưỡng Chế</button>
+                </div>
+                <div class="kanban-card">
+                  <div class="kanban-id">#GDX-8843 · SLA: 3 phút</div>
+                  <div class="kanban-title">Dọn nhà định kỳ 4h</div>
+                  <div class="kanban-foot"><span>Q. Phú Nhuận</span> <span>360.000 đ</span></div>
+                </div>
+              </div>
+
+              <!-- Col 2 -->
+              <div class="kanban-col">
+                <div class="kanban-col-head">
+                  <span>2. Đang Di Chuyển (En-route)</span>
+                  <span style="background:#334155; padding:2px 6px; border-radius:4px; font-size:11px;">8</span>
+                </div>
+                <div class="kanban-card">
+                  <div class="kanban-id">#GDX-8839 · Thợ: Mai Lan</div>
+                  <div class="kanban-title">Dọn dẹp nhà theo giờ</div>
+                  <div class="kanban-foot"><span>ETA: 8 phút</span> <span>270.000 đ</span></div>
+                </div>
+              </div>
+
+              <!-- Col 3 -->
+              <div class="kanban-col">
+                <div class="kanban-col-head">
+                  <span>3. Đang Làm (In-Progress)</span>
+                  <span style="background:#334155; padding:2px 6px; border-radius:4px; font-size:11px;">14</span>
+                </div>
+                <div class="kanban-card" style="border-left:3px solid #10B981;">
+                  <div class="kanban-id">#GDX-8820 · Thợ: Quang Hùng</div>
+                  <div class="kanban-title">Sửa đường ống nước âm tường</div>
+                  <div class="kanban-foot"><span>Thời gian: 01:20:00</span> <span>520.000 đ</span></div>
+                </div>
+              </div>
+
+              <!-- Col 4 -->
+              <div class="kanban-col">
+                <div class="kanban-col-head">
+                  <span>4. Quyết Toán Xong (Paid)</span>
+                  <span style="background:#334155; padding:2px 6px; border-radius:4px; font-size:11px;">28</span>
+                </div>
+                <div class="kanban-card" style="opacity:0.75;">
+                  <div class="kanban-id">#GDX-8815 · Đã VietQR</div>
+                  <div class="kanban-title">Giặt nệm Kymdan 1.8m</div>
+                  <div class="kanban-foot"><span>Hoàn tất 14:10</span> <span>★ 5.0</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 4: DESIGN SYSTEM 2.0 (TOKENS) -->
+    <section class="tab-panel" id="tab-tokens">
+      <div class="section-title-wrap">
+        <span class="sec-tag">QUY CHUẨN THIẾT KẾ</span>
+        <h3 class="sec-title">Hệ Thống Design Tokens 2.0 (Modern Organic Living)</h3>
+        <p class="sec-desc">Bảng màu, tỷ lệ kiểu chữ và quy chuẩn bo góc được số hóa chuẩn CSS Variables</p>
+      </div>
+
+      <div class="token-grid">
+        <!-- Palette -->
+        <div class="token-card">
+          <div class="token-title">🎨 Bảng Màu 2.0 (Palette)</div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div style="width:36px; height:36px; border-radius:8px; background:#0F3826;"></div>
+              <div><strong style="font-size:13px;">Emerald Deep (#0F3826)</strong><br><small style="color:var(--text-muted);">Màu thương hiệu chính, nút CTA, thanh điều hướng</small></div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div style="width:36px; height:36px; border-radius:8px; background:#10B981;"></div>
+              <div><strong style="font-size:13px;">Mint Glow (#10B981)</strong><br><small style="color:var(--text-muted);">Trạng thái trực tuyến, xác thực CCCD, điểm tích cực</small></div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div style="width:36px; height:36px; border-radius:8px; background:#F59E0B;"></div>
+              <div><strong style="font-size:13px;">Sunstone Amber (#F59E0B)</strong><br><small style="color:var(--text-muted);">Điểm đánh giá sao uy tín, huy hiệu nổi bật</small></div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <div style="width:36px; height:36px; border-radius:8px; background:#EAF4EE; border:1px solid #CBD5E1;"></div>
+              <div><strong style="font-size:13px;">Sage Surface (#EAF4EE)</strong><br><small style="color:var(--text-muted);">Nền thẻ dịch vụ đang chọn, hộp tóm tắt biên nhận</small></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Typography -->
+        <div class="token-card">
+          <div class="token-title">🔤 Hệ Thống Chữ Viết (Typography)</div>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <div style="padding:10px; background:#F8FAFC; border-radius:8px;">
+              <div style="font-size:11px; font-weight:800; color:#059669;">HEADING &amp; HERO</div>
+              <div style="font-family:'Plus Jakarta Sans', sans-serif; font-size:16px; font-weight:800; color:var(--text-main);">Plus Jakarta Sans (600..800)</div>
+              <div style="font-size:11px; color:var(--text-muted);">Đường cong hình học thân thiện, phong cách hiện đại</div>
+            </div>
+            <div style="padding:10px; background:#F8FAFC; border-radius:8px;">
+              <div style="font-size:11px; font-weight:800; color:#2563EB;">BODY &amp; UI LABELS</div>
+              <div style="font-family:'Inter', sans-serif; font-size:14px; font-weight:500; color:var(--text-body);">Inter Display (400..600)</div>
+              <div style="font-size:11px; color:var(--text-muted);">Độ rõ nét cao trên màn hình Retina di động</div>
+            </div>
+            <div style="padding:10px; background:#F8FAFC; border-radius:8px;">
+              <div style="font-size:11px; font-weight:800; color:#D97706;">MONO &amp; NUMERICS</div>
+              <div style="font-family:'IBM Plex Mono', monospace; font-size:14px; font-weight:700; color:var(--primary);">IBM Plex Mono (tabular-nums)</div>
+              <div style="font-size:11px; color:var(--text-muted);">Căn thẳng hàng cho đơn giá VND, giờ hẹn và mã đơn</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Shapes & Elevation -->
+        <div class="token-card">
+          <div class="token-title">🔘 Bo Góc &amp; Đổ Bóng (Shapes &amp; Depth)</div>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <div style="padding:10px; background:#F8FAFC; border-radius:8px;">
+              <div style="font-size:12px; font-weight:700;">Nút Pill (9999px)</div>
+              <div style="font-size:11px; color:var(--text-muted);">Nút hành động chính, tab chuyển đổi, chip trạng thái</div>
+            </div>
+            <div style="padding:10px; background:#F8FAFC; border-radius:8px;">
+              <div style="font-size:12px; font-weight:700;">Thẻ Card (14px – 20px)</div>
+              <div style="font-size:11px; color:var(--text-muted);">Thẻ dịch vụ, hồ sơ thợ, hộp biên nhận tạm tính</div>
+            </div>
+            <div style="padding:10px; background:#F8FAFC; border-radius:8px;">
+              <div style="font-size:12px; font-weight:700;">Đổ bóng khuếch tán (Diffused Shadows)</div>
+              <div style="font-size:11px; color:var(--text-muted);">Tạo cảm giác thẻ nổi nhẹ nhàng trên nền thay vì viền thô</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 5: THAM KHẢO QUỐC TẾ (BENCHMARKS) -->
+    <section class="tab-panel" id="tab-benchmarks">
+      <div class="section-title-wrap">
+        <span class="sec-tag">CASE STUDIES THỰC TẾ</span>
+        <h3 class="sec-title">Giao Diện Tham Khảo Từ Các Nền Tảng Hàng Đầu Thế Giới</h3>
+        <p class="sec-desc">Học hỏi và kế thừa những giải pháp UI/UX đã được kiểm chứng thành công từ Thumbtack, TaskRabbit, Grab và Airbnb</p>
+      </div>
+
+      <table class="bench-table">
+        <thead>
+          <tr>
+            <th>Ứng Dụng &amp; Quốc Gia</th>
+            <th>Điểm Mạnh Nổi Bật Về UI/UX</th>
+            <th>Áp Dụng Cho Dự Án Gia Đình Xanh</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <div class="bench-brand-badge">
+                <span style="font-size:18px;">🏠</span>
+                <div>
+                  <strong>Thumbtack</strong><br><small style="color:var(--text-muted);">Mỹ · Định giá 3.2 Tỷ USD</small>
+                </div>
+              </div>
+            </td>
+            <td>
+              Phân loại dịch vụ theo <em>"Không gian sống"</em> (Phòng khách, Bếp, Sân vườn) và minh bạch hóa chi phí theo khu vực địa lý.
+            </td>
+            <td>
+              Áp dụng vào <strong>Bento Service Catalog</strong> của Gia Đình Xanh: Khách chỉ cần chọn "Căn hộ của tôi" là hệ thống tự đề xuất gói vệ sinh máy lạnh + dọn dẹp phù hợp.
+            </td>
+          </tr>
+
+          <tr>
+            <td>
+              <div class="bench-brand-badge">
+                <span style="font-size:18px;">🐇</span>
+                <div>
+                  <strong>TaskRabbit</strong><br><small style="color:var(--text-muted);">IKEA Group · Toàn Cầu</small>
+                </div>
+              </div>
+            </td>
+            <td>
+              Thẻ hồ sơ thợ (Tasker Profile) có huy hiệu <strong>"Elite Tasker"</strong> và đánh giá sao trung bình kèm số ca thực tế tạo độ tin cậy tuyệt đối.
+            </td>
+            <td>
+              Áp dụng vào <strong>Matched Provider Pill</strong>: Hiển thị huy hiệu "Đã xác thực CCCD" và số ca hoàn thành giúp khách yên tâm giao chìa khóa nhà.
+            </td>
+          </tr>
+
+          <tr>
+            <td>
+              <div class="bench-brand-badge">
+                <span style="font-size:18px;">🚗</span>
+                <div>
+                  <strong>Grab / Uber Driver Mode</strong><br><small style="color:var(--text-muted);">Đông Nam Á &amp; Toàn Cầu</small>
+                </div>
+              </div>
+            </td>
+            <td>
+              Cử chỉ <strong>"Swipe to Accept"</strong> (Trượt để nhận cuốc) ngăn chặn việc tài xế vô tình chạm nhầm nút khi để điện thoại trên giá đỡ xe máy.
+            </td>
+            <td>
+              Áp dụng trực tiếp vào <strong>Worker Field Mode 2.0</strong>: Thợ chỉ cần quẹt ngón tay để nhận đơn mà không sợ bị hủy ca ngoài ý muốn.
+            </td>
+          </tr>
+
+          <tr>
+            <td>
+              <div class="bench-brand-badge">
+                <span style="font-size:18px;">✨</span>
+                <div>
+                  <strong>Linear &amp; Airbnb</strong><br><small style="color:var(--text-muted);">Chuẩn Mực Thiết Kế Silicon Valley</small>
+                </div>
+              </div>
+            </td>
+            <td>
+              Bảng điều phối Kanban kéo thả siêu mượt, dark mode cao cấp, micro-interactions và typography sắc sảo.
+            </td>
+            <td>
+              Áp dụng vào <strong>Admin Dispatch Kanban 2.0</strong>: Giúp điều phối viên quản lý hàng trăm ca làm việc mỗi ngày một cách nhẹ nhàng, không căng thẳng.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- TAB 6: LỘ TRÌNH TRIỂN KHAI (ROADMAP) -->
+    <section class="tab-panel" id="tab-roadmap">
+      <div class="section-title-wrap">
+        <span class="sec-tag">KẾ HOẠCH HÀNH ĐỘNG</span>
+        <h3 class="sec-title">Lộ Trình Triển Khai Nâng Cấp Giao Diện 2.0</h3>
+        <p class="sec-desc">Triển khai theo phương pháp cuốn chiếu đảm bảo không gián đoạn hoạt động kinh doanh hiện tại</p>
+      </div>
+
+      <div class="roadmap-list">
+        <div class="roadmap-item">
+          <div class="roadmap-phase">
+            <span class="phase-num">GIAI ĐOẠN 1</span>
+            <div class="phase-name">Khách Hàng (Customer One-Flow)</div>
+            <div style="font-size:12px; margin-top:8px;">Thời gian: 2 Tuần</div>
+          </div>
+          <div class="roadmap-detail">
+            <h4 style="font-size:15px; font-weight:700; color:var(--text-main);">Thay thế form đặt lịch Wizard thành One-Flow Side-sheet</h4>
+            <p style="font-size:13px; color:#475569;">
+              • Tích hợp Bento Service Catalog và bộ gợi ý thợ AI gần nhất vào trang chủ.<br>
+              • Kết nối tự động sinh mã VietQR động với cú pháp GDX [booking_id] trực tiếp tại bước đặt lịch.<br>
+              • Đo lường tỷ lệ chuyển đổi (conversion rate) trước và sau khi nâng cấp.
+            </p>
+          </div>
+        </div>
+
+        <div class="roadmap-item">
+          <div class="roadmap-phase">
+            <span class="phase-num">GIAI ĐOẠN 2</span>
+            <div class="phase-name">Đối Tác Thợ (Worker Field Mode)</div>
+            <div style="font-size:12px; margin-top:8px;">Thời gian: 2 Tuần</div>
+          </div>
+          <div class="roadmap-detail">
+            <h4 style="font-size:15px; font-weight:700; color:var(--text-main);">Tối ưu hóa giao diện di động cho thợ ngoài hiện trường</h4>
+            <p style="font-size:13px; color:#475569;">
+              • Cập nhật nút trượt vuốt Swipe to Accept và đồng hồ tròn Circular Timer.<br>
+              • Thêm tính năng 1-chạm chụp ảnh hóa đơn vật tư phát sinh và tự động gọi RPC rpc_update_incidental_cost.<br>
+              • Thử nghiệm với nhóm 20 đối tác thợ tiêu biểu để lấy phản hồi thực địa.
+            </p>
+          </div>
+        </div>
+
+        <div class="roadmap-item">
+          <div class="roadmap-phase">
+            <span class="phase-num">GIAI ĐOẠN 3</span>
+            <div class="phase-name">Quản Trị (Admin Kanban Center)</div>
+            <div style="font-size:12px; margin-top:8px;">Thời gian: 1 Tuần</div>
+          </div>
+          <div class="roadmap-detail">
+            <h4 style="font-size:15px; font-weight:700; color:var(--text-main);">Triển khai bảng điều phối Kanban kéo thả thời gian thực</h4>
+            <p style="font-size:13px; color:#475569;">
+              • Bật tính năng Realtime Supabase Channels cho bảng điều phối đơn kẹt quá 15 phút.<br>
+              • Bổ sung hộp kiểm tra ảnh CCCD gốc phóng to cho chuyên viên duyệt KYC hồ sơ thợ.<br>
+              • Hoàn thiện tài liệu đào tạo nhân viên vận hành hệ thống mới.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // Tab switching logic
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-btn').forEach(btn => {
+        if (btn.dataset.tab === tabId) {
+          btn.classList.add('active');
+        } else {
+          btn.classList.remove('active');
+        }
+      });
+
+      document.querySelectorAll('.tab-panel').forEach(panel => {
+        if (panel.id === tabId) {
+          panel.classList.add('active');
+        } else {
+          panel.classList.remove('active');
+        }
+      });
+
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        switchTab(btn.dataset.tab);
+      });
+    });
+
+    // Prototype switcher
+    function switchProto(type) {
+      document.querySelectorAll('.proto-tab-btn').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+
+      document.getElementById('protoCustomerView').style.display = (type === 'customer' ? 'grid' : 'none');
+      document.getElementById('protoWorkerView').style.display = (type === 'worker' ? 'flex' : 'none');
+      document.getElementById('protoAdminView').style.display = (type === 'admin' ? 'block' : 'none');
+    }
+
+    // Service selector in Customer Prototype
+    function selectService(el, name, price) {
+      document.querySelectorAll('.bento-card').forEach(c => c.classList.remove('selected'));
+      el.classList.add('selected');
+      document.getElementById('rcpServiceName').textContent = name;
+      const total = price * 3;
+      document.getElementById('rcpTotal').textContent = total.toLocaleString('vi-VN') + ' đ';
+    }
+  </script>
+</body>
+</html>

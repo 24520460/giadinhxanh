@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<title>Customer Executive Portal 2.0 — Gia Đình Xanh</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:#F8FAFC;color:#1E293B}
+h1,h2,h3,h4,h5,h6{font-family:'Plus Jakarta Sans',sans-serif}
+a{color:#0F3826;text-decoration:none}
+button,select,input{font-family:inherit}
+</style>
+</helmet>
+<div style="width:1280px;height:860px;box-sizing:border-box;background:#F8FAFC;display:flex;flex-direction:column;overflow:hidden">
+  
+  <!-- Corporate Header Bar -->
+  <header style="height:68px;background:#FFFFFF;border-bottom:1px solid #E2E8F0;padding:0 32px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0">
+    <div style="display:flex;align-items:center;gap:14px">
+      <div style="width:40px;height:40px;border-radius:12px;background:#0F3826;color:#FFFFFF;display:flex;align-items:center;justify-content:center">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+      </div>
+      <div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-family:'Plus Jakarta Sans',sans-serif;font-weight:800;font-size:17px;color:#0F172A">GIA ĐÌNH XANH</span>
+          <span style="font-size:10px;font-weight:800;background:#EAF4EE;color:#059669;padding:2px 8px;border-radius:9999px">EXECUTIVE PORTAL</span>
+        </div>
+        <div style="font-size:11px;color:#64748B">Trung Tâm Quản Lý Tiện Ích Kỹ Thuật Gia Đình &amp; Doanh Nghiệp</div>
+      </div>
+    </div>
+
+    <!-- User Profile & Assurance -->
+    <div style="display:flex;align-items:center;gap:18px">
+      <div style="display:flex;align-items:center;gap:8px;background:#F8FAFC;border:1px solid #E2E8F0;padding:6px 14px;border-radius:9999px;font-size:12px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#059669" stroke-width="2"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+        <span style="color:#64748B">Căn hộ:</span>
+        <strong style="color:#0F172A">Aqua 1 - 1408 (Vinhomes Golden River)</strong>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:38px;height:38px;border-radius:50%;background:#0F3826;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px">
+          VA
+        </div>
+        <div>
+          <div style="font-size:13px;font-weight:800;color:#0F172A">Nguyễn Văn An</div>
+          <div style="font-size:11px;font-weight:700;color:#059669">Thành Viên Diamond VIP</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Portal Navigation Breadcrumbs / Quick Actions -->
+  <div style="background:#FFFFFF;border-bottom:1px solid #E2E8F0;padding:0 32px;display:flex;align-items:center;justify-content:space-between;height:48px;flex-shrink:0">
+    <div style="display:flex;gap:20px;font-size:13px;font-weight:600">
+      <span style="color:#0F3826;border-bottom:2px solid #0F3826;padding:12px 0;display:flex;align-items:center;gap:6px">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        Tổng Quan Hợp Đồng
+      </span>
+      <span style="color:#64748B;padding:12px 0;display:flex;align-items:center;gap:6px;cursor:pointer">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Sổ Bảo Hành Điện Tử (3 Thiết Bị)
+      </span>
+      <span style="color:#64748B;padding:12px 0;display:flex;align-items:center;gap:6px;cursor:pointer">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18"/></svg>
+        Lịch Định Kỳ Thông Minh
+      </span>
+      <span style="color:#64748B;padding:12px 0;display:flex;align-items:center;gap:6px;cursor:pointer">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/></svg>
+        Hóa Đơn &amp; Đối Soát VAT
+      </span>
+    </div>
+
+    <div style="display:flex;gap:10px">
+      <button style="display:flex;align-items:center;gap:6px;padding:6px 14px;background:#EAF4EE;color:#0F3826;border:1px solid #A7F3D0;border-radius:9999px;font-size:12px;font-weight:700;cursor:pointer">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        Xem Catalog Dịch Vụ
+      </button>
+      <button style="display:flex;align-items:center;gap:6px;padding:6px 16px;background:#0F3826;color:#FFFFFF;border:none;border-radius:9999px;font-size:12px;font-weight:700;cursor:pointer">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+        Đặt Lịch Kỹ Thuật 4 Bước
+      </button>
+    </div>
+  </div>
+
+  <!-- Main Portal Workspace: 2-Column Corporate Grid -->
+  <div style="flex:1;padding:24px 32px;display:grid;grid-template-columns:1.5fr 1fr;gap:24px;overflow:hidden">
+    
+    <!-- Left Column: Active Operations & Service History -->
+    <div style="display:flex;flex-direction:column;gap:18px;overflow-y:auto">
+      
+      <!-- Live Dispatched Service Card -->
+      <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:18px;padding:22px;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start">
+          <div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:10px;font-weight:800;background:#EAF4EE;color:#059669;padding:3px 8px;border-radius:9999px">ĐANG DI CHUYỂN TỚI</span>
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:11px;color:#64748B">CUỐC #GDX-99824</span>
+            </div>
+            <h3 style="font-size:17px;font-weight:800;color:#0F172A;margin:8px 0 2px">Bảo Dưỡng Chuyên Sâu Khử Khuẩn UV-C (Daikin Inverter 1.5 HP)</h3>
+            <p style="font-size:12px;color:#64748B;margin:0">Căn hộ Aqua 1 - 1408 · Lịch hẹn: Hôm nay 14:00 - 15:30</p>
+          </div>
+          <span style="font-size:16px;font-weight:800;color:#0F3826">345.600 đ</span>
+        </div>
+
+        <!-- Live Technician Tracking Strip -->
+        <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;padding:14px;margin-top:14px;display:flex;align-items:center;justify-content:space-between">
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:44px;height:44px;border-radius:50%;background:#0F3826;color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px">
+              NL
+            </div>
+            <div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="font-size:13px;font-weight:800;color:#0F172A">Nguyễn Văn Lộc</span>
+                <span style="font-size:10px;font-weight:800;background:#FEF3C7;color:#92400E;padding:1px 6px;border-radius:4px">MASTER PRO ★ 5.0</span>
+              </div>
+              <div style="font-size:11px;color:#64748B;margin-top:2px">
+                Xe máy: 59-E1 883.29 · Cách bạn 1.2 km (Dự kiến đến trong 12 phút)
+              </div>
+            </div>
+          </div>
+
+          <div style="display:flex;gap:8px">
+            <button style="padding:8px 14px;background:#FFFFFF;border:1px solid #CBD5E1;border-radius:8px;font-size:11px;font-weight:700;color:#0F172A;cursor:pointer">
+              Gọi Kỹ Thuật Viên
+            </button>
+            <button style="padding:8px 14px;background:#0F3826;color:#FFFFFF;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer">
+              Xem Bản Đồ GPS
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Electronic Warranty Cards (Sổ Bảo Hành) -->
+      <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:18px;padding:22px;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <div>
+            <span style="font-size:10px;font-weight:800;color:#0F3826;text-transform:uppercase">Chứng Nhận Kỹ Thuật Số</span>
+            <h3 style="font-size:15px;font-weight:800;color:#0F172A;margin:2px 0 0">Sổ Bảo Hành Điện Tử Đang Kích Hoạt</h3>
+          </div>
+          <span style="font-size:11px;font-weight:700;color:#059669;background:#EAF4EE;padding:3px 10px;border-radius:9999px">
+            Cam Kết Xử Lý Trong 4 Giờ
+          </span>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+          <!-- Card 1 -->
+          <div style="border:1px solid #E2E8F0;border-radius:12px;padding:14px;background:#FAFAFA">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;color:#059669">BH-AC-88392</span>
+              <span style="font-size:10px;font-weight:800;background:#EAF4EE;color:#059669;padding:2px 6px;border-radius:4px">CÒN 48 NGÀY</span>
+            </div>
+            <div style="font-size:13px;font-weight:800;color:#0F172A;margin-top:6px">Điều Hòa Phòng Khách (Daikin)</div>
+            <div style="font-size:11px;color:#64748B;margin-top:2px">Bảo hành rò rỉ nước &amp; khử nấm mốc UV-C</div>
+            <button style="margin-top:10px;width:100%;padding:6px;background:#FFFFFF;border:1px solid #CBD5E1;border-radius:6px;font-size:11px;font-weight:700;color:#0F3826;cursor:pointer">
+              Yêu Cầu Kích Hoạt 1-Chạm
+            </button>
+          </div>
+
+          <!-- Card 2 -->
+          <div style="border:1px solid #E2E8F0;border-radius:12px;padding:14px;background:#FAFAFA">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start">
+              <span style="font-family:'IBM Plex Mono',monospace;font-size:10px;font-weight:700;color:#059669">BH-PL-22019</span>
+              <span style="font-size:10px;font-weight:800;background:#EAF4EE;color:#059669;padding:2px 6px;border-radius:4px">CÒN 72 NGÀY</span>
+            </div>
+            <div style="font-size:13px;font-weight:800;color:#0F172A;margin-top:6px">Hệ Thống Lọc Nước RO Trung Tâm</div>
+            <div style="font-size:11px;color:#64748B;margin-top:2px">Bảo hành áp lực bơm tăng áp &amp; lõi lọc UF</div>
+            <button style="margin-top:10px;width:100%;padding:6px;background:#FFFFFF;border:1px solid #CBD5E1;border-radius:6px;font-size:11px;font-weight:700;color:#0F3826;cursor:pointer">
+              Yêu Cầu Kích Hoạt 1-Chạm
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Column: Smart Maintenance & Corporate Security -->
+    <aside style="display:flex;flex-direction:column;gap:18px;overflow-y:auto">
+      
+      <!-- Smart Preventive Maintenance Widget -->
+      <div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:18px;padding:22px;box-shadow:0 1px 3px rgba(0,0,0,0.04)">
+        <div style="font-size:10px;font-weight:800;color:#0F3826;text-transform:uppercase">Bảo Trì Định Kỳ AI</div>
+        <h3 style="font-size:15px;font-weight:800;color:#0F172A;margin:2px 0 10px">Cảnh Báo Vệ Sinh Thiết Bị</h3>
+        
+        <div style="background:#F8FAFC;border:1px solid #E2E8F0;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;justify-content:space-between;font-size:12px">
+            <span style="font-weight:700;color:#0F172A">Máy giặt sấy Electrolux:</span>
+            <span style="color:#D97706;font-weight:700">Sau 15 ngày</span>
+          </div>
+          <div style="background:#E2E8F0;height:6px;border-radius:9999px;overflow:hidden">
+            <div style="background:#D97706;width:82%;height:100%"></div>
+          </div>
+          <div style="font-size:11px;color:#64748B">
+            Đã 150 ngày kể từ lần vệ sinh lồng giặt gần nhất. Khuyên dùng đặt lịch để khử cặn canxi.
+          </div>
+        </div>
+
+        <button style="margin-top:14px;width:100%;padding:10px;background:#F1F5F9;border:1px solid #CBD5E1;border-radius:9999px;font-size:12px;font-weight:700;color:#0F3826;cursor:pointer">
+          Đặt Lịch Tự Động Theo Chu Kỳ
+        </button>
+      </div>
+
+      <!-- Corporate Assurance & Safety Box -->
+      <div style="background:#0F3826;border-radius:18px;padding:22px;color:#FFFFFF;display:flex;flex-direction:column;gap:12px">
+        <div style="display:flex;align-items:center;gap:8px">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#A7F3D0" stroke-width="2.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span style="font-size:13px;font-weight:800;color:#A7F3D0">ĐẶC QUYỀN HỘ GIA ĐÌNH VIP</span>
+        </div>
+        <p style="font-size:12px;color:#E2E8F0;margin:0;line-height:1.4">
+          Toàn bộ kỹ thuật viên tới nhà bạn đều được xác thực danh tính điện tử VNeID cấp độ 2, trang bị đồng phục tiêu chuẩn và bảo hiểm tài sản 1 tỷ đồng.
+        </p>
+        <div style="border-top:1px solid rgba(255,255,255,0.15);padding-top:10px;display:flex;justify-content:space-between;font-size:11px;color:#A7F3D0">
+          <span>Tổng đài giám sát nội bộ:</span>
+          <strong style="color:#FFFFFF">1900 6828 (Phím 1)</strong>
+        </div>
+      </div>
+
+    </aside>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1280,"height":860}}'>
+class Component extends DCLogic {
+renderVals() {
+return {};
+}
+}
+</script>
+</body>
+</html>

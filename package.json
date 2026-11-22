@@ -1,0 +1,21 @@
+{
+  "name": "gia-dinh-xanh-home-service-booking",
+  "version": "1.0.0",
+  "description": "Hệ thống Đặt lịch Dịch vụ Gia đình (Full-stack Node.js Backend + Supabase PostgreSQL + Taste-Skill/Impeccable Frontend)",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test test/api.test.js",
+    "lint": "node --check server.js public/db-mock.js public/app.js test/api.test.js",
+    "inspect": "node \"D:\\hao\\hao\\02_DU_AN_VA_LAP_TRINH\\taste-skill\\skills\\taste-skill\\scripts\\inspect.mjs\" http://127.0.0.1:3000 --app",
+    "export:figma": "node tools/figma-exporter/export-all.js",
+    "capture:product": "node tools/figma-exporter/capture-product-screenshots.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.1",
+    "qrcode": "^1.5.4"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

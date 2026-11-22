@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "cleanUrls": true,
+  "functions": {
+    "app.js": {
+      "includeFiles": "{public/**/*,backend/**/*}"
+    }
+  }
+}

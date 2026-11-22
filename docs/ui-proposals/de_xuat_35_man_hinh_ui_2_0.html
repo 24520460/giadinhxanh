@@ -1,0 +1,1011 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Đề Xuất Tái Cấu Trúc Toàn Bộ 35 Giao Diện (UI 2.0) — Gia Đình Xanh</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #0F3826;
+      --primary-hover: #092619;
+      --primary-surface: #EAF4EE;
+      --emerald-vibrant: #10B981;
+      --accent-warm: #E07A5F;
+      --accent-amber: #F59E0B;
+      --accent-flame: #EA580C;
+      --text-main: #0F172A;
+      --text-body: #334155;
+      --text-muted: #64748B;
+      --bg-page: #F8FAFC;
+      --bg-card: #FFFFFF;
+      --border: #E2E8F0;
+      --border-subtle: #F1F5F9;
+      --radius-sm: 8px;
+      --radius-md: 14px;
+      --radius-lg: 20px;
+      --radius-pill: 9999px;
+      --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
+      --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.06), 0 2px 4px -1px rgba(0,0,0,0.04);
+      --shadow-xl: 0 20px 25px -5px rgba(0,0,0,0.1), 0 10px 10px -5px rgba(0,0,0,0.04);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-page);
+      color: var(--text-body);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Top Navigation Header */
+    .topbar {
+      height: 64px;
+      background: #FFFFFF;
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: var(--primary);
+      color: #FFFFFF;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      font-weight: 800;
+    }
+
+    .brand-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .brand-tag {
+      background: var(--primary-surface);
+      color: #059669;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: var(--radius-pill);
+    }
+
+    .top-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .search-input {
+      background: #F1F5F9;
+      border: 1px solid var(--border);
+      padding: 8px 16px;
+      border-radius: var(--radius-pill);
+      font-size: 13px;
+      width: 260px;
+      outline: none;
+    }
+
+    .search-input:focus {
+      border-color: var(--emerald-vibrant);
+      background: #FFFFFF;
+    }
+
+    /* Master Layout: Sidebar + Main Content */
+    .app-layout {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      overflow: hidden;
+      height: calc(100vh - 64px);
+    }
+
+    /* Left Sidebar */
+    .sidebar {
+      background: #FFFFFF;
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-section-title {
+      padding: 14px 20px 6px;
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+      background: #F8FAFC;
+      border-top: 1px solid var(--border-subtle);
+      border-bottom: 1px solid var(--border-subtle);
+    }
+
+    .screen-item-btn {
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-subtle);
+      cursor: pointer;
+      background: transparent;
+      border-left: 3px solid transparent;
+      text-align: left;
+      transition: all 0.15s;
+    }
+
+    .screen-item-btn:hover {
+      background: #F8FAFC;
+    }
+
+    .screen-item-btn.active {
+      background: var(--primary-surface);
+      border-left-color: var(--primary);
+    }
+
+    .item-num {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent-warm);
+    }
+
+    .item-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-main);
+      margin-top: 2px;
+      line-height: 1.35;
+    }
+
+    .item-badge {
+      font-size: 10px;
+      font-weight: 700;
+      background: #E2E8F0;
+      color: #475569;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    /* Right Main Display Stage */
+    .stage {
+      overflow-y: auto;
+      padding: 32px 40px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      background: #F8FAFC;
+    }
+
+    .stage-card {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .stage-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 20px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .stage-main-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--text-main);
+    }
+
+    .stage-meta-badges {
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+    }
+
+    .meta-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: var(--radius-pill);
+    }
+
+    .badge-auth { background: #FEF3C7; color: #92400E; }
+    .badge-customer { background: #EAF4EE; color: #0F3826; }
+    .badge-provider { background: #E0E7FF; color: #3730A3; }
+    .badge-admin { background: #FEE2E2; color: #991B1B; }
+    .badge-appendix { background: #F3E8FF; color: #6B21A8; }
+
+    /* Specification Grid below Mockup */
+    .specs-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 24px;
+    }
+
+    .spec-box {
+      background: #F8FAFC;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 18px;
+    }
+
+    .spec-box-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .spec-box-text {
+      font-size: 13px;
+      line-height: 1.6;
+      color: #334155;
+    }
+
+    .nav-bar-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 10px;
+      padding-top: 16px;
+    }
+
+    .nav-btn {
+      background: #FFFFFF;
+      border: 1px solid var(--border);
+      color: var(--text-main);
+      padding: 10px 20px;
+      border-radius: var(--radius-pill);
+      font-weight: 700;
+      font-size: 13px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: all 0.2s;
+    }
+
+    .nav-btn:hover {
+      background: var(--primary-surface);
+      color: var(--primary);
+      border-color: #10B981;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Header -->
+  <header class="topbar">
+    <div class="brand-box">
+      <div class="brand-icon">🌿</div>
+      <div>
+        <div class="brand-title">Gia Đình Xanh 2.0 · Đề Xuất Tái Cấu Trúc Toàn Bộ 35 Giao Diện</div>
+        <div style="font-size:11px; color:#64748B;">Bảo toàn 100% tính độc lập từng màn hình · Chuẩn Modern Organic Living</div>
+      </div>
+      <span class="brand-tag">35 MÀN HÌNH ĐỘC LẬP</span>
+    </div>
+
+    <div class="top-actions">
+      <input type="text" class="search-input" id="searchInput" placeholder="🔍 Tìm kiếm mã số (VD: '1.2', 'KYC', 'VietQR')...">
+      <a href="slides_giao_dien_giadinhxanh.html" class="nav-btn" target="_blank" style="text-decoration:none">
+        📊 Xem Slide Bản Cũ
+      </a>
+    </div>
+  </header>
+
+  <!-- Master Layout -->
+  <div class="app-layout">
+
+    <!-- Left Sidebar with all 35 Screens -->
+    <aside class="sidebar" id="sidebarList">
+      <!-- Injected by JS -->
+    </aside>
+
+    <!-- Main Stage for Active Screen Mockup & Specs -->
+    <main class="stage" id="mainStage">
+      <!-- Injected by JS -->
+    </main>
+
+  </div>
+
+  <script>
+    const screensData = [
+  {
+    "id": "0_1",
+    "num": "0.1",
+    "module": "PHÂN HỆ 0: XÁC THỰC",
+    "moduleKey": "auth",
+    "title": "Đăng Nhập / Đăng Ký / Khôi Phục Mật Khẩu",
+    "type": "PAGE",
+    "role": "Dùng chung (Public)",
+    "dbTables": "auth.users, public.users",
+    "logic": "Phân luồng theo users.role ('customer' | 'provider'). Gán auth.uid() phục vụ các hàm RLS.",
+    "removedClutter": "Bỏ các đoạn text giải thích chính sách dài dòng trên form; thay bằng tab viên thuốc mềm mại và social login 1 chạm.",
+    "keyChanges": "Bo góc card 20px, nút viên thuốc 9999px, tab trượt mượt mà, input có icon trực quan.",
+    "mockupHtml": "\n      <div style=\"max-width:440px;margin:20px auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:36px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.06)\">\n        <div style=\"text-align:center;margin-bottom:24px\">\n          <div style=\"width:48px;height:48px;border-radius:14px;background:#0f3826;color:#ffffff;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 12px\">🌿</div>\n          <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;font-weight:800;color:#0f172a;margin:0\">Gia Đình Xanh</h3>\n          <p style=\"font-size:13px;color:#64748b;margin-top:4px\">Đăng nhập tài khoản để đặt dịch vụ</p>\n        </div>\n        <div style=\"display:flex;background:#f1f5f9;padding:4px;border-radius:9999px;margin-bottom:20px\">\n          <button style=\"flex:1;padding:8px;background:#ffffff;border:none;border-radius:9999px;font-weight:700;font-size:13px;color:#0f3826;box-shadow:0 1px 3px rgba(0,0,0,0.1)\">Đăng nhập</button>\n          <button style=\"flex:1;padding:8px;background:transparent;border:none;border-radius:9999px;font-weight:600;font-size:13px;color:#64748b\">Đăng ký mới</button>\n        </div>\n        <div style=\"display:flex;flex-direction:column;gap:14px\">\n          <div>\n            <label style=\"font-size:12px;font-weight:700;color:#334155;display:block;margin-bottom:6px\">Số điện thoại hoặc Email</label>\n            <input type=\"text\" value=\"0912 345 678\" style=\"width:100%;box-sizing:border-box;padding:12px 16px;border:1px solid #cbd5e1;border-radius:12px;font-size:14px;outline:none\">\n          </div>\n          <div>\n            <div style=\"display:flex;justify-content:space-between;margin-bottom:6px\">\n              <label style=\"font-size:12px;font-weight:700;color:#334155\">Mật khẩu</label>\n              <a href=\"#\" style=\"font-size:12px;color:#059669;font-weight:600;text-decoration:none\">Quên mật khẩu?</a>\n            </div>\n            <input type=\"password\" value=\"••••••••••••\" style=\"width:100%;box-sizing:border-box;padding:12px 16px;border:1px solid #cbd5e1;border-radius:12px;font-size:14px;outline:none\">\n          </div>\n          <button style=\"background:#0f3826;color:#ffffff;border:none;padding:14px;border-radius:9999px;font-weight:700;font-size:14px;cursor:pointer;margin-top:6px\">Đăng Nhập Ngay</button>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "0_2",
+    "num": "0.2",
+    "module": "PHÂN HỆ 0: XÁC THỰC",
+    "moduleKey": "auth",
+    "title": "Thiết Lập Hồ Sơ Khách Hàng (Customer Onboarding)",
+    "type": "PAGE STEP FORM",
+    "role": "Khách hàng mới (Customer)",
+    "dbTables": "users, customer_profiles, province, ward",
+    "logic": "Bắt buộc điền users.phone_number (UNIQUE) và customer_profiles.ward_id (NOT NULL) trước khi vào trang chủ.",
+    "removedClutter": "Bỏ các đoạn text ràng buộc pháp lý rườm rà, thay bằng form 2 cột tinh gọn kèm định vị GPS 1 chạm.",
+    "keyChanges": "Thẻ chứa bo góc 24px, bộ chọn Phường/Xã hiện đại, nút 'Lấy vị trí hiện tại' tự động điền tọa độ.",
+    "mockupHtml": "\n      <div style=\"max-width:600px;margin:20px auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:36px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.06)\">\n        <div style=\"display:flex;align-items:center;gap:12px;margin-bottom:20px\">\n          <div style=\"width:36px;height:36px;border-radius:50%;background:#eaf4ee;color:#059669;display:flex;align-items:center;justify-content:center;font-weight:800\">1</div>\n          <div>\n            <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;color:#0f172a;margin:0\">Hoàn Tất Hồ Sơ Khách Hàng</h3>\n            <p style=\"font-size:12px;color:#64748b;margin:0\">Cung cấp địa chỉ để thợ phục vụ tận nơi nhanh nhất</p>\n          </div>\n        </div>\n        <div style=\"display:grid;grid-template-columns:1fr 1fr;gap:14px\">\n          <div style=\"grid-column:span 2\">\n            <label style=\"font-size:12px;font-weight:700;color:#334155;display:block;margin-bottom:6px\">Họ và tên của bạn</label>\n            <input type=\"text\" value=\"Phạm Minh Thảo\" style=\"width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #cbd5e1;border-radius:12px;font-size:14px\">\n          </div>\n          <div>\n            <label style=\"font-size:12px;font-weight:700;color:#334155;display:block;margin-bottom:6px\">Số điện thoại</label>\n            <input type=\"text\" value=\"0988 776 655\" style=\"width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #cbd5e1;border-radius:12px;font-size:14px\">\n          </div>\n          <div>\n            <label style=\"font-size:12px;font-weight:700;color:#334155;display:block;margin-bottom:6px\">Phường / Xã (Bắt buộc)</label>\n            <select style=\"width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #cbd5e1;border-radius:12px;font-size:14px\">\n              <option selected>Phường Bến Nghé, Quận 1</option>\n              <option>Phường Tân Định, Quận 1</option>\n            </select>\n          </div>\n          <div style=\"grid-column:span 2\">\n            <label style=\"font-size:12px;font-weight:700;color:#334155;display:block;margin-bottom:6px\">Địa chỉ chi tiết (Số nhà, tên đường, tòa nhà)</label>\n            <input type=\"text\" value=\"Căn hộ 12.04, Chung cư Vinhome Ba Son, Số 2 Tôn Đức Thắng\" style=\"width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #cbd5e1;border-radius:12px;font-size:14px\">\n          </div>\n        </div>\n        <div style=\"margin-top:16px;background:#f8fafc;border:1px dashed #cbd5e1;border-radius:14px;padding:14px;display:flex;align-items:center;justify-content:space-between\">\n          <div style=\"font-size:12px;color:#475569\">📍 Tọa độ GPS: <strong>10.7812° N, 106.7056° E</strong></div>\n          <button style=\"background:#eaf4ee;color:#059669;border:none;padding:6px 14px;border-radius:9999px;font-size:12px;font-weight:700;cursor:pointer\">Ghim lại vị trí</button>\n        </div>\n        <button style=\"width:100%;background:#0f3826;color:#ffffff;border:none;padding:14px;border-radius:9999px;font-weight:700;font-size:14px;margin-top:20px;cursor:pointer\">\n          Hoàn Tất Thiết Lập &amp; Khám Phá Dịch Vụ\n        </button>\n      </div>\n    "
+  },
+  {
+    "id": "0_3",
+    "num": "0.3",
+    "module": "PHÂN HỆ 0: XÁC THỰC",
+    "moduleKey": "auth",
+    "title": "Đăng Ký Hành Nghề Thợ (Provider Onboarding)",
+    "type": "PAGE MULTI-STEP",
+    "role": "Thợ đối tác mới (Provider)",
+    "dbTables": "users, provider_profiles, provider_services, provider_areas",
+    "logic": "Bắt buộc thu thập CCCD (id_card_number UNIQUE), ảnh chân dung và khởi tạo verification_status = 'pending'.",
+    "removedClutter": "Bỏ bảng cam kết dài dòng, thay bằng Stepper 3 nốt tròn và lưới tag chọn kỹ năng trực quan.",
+    "keyChanges": "Bộ chọn kỹ năng dạng chips mềm mại, khu vực tải ảnh CCCD 2 mặt dạng dropzone bo góc hiện đại.",
+    "mockupHtml": "\n      <div style=\"max-width:680px;margin:20px auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:36px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.06)\">\n        <div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid #f1f5f9\">\n          <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;color:#0f172a;margin:0\">Đăng Ký Đối Tác Hành Nghề</h3>\n          <div style=\"display:flex;gap:6px\">\n            <span style=\"width:24px;height:24px;border-radius:50%;background:#0f3826;color:#ffffff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700\">1</span>\n            <span style=\"width:24px;height:24px;border-radius:50%;background:#e2e8f0;color:#64748b;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700\">2</span>\n            <span style=\"width:24px;height:24px;border-radius:50%;background:#e2e8f0;color:#64748b;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700\">3</span>\n          </div>\n        </div>\n        <div style=\"display:flex;flex-direction:column;gap:16px\">\n          <div>\n            <label style=\"font-size:12px;font-weight:700;color:#334155;display:block;margin-bottom:6px\">Số Căn cước công dân (CCCD gắn chip)</label>\n            <input type=\"text\" value=\"0790 9200 8899\" style=\"width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #cbd5e1;border-radius:12px;font-size:14px\">\n          </div>\n          <div style=\"display:grid;grid-template-columns:1fr 1fr;gap:12px\">\n            <div style=\"border:2px dashed #cbd5e1;border-radius:16px;padding:20px;text-align:center;background:#f8fafc\">\n              <div style=\"font-size:24px\">🪪</div>\n              <div style=\"font-size:12px;font-weight:700;color:#0f3826;margin-top:6px\">Ảnh mặt trước CCCD</div>\n              <div style=\"font-size:11px;color:#94a3b8\">Bấm để tải ảnh lên</div>\n            </div>\n            <div style=\"border:2px dashed #cbd5e1;border-radius:16px;padding:20px;text-align:center;background:#f8fafc\">\n              <div style=\"font-size:24px\">🪪</div>\n              <div style=\"font-size:12px;font-weight:700;color:#0f3826;margin-top:6px\">Ảnh mặt sau CCCD</div>\n              <div style=\"font-size:11px;color:#94a3b8\">Bấm để tải ảnh lên</div>\n            </div>\n          </div>\n          <div>\n            <label style=\"font-size:12px;font-weight:700;color:#334155;display:block;margin-bottom:6px\">Chọn các dịch vụ bạn có tay nghề tiếp nhận</label>\n            <div style=\"display:flex;flex-wrap:wrap;gap:8px\">\n              <span style=\"background:#f0fdf4;border:1px solid #10b981;color:#0f3826;padding:6px 14px;border-radius:9999px;font-size:12px;font-weight:700\">✓ Vệ sinh máy lạnh</span>\n              <span style=\"background:#f0fdf4;border:1px solid #10b981;color:#0f3826;padding:6px 14px;border-radius:9999px;font-size:12px;font-weight:700\">✓ Sửa điện nước</span>\n              <span style=\"background:#ffffff;border:1px solid #cbd5e1;color:#64748b;padding:6px 14px;border-radius:9999px;font-size:12px;font-weight:600\">+ Dọn dẹp nhà</span>\n              <span style=\"background:#ffffff;border:1px solid #cbd5e1;color:#64748b;padding:6px 14px;border-radius:9999px;font-size:12px;font-weight:600\">+ Sửa khóa nhà</span>\n            </div>\n          </div>\n          <button style=\"width:100%;background:#0f3826;color:#ffffff;border:none;padding:14px;border-radius:9999px;font-weight:700;font-size:14px;margin-top:10px;cursor:pointer\">\n            Tiếp Tục: Chọn Địa Bàn Hoạt Động &gt;&gt;\n          </button>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "0_4",
+    "num": "0.4",
+    "module": "PHÂN HỆ 0: XÁC THỰC",
+    "moduleKey": "auth",
+    "title": "Trạng Thái Hồ Sơ Thợ (Chờ Duyệt / Bị Từ Chối)",
+    "type": "PAGE STATUS",
+    "role": "Thợ đang xét duyệt KYC",
+    "dbTables": "provider_profiles (verification_status)",
+    "logic": "RLS chặn thợ chưa đạt verification_status = 'verified' xuất hiện trên view provider_public_profiles.",
+    "removedClutter": "Bỏ các đoạn cảnh báo vi phạm pháp luật dài dòng, giữ lại thẻ trạng thái to rõ và timeline xét duyệt.",
+    "keyChanges": "Huy hiệu trạng thái nổi bật, thời gian dự kiến Admin phản hồi, nút tải lại hồ sơ khi bị từ chối.",
+    "mockupHtml": "\n      <div style=\"max-width:540px;margin:20px auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:36px;text-align:center;box-shadow:0 10px 25px -5px rgba(0,0,0,0.06)\">\n        <div style=\"width:64px;height:64px;border-radius:50%;background:#fef3c7;color:#d97706;display:flex;align-items:center;justify-content:center;font-size:32px;margin:0 auto 16px\">⏳</div>\n        <span style=\"background:#fffbeb;color:#b45309;border:1px solid #fde68a;padding:4px 14px;border-radius:9999px;font-size:12px;font-weight:800;letter-spacing:0.5px\">TRẠNG THÁI: CHỜ DUYỆT KYC</span>\n        <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;font-weight:800;color:#0f172a;margin:12px 0 6px\">Hồ Sơ Của Bạn Đang Được Thẩm Định</h3>\n        <p style=\"font-size:13px;color:#64748b;line-height:1.6;margin-bottom:20px\">\n          Ban Quản trị Gia Đình Xanh đang đối chiếu thẻ CCCD và năng lực nghề của bạn. Kết quả xét duyệt sẽ được thông báo qua SMS trong vòng <strong>24 giờ làm việc</strong>.\n        </p>\n        <div style=\"background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:16px;text-align:left;display:flex;flex-direction:column;gap:8px;font-size:13px;color:#475569\">\n          <div>• Mã hồ sơ đối tác: <strong>#PROV-9024</strong></div>\n          <div>• Thời gian gửi: <strong>05/11/2026 · 08:30</strong></div>\n          <div>• Chuyên môn: <strong>Vệ sinh máy lạnh, Sửa điện nước</strong></div>\n        </div>\n        <button style=\"margin-top:20px;background:#f1f5f9;color:#475569;border:none;padding:12px 24px;border-radius:9999px;font-weight:700;font-size:13px;cursor:pointer\">\n          Cập Nhật Bổ Sung Hồ Sơ Nếu Cần\n        </button>\n      </div>\n    "
+  },
+  {
+    "id": "0_5",
+    "num": "0.5",
+    "module": "PHÂN HỆ 0: XÁC THỰC",
+    "moduleKey": "auth",
+    "title": "Thông Báo Tài Khoản Bị Khóa (Account Suspended)",
+    "type": "PAGE INTERCEPTOR",
+    "role": "Tài khoản bị vô hiệu hóa (is_active = FALSE)",
+    "dbTables": "users (is_active = FALSE), support_tickets",
+    "logic": "users.is_active = FALSE vô hiệu hóa mọi thao tác ghi dữ liệu, chuyển hướng người dùng đến trang này.",
+    "removedClutter": "Bỏ các thông báo lỗi thô, thay bằng giao diện hỗ trợ khiếu nại nhân văn, lịch sự.",
+    "keyChanges": "Biểu tượng cảnh báo cam, mã quyết định vi phạm, nút gửi phiếu giải trình mở Drawer hỗ trợ.",
+    "mockupHtml": "\n      <div style=\"max-width:520px;margin:20px auto;background:#ffffff;border:1px solid #fee2e2;border-radius:24px;padding:36px;text-align:center;box-shadow:0 10px 25px -5px rgba(239,68,68,0.08)\">\n        <div style=\"width:64px;height:64px;border-radius:50%;background:#fee2e2;color:#dc2626;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0 auto 16px\">🔒</div>\n        <span style=\"background:#fef2f2;color:#dc2626;border:1px solid #fecaca;padding:4px 14px;border-radius:9999px;font-size:12px;font-weight:800\">TÀI KHOẢN TẠM KHÓA</span>\n        <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;font-weight:800;color:#0f172a;margin:12px 0 6px\">Tài Khoản Tạm Thời Bị Tạm Đình Chỉ</h3>\n        <p style=\"font-size:13px;color:#64748b;line-height:1.6;margin-bottom:20px\">\n          Hệ thống phát hiện tài khoản có khiếu nại chưa được đối soát (Mã quyết định: #DISP-442). Vui lòng gửi phiếu khiếu nại để Ban điều phối hỗ trợ mở khóa.\n        </p>\n        <div style=\"display:flex;flex-direction:column;gap:10px\">\n          <button style=\"background:#0f3826;color:#ffffff;border:none;padding:14px;border-radius:9999px;font-weight:700;font-size:13px;cursor:pointer\">\n            Gửi Phiếu Khiếu Nại (Support Ticket)\n          </button>\n          <button style=\"background:transparent;color:#64748b;border:1px solid #e2e8f0;padding:12px;border-radius:9999px;font-weight:600;font-size:13px;cursor:pointer\">\n            Đăng Xuất Khỏi Thiết Bị\n          </button>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "1_1",
+    "num": "1.1",
+    "module": "PHÂN HỆ 1: KHÁCH HÀNG",
+    "moduleKey": "customer",
+    "title": "Catalog Dịch Vụ Chuẩn Doanh Nghiệp (Enterprise Service Catalog)",
+    "type": "PAGE",
+    "role": "Khách hàng (Customer)",
+    "dbTables": "service_categories, services, favorites, provider_public_profiles",
+    "logic": "Hiển thị phân tầng dịch vụ chuẩn công ty, lọc theo loại công trình và thương hiệu thiết bị, niêm yết giá minh bạch không phát sinh.",
+    "removedClutter": "Lược bỏ hoàn toàn các card icon sơ sài kiểu ứng dụng dọn dẹp giá rẻ; thay bằng bảng danh mục kỹ thuật chuyên nghiệp có phân cấp gói rõ ràng, cam kết SLA và bảo hiểm tài sản.",
+    "keyChanges": "Huy hiệu ISO 9001:2015, Bảo hiểm PVI 1 Tỷ, bộ lọc loại hình công trình (Chung cư/Nhà phố/Biệt thự), ma trận 3 gói phân cấp (Standard, Pro UV-C, Full Care 2 Dàn) và quy trình 6 bước chuẩn Nhật.",
+    "mockupHtml": "\n      <div style=\"background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:28px;box-shadow:0 4px 15px rgba(0,0,0,0.04);display:flex;flex-direction:column;gap:20px\">\n        <!-- Enterprise Header Strip -->\n        <div style=\"display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #f1f5f9;padding-bottom:14px\">\n          <div style=\"display:flex;align-items:center;gap:10px\">\n            <span style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:16px;font-weight:800;color:#0f172a\">GIA ĐÌNH XANH CORP</span>\n            <span style=\"font-size:10px;font-weight:800;background:#eaf4ee;color:#059669;padding:2px 8px;border-radius:9999px\">ISO 9001:2015</span>\n            <span style=\"font-size:10px;font-weight:800;background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:9999px\">BẢO HIỂM PVI 1 TỶ</span>\n          </div>\n          <div style=\"font-size:12px;color:#64748b\">\n            Hotline Kỹ Thuật: <strong style=\"color:#0f3826\">1900 6828</strong> · SLA: <strong style=\"color:#059669\">Có mặt sau 30 phút</strong>\n          </div>\n        </div>\n\n        <!-- Banner Chuyên Sâu -->\n        <div style=\"background:linear-gradient(135deg,#0f3826 0%,#1b4d36 100%);border-radius:18px;padding:24px;color:#ffffff;display:flex;justify-content:space-between;align-items:center\">\n          <div>\n            <span style=\"background:rgba(255,255,255,0.2);padding:3px 10px;border-radius:9999px;font-size:10px;font-weight:700\">DỊCH VỤ TRỌNG ĐIỂM</span>\n            <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;font-weight:800;margin:6px 0 4px\">Bảo Dưỡng &amp; Vệ Sinh Điều Hòa Chuyên Nghiệp</h3>\n            <p style=\"font-size:12px;color:#d1fae5;margin:0\">Tháo quạt lồng sóc · Khử khuẩn UV-C &amp; Nano Bạc · Cân nạp ga chuẩn áp suất</p>\n          </div>\n          <button style=\"background:#ffffff;color:#0f3826;border:none;padding:10px 20px;border-radius:9999px;font-weight:800;font-size:12px;cursor:pointer\">Đặt Dịch Vụ Ngay</button>\n        </div>\n\n        <!-- 3 Tiered Enterprise Service Cards -->\n        <div style=\"display:grid;grid-template-columns:repeat(3,1fr);gap:16px\">\n          <!-- Gói 1 -->\n          <div style=\"border:1px solid #e2e8f0;border-radius:16px;padding:18px;background:#f8fafc;display:flex;flex-direction:column;justify-content:space-between\">\n            <div>\n              <div style=\"display:flex;justify-content:space-between\">\n                <span style=\"font-size:10px;font-weight:800;background:#e2e8f0;color:#475569;padding:2px 6px;border-radius:4px\">STANDARD</span>\n                <span style=\"font-size:11px;color:#059669;font-weight:700\">BH 30 Ngày</span>\n              </div>\n              <h4 style=\"font-size:15px;font-weight:800;color:#0f172a;margin:10px 0 2px\">Vệ Sinh Tiêu Chuẩn</h4>\n              <div style=\"font-size:18px;font-weight:800;color:#0f3826;margin-bottom:10px\">180.000 đ <span style=\"font-size:11px;color:#64748b\">/ máy</span></div>\n              <div style=\"font-size:11px;color:#475569;line-height:1.5\">\n                • Xịt rửa áp lực lưới lọc &amp; dàn tản nhiệt<br>\n                • Thông tắc đường ống nước ngưng<br>\n                • Kiểm tra áp suất ga R32 / R410A\n              </div>\n            </div>\n            <button style=\"margin-top:14px;width:100%;padding:8px;background:#ffffff;border:1px solid #cbd5e1;border-radius:9999px;font-size:11px;font-weight:700;color:#0f3826\">Chọn Gói Standard</button>\n          </div>\n\n          <!-- Gói 2: Recommended -->\n          <div style=\"border:2px solid #0f3826;border-radius:16px;padding:18px;background:#ffffff;box-shadow:0 6px 16px rgba(15,56,38,0.1);display:flex;flex-direction:column;justify-content:space-between\">\n            <div>\n              <div style=\"display:flex;justify-content:space-between\">\n                <span style=\"font-size:10px;font-weight:800;background:#0f3826;color:#a7f3d0;padding:2px 8px;border-radius:9999px\">KHUYÊN DÙNG ★</span>\n                <span style=\"font-size:11px;color:#0f3826;font-weight:800\">BH 60 Ngày</span>\n              </div>\n              <h4 style=\"font-size:15px;font-weight:800;color:#0f172a;margin:10px 0 2px\">Chuyên Sâu Khử Khuẩn UV-C</h4>\n              <div style=\"font-size:18px;font-weight:800;color:#0f3826;margin-bottom:10px\">280.000 đ <span style=\"font-size:11px;color:#64748b\">/ máy</span></div>\n              <div style=\"font-size:11px;color:#1e293b;line-height:1.5\">\n                • <strong>Tháo quạt lồng sóc</strong> vệ sinh triệt để bên trong<br>\n                • Chiếu đèn UV-C &amp; xịt sương Nano Bạc diệt nấm mốc<br>\n                • Tra dầu mỡ chịu nhiệt trục quạt bạc đạn chống ồn\n              </div>\n            </div>\n            <button style=\"margin-top:14px;width:100%;padding:8px;background:#0f3826;color:#ffffff;border:none;border-radius:9999px;font-size:11px;font-weight:700\">✓ Đặt Gói Chuyên Sâu</button>\n          </div>\n\n          <!-- Gói 3 -->\n          <div style=\"border:1px solid #e2e8f0;border-radius:16px;padding:18px;background:#f8fafc;display:flex;flex-direction:column;justify-content:space-between\">\n            <div>\n              <div style=\"display:flex;justify-content:space-between\">\n                <span style=\"font-size:10px;font-weight:800;background:#fef3c7;color:#92400e;padding:2px 6px;border-radius:4px\">FULL CARE MAX</span>\n                <span style=\"font-size:11px;color:#d97706;font-weight:700\">BH 90 Ngày</span>\n              </div>\n              <h4 style=\"font-size:15px;font-weight:800;color:#0f172a;margin:10px 0 2px\">Toàn Diện 2 Dàn (Nóng + Lạnh)</h4>\n              <div style=\"font-size:18px;font-weight:800;color:#0f3826;margin-bottom:10px\">390.000 đ <span style=\"font-size:11px;color:#64748b\">/ bộ</span></div>\n              <div style=\"font-size:11px;color:#475569;line-height:1.5\">\n                • Trọn bộ dàn lạnh trong nhà + cục nóng ban công<br>\n                • Bọc lại bảo ôn ống đồng bị nứt hở<br>\n                • Bổ sung miễn phí đến 20 PSI ga Inverter\n              </div>\n            </div>\n            <button style=\"margin-top:14px;width:100%;padding:8px;background:#ffffff;border:1px solid #cbd5e1;border-radius:9999px;font-size:11px;font-weight:700;color:#0f3826\">Chọn Gói Toàn Diện</button>\n          </div>\n        </div>\n\n        <!-- 6 Bước SOP -->\n        <div style=\"background:#f1f5f9;border-radius:12px;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;font-size:11px\">\n          <span style=\"font-weight:700;color:#0f172a\">Quy trình 6 bước chuẩn ISO:</span>\n          <span style=\"color:#475569\">1. Khảo sát hiện trạng → 2. Che chắn nội thất → 3. Xịt rửa áp lực → 4. Khử khuẩn UV-C → 5. Test vận hành → 6. Ký sổ bảo hành điện tử</span>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "1_2",
+    "num": "1.2",
+    "module": "PHÂN HỆ 1: KHÁCH HÀNG",
+    "moduleKey": "customer",
+    "title": "Đặt Lịch Doanh Nghiệp 4 Bước (Enterprise Booking Wizard)",
+    "type": "PAGE MULTI-STEP",
+    "role": "Khách hàng (Customer)",
+    "dbTables": "services, bookings, booking_line_items, escrow_transactions, availability_schedules",
+    "logic": "Khai báo cấu hình thiết bị chi tiết, chọn KTV Master Pro, tích hợp gói bảo hiểm PVI và ký quỹ Escrow bảo vệ người dùng.",
+    "removedClutter": "Bỏ thanh trượt giờ thô sơ và card tính tiền nghèo nàn; nâng cấp lên Stepper 4 bước có kiểm định kỹ thuật và hóa đơn VAT chuẩn công ty.",
+    "keyChanges": "Form khai báo hãng/công suất/triệu chứng, bạt lót sàn gỗ cao cấp, chỉ định KTV Master Pro, Add-on UV-C & Bảo hành vàng, VietQR Escrow tự động.",
+    "mockupHtml": "\n      <div style=\"display:grid;grid-template-columns:1.5fr 1fr;gap:24px;background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:28px\">\n        <div style=\"display:flex;flex-direction:column;gap:16px\">\n          <!-- Stepper Indicator -->\n          <div style=\"display:flex;justify-content:space-between;align-items:center;background:#f8fafc;padding:10px 16px;border-radius:12px;border:1px solid #e2e8f0;font-size:11px;font-weight:700\">\n            <span style=\"color:#0f3826\">● 1. Thiết Bị &amp; Khảo Sát</span>\n            <span style=\"color:#64748b\">○ 2. Mặt Bằng &amp; Thợ</span>\n            <span style=\"color:#64748b\">○ 3. Add-on &amp; Bảo Hiểm</span>\n            <span style=\"color:#64748b\">○ 4. Ký Quỹ Escrow</span>\n          </div>\n\n          <div>\n            <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;color:#0f172a;margin:0 0 4px\">Khai Báo Thiết Bị &amp; Hiện Trạng Kỹ Thuật</h3>\n            <p style=\"font-size:12px;color:#64748b;margin:0\">Cung cấp model máy và triệu chứng giúp thợ mang linh kiện chuẩn</p>\n          </div>\n\n          <div style=\"display:grid;grid-template-columns:1fr 1fr;gap:12px\">\n            <div>\n              <label style=\"font-size:11px;font-weight:700;color:#334155;display:block;margin-bottom:4px\">Hãng sản xuất:</label>\n              <select style=\"width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:12px\">\n                <option selected>Daikin Inverter (Nhật Bản)</option>\n                <option>Panasonic Inverter</option>\n                <option>Mitsubishi Heavy / Electric</option>\n              </select>\n            </div>\n            <div>\n              <label style=\"font-size:11px;font-weight:700;color:#334155;display:block;margin-bottom:4px\">Công suất làm lạnh:</label>\n              <select style=\"width:100%;padding:8px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:12px\">\n                <option selected>1.5 HP (12.000 BTU) · Phòng 15-20 m²</option>\n                <option>1.0 HP (9.000 BTU) · Phòng dưới 15 m²</option>\n                <option>2.0 HP (18.000 BTU) · Phòng 20-30 m²</option>\n              </select>\n            </div>\n          </div>\n\n          <div>\n            <label style=\"font-size:11px;font-weight:700;color:#334155;display:block;margin-bottom:6px\">Triệu chứng bất thường đang gặp:</label>\n            <div style=\"display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px\">\n              <label style=\"background:#f8fafc;border:1px solid #e2e8f0;padding:6px 10px;border-radius:6px;display:flex;align-items:center;gap:6px\">\n                <input type=\"checkbox\" checked style=\"accent-color:#0f3826\"> Chảy nước nhỏ giọt dàn lạnh\n              </label>\n              <label style=\"background:#f8fafc;border:1px solid #e2e8f0;padding:6px 10px;border-radius:6px;display:flex;align-items:center;gap:6px\">\n                <input type=\"checkbox\" checked style=\"accent-color:#0f3826\"> Có mùi hôi nấm mốc chua\n              </label>\n            </div>\n          </div>\n\n          <div style=\"background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:12px;display:flex;justify-content:space-between;align-items:center\">\n            <div style=\"font-size:12px\">\n              <strong style=\"color:#0f3826\">KTV Phụ Trách: Nguyễn Văn Lộc (Master Pro)</strong>\n              <div style=\"font-size:11px;color:#059669\">Bậc 4/7 · Trang bị bạt phủ bảo vệ sàn gỗ cao cấp</div>\n            </div>\n            <span style=\"font-size:12px;font-weight:800;color:#f59e0b\">★ 5.0 (486 ca)</span>\n          </div>\n        </div>\n\n        <!-- Ledger & Escrow -->\n        <div style=\"background:#f8fafc;border:1px solid #e2e8f0;border-radius:18px;padding:20px;display:flex;flex-direction:column;justify-content:space-between\">\n          <div>\n            <div style=\"display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #e2e8f0;padding-bottom:10px\">\n              <h4 style=\"font-size:14px;font-weight:800;margin:0;color:#0f172a\">Bảng Phân Rã Chi Phí (Ledger)</h4>\n              <span style=\"font-size:10px;background:#eaf4ee;color:#059669;padding:2px 6px;border-radius:4px;font-weight:700\">DỰ THẢO</span>\n            </div>\n            <div style=\"display:flex;flex-direction:column;gap:8px;font-size:12px;color:#475569;margin-top:12px\">\n              <div style=\"display:flex;justify-content:space-between\"><span>Gói Pro Deep Clean (1.5 HP):</span><strong>280.000 đ</strong></div>\n              <div style=\"display:flex;justify-content:space-between\"><span>Khử khuẩn UV-C &amp; Nano Bạc:</span><strong>50.000 đ</strong></div>\n              <div style=\"display:flex;justify-content:space-between\"><span>Bảo hiểm tài sản PVI 1 Tỷ:</span><span style=\"color:#059669;font-weight:700\">Miễn phí</span></div>\n              <div style=\"display:flex;justify-content:space-between\"><span>Thuế GTGT (VAT 8%):</span><span>26.400 đ</span></div>\n              <div style=\"display:flex;justify-content:space-between;padding-top:10px;border-top:1px solid #e2e8f0;font-size:15px;font-weight:800;color:#0f3826\">\n                <span>Tổng Tiền Ký Quỹ:</span><span>356.400 đ</span>\n              </div>\n            </div>\n\n            <!-- VietQR Box -->\n            <div style=\"background:#ffffff;border:1px dashed #cbd5e1;border-radius:10px;padding:10px;margin-top:14px;text-align:center\">\n              <div style=\"font-size:10px;font-weight:800;color:#ea580c\">VIETQR ESCROW AN TOÀN</div>\n              <div style=\"font-size:11px;font-weight:700;color:#0f3826;margin-top:2px\">GDX-BK24-AN99</div>\n              <div style=\"font-size:10px;color:#64748b\">Tiền phong tỏa tại MBBank đến khi nghiệm thu</div>\n            </div>\n          </div>\n\n          <button style=\"background:#0f3826;color:#ffffff;border:none;padding:12px;border-radius:9999px;font-weight:800;font-size:12px;cursor:pointer;margin-top:16px\">\n            ✓ Xác Nhận Ký Quỹ &amp; Điều Phối Thợ\n          </button>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "1_3",
+    "num": "1.3",
+    "module": "PHÂN HỆ 1: KHÁCH HÀNG",
+    "moduleKey": "customer",
+    "title": "Theo Dõi Đơn Hàng Trực Tiếp (Live Tracking)",
+    "type": "PAGE",
+    "role": "Khách hàng (Customer)",
+    "dbTables": "bookings, booking_status_history, provider_public_profiles",
+    "logic": "Giám sát tiến trình 4 bước qua Supabase Realtime, cập nhật tọa độ GPS khách vs thợ.",
+    "removedClutter": "Bỏ bảng log text dài dòng, thay bằng Stepper phát sáng và Card trạng thái thợ nổi bật.",
+    "keyChanges": "Bản đồ GPS chiếm 60% diện tích, card nổi HUD hiển thị thời gian thợ đến (ETA), nút gọi nhanh 1 chạm.",
+    "mockupHtml": "\n      <div style=\"background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:32px;display:flex;flex-direction:column;gap:20px\">\n        <div style=\"display:flex;justify-content:space-between;align-items:center\">\n          <div>\n            <span style=\"font-size:12px;font-weight:800;color:#059669\">ĐƠN HÀNG #GDX-88392</span>\n            <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;font-weight:800;color:#0f172a;margin:2px 0 0\">Thợ Đang Di Chuyển Đến Nhà Bạn</h3>\n          </div>\n          <span style=\"background:#f0fdf4;color:#059669;padding:6px 14px;border-radius:9999px;font-size:12px;font-weight:800\">DỰ KIẾN ĐẾN TRONG 8 PHÚT</span>\n        </div>\n        <div style=\"display:flex;gap:8px\">\n          <div style=\"flex:1;height:6px;background:#10b981;border-radius:3px\"></div>\n          <div style=\"flex:1;height:6px;background:#10b981;border-radius:3px\"></div>\n          <div style=\"flex:1;height:6px;background:#e2e8f0;border-radius:3px\"></div>\n          <div style=\"flex:1;height:6px;background:#e2e8f0;border-radius:3px\"></div>\n        </div>\n        <div style=\"height:260px;background:#e2e8f0;border-radius:18px;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden\">\n          <div style=\"font-size:14px;color:#475569;font-weight:600\">🗺️ Bản Đồ GPS Trực Tuyến: Thợ Mai Lan cách nhà bạn 650m</div>\n          <div style=\"position:absolute;bottom:16px;left:16px;background:#ffffff;padding:10px 16px;border-radius:12px;box-shadow:0 4px 10px rgba(0,0,0,0.1);display:flex;align-items:center;gap:12px\">\n            <div style=\"width:36px;height:36px;border-radius:50%;background:#0f3826;color:#ffffff;display:flex;align-items:center;justify-content:center;font-weight:700\">ML</div>\n            <div>\n              <div style=\"font-size:13px;font-weight:700\">Nguyễn Mai Lan</div>\n              <div style=\"font-size:11px;color:#64748b\">Honda Lead 59-P1 889.21</div>\n            </div>\n            <button style=\"background:#eaf4ee;color:#059669;border:none;padding:6px 12px;border-radius:9999px;font-size:12px;font-weight:700\">Gọi điện</button>\n          </div>\n        </div>\n        <div style=\"display:flex;justify-content:space-between;align-items:center;padding-top:8px\">\n          <div style=\"font-size:13px;color:#64748b\">Cần hỗ trợ hoặc thay đổi lịch?</div>\n          <div style=\"display:flex;gap:10px\">\n            <button style=\"background:#fee2e2;color:#dc2626;border:none;padding:8px 16px;border-radius:9999px;font-size:12px;font-weight:700\">Hủy Lịch Hẹn</button>\n            <button style=\"background:#f1f5f9;color:#475569;border:none;padding:8px 16px;border-radius:9999px;font-size:12px;font-weight:700\">Gửi Khiếu Nại</button>\n          </div>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "1_4",
+    "num": "1.4",
+    "module": "PHÂN HỆ 1: KHÁCH HÀNG",
+    "moduleKey": "customer",
+    "title": "Quản Lý Lịch Hẹn Dịch Vụ (Booking History)",
+    "type": "PAGE",
+    "role": "Khách hàng (Customer)",
+    "dbTables": "bookings, services, reviews",
+    "logic": "Lọc theo status (pending, confirmed, in_progress, completed, cancelled). Bấm đánh giá mở Modal 1.9.",
+    "removedClutter": "Bỏ bảng dữ liệu dạng table phẳng, thay bằng danh sách thẻ đơn hàng bo góc thanh thoát.",
+    "keyChanges": "Tabs phân loại dạng viên thuốc, thẻ đơn hiển thị rõ số tiền tabular-nums và cụm nút hành động ngữ cảnh.",
+    "mockupHtml": "\n      <div style=\"background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:32px;display:flex;flex-direction:column;gap:20px\">\n        <div style=\"display:flex;justify-content:space-between;align-items:center\">\n          <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;font-weight:800;color:#0f172a;margin:0\">Lịch Hẹn Của Tôi</h3>\n          <div style=\"display:flex;gap:8px\">\n            <button style=\"background:#0f3826;color:#ffffff;border:none;padding:6px 16px;border-radius:9999px;font-size:12px;font-weight:700\">Tất cả (8)</button>\n            <button style=\"background:#f1f5f9;color:#64748b;border:none;padding:6px 16px;border-radius:9999px;font-size:12px;font-weight:600\">Đang thực hiện (1)</button>\n            <button style=\"background:#f1f5f9;color:#64748b;border:none;padding:6px 16px;border-radius:9999px;font-size:12px;font-weight:600\">Hoàn thành (6)</button>\n          </div>\n        </div>\n        <div style=\"display:flex;flex-direction:column;gap:12px\">\n          <div style=\"border:1px solid #e2e8f0;border-radius:16px;padding:18px;display:flex;justify-content:space-between;align-items:center;background:#f8fafc\">\n            <div style=\"display:flex;gap:16px;align-items:center\">\n              <div style=\"width:48px;height:48px;border-radius:12px;background:#eaf4ee;color:#059669;display:flex;align-items:center;justify-content:center;font-size:20px\">🧹</div>\n              <div>\n                <div style=\"display:flex;align-items:center;gap:8px\">\n                  <span style=\"font-weight:800;font-size:15px;color:#0f172a\">Dọn Dẹp Nhà Theo Giờ (3h)</span>\n                  <span style=\"background:#fef3c7;color:#b45309;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700\">ĐANG DI CHUYỂN</span>\n                </div>\n                <div style=\"font-size:12px;color:#64748b;margin-top:2px\">Mã: #GDX-88392 · Hẹn lúc 14:00 Hôm nay · Thợ: Mai Lan</div>\n              </div>\n            </div>\n            <div style=\"display:flex;align-items:center;gap:16px\">\n              <span style=\"font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:700;color:#0f3826\">270.000 đ</span>\n              <button style=\"background:#0f3826;color:#ffffff;border:none;padding:8px 18px;border-radius:9999px;font-size:12px;font-weight:700;cursor:pointer\">Xem Trực Tiếp</button>\n            </div>\n          </div>\n          <div style=\"border:1px solid #e2e8f0;border-radius:16px;padding:18px;display:flex;justify-content:space-between;align-items:center;background:#ffffff\">\n            <div style=\"display:flex;gap:16px;align-items:center\">\n              <div style=\"width:48px;height:48px;border-radius:12px;background:#f1f5f9;color:#64748b;display:flex;align-items:center;justify-content:center;font-size:20px\">❄️</div>\n              <div>\n                <div style=\"display:flex;align-items:center;gap:8px\">\n                  <span style=\"font-weight:800;font-size:15px;color:#0f172a\">Vệ Sinh Máy Lạnh Daikin 1.5HP</span>\n                  <span style=\"background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700\">HOÀN THÀNH</span>\n                </div>\n                <div style=\"font-size:12px;color:#64748b;margin-top:2px\">Mã: #GDX-87112 · Hoàn tất 02/11/2026 · Thợ: Quang Hùng</div>\n              </div>\n            </div>\n            <div style=\"display:flex;align-items:center;gap:16px\">\n              <span style=\"font-family:'IBM Plex Mono',monospace;font-size:16px;font-weight:700;color:#64748b\">180.000 đ</span>\n              <button style=\"background:#fffbeb;color:#b45309;border:1px solid #fde68a;padding:8px 18px;border-radius:9999px;font-size:12px;font-weight:700;cursor:pointer\">★ Chấm Sao Thợ</button>\n            </div>\n          </div>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "1_5",
+    "num": "1.5",
+    "module": "PHÂN HỆ 1: KHÁCH HÀNG",
+    "moduleKey": "customer",
+    "title": "Hồ Sơ Cá Nhân & Sổ Địa Chỉ",
+    "type": "PAGE",
+    "role": "Khách hàng (Customer)",
+    "dbTables": "users, customer_profiles, province, ward",
+    "logic": "Cập nhật users.full_name, users.phone_number và sổ địa chỉ mặc định kèm tọa độ GPS.",
+    "removedClutter": "Loại bỏ các thông báo lưu trùng lặp, chia 2 phân vùng rõ: Định danh & Sổ địa chỉ.",
+    "keyChanges": "Thiết kế thẻ profile có avatar, nút cập nhật địa chỉ mở bản đồ chọn vị trí trực quan.",
+    "mockupHtml": "\n      <div style=\"background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:32px;display:grid;grid-template-columns:1fr 1fr;gap:24px\">\n        <div style=\"display:flex;flex-direction:column;gap:16px\">\n          <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;color:#0f172a;margin:0\">Thông Tin Định Danh</h3>\n          <div>\n            <label style=\"font-size:12px;font-weight:700;color:#334155;display:block;margin-bottom:6px\">Họ và tên</label>\n            <input type=\"text\" value=\"Phạm Minh Thảo\" style=\"width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #cbd5e1;border-radius:12px;font-size:14px\">\n          </div>\n          <div>\n            <label style=\"font-size:12px;font-weight:700;color:#334155;display:block;margin-bottom:6px\">Số điện thoại liên lạc</label>\n            <input type=\"text\" value=\"0988 776 655\" style=\"width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #cbd5e1;border-radius:12px;font-size:14px\">\n          </div>\n          <div>\n            <label style=\"font-size:12px;font-weight:700;color:#334155;display:block;margin-bottom:6px\">Email nhận hóa đơn điện tử</label>\n            <input type=\"email\" value=\"minhthao.pham@gmail.com\" style=\"width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #cbd5e1;border-radius:12px;font-size:14px\">\n          </div>\n        </div>\n        <div style=\"display:flex;flex-direction:column;gap:16px\">\n          <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;color:#0f172a;margin:0\">Sổ Địa Chỉ Mặc Định</h3>\n          <div style=\"background:#f8fafc;border:1px solid #e2e8f0;border-radius:16px;padding:16px\">\n            <div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:8px\">\n              <span style=\"font-size:12px;font-weight:800;color:#0f3826\">NHÀ RIÊNG (MẶC ĐỊNH)</span>\n              <span style=\"font-size:12px;color:#059669;font-weight:700;cursor:pointer\">Sửa</span>\n            </div>\n            <div style=\"font-size:14px;font-weight:600;color:#0f172a\">Căn 12.04 Vinhome Ba Son, Số 2 Tôn Đức Thắng</div>\n            <div style=\"font-size:12px;color:#64748b;margin-top:2px\">Phường Bến Nghé, Quận 1, TP. Hồ Chí Minh</div>\n          </div>\n          <button style=\"border:2px dashed #cbd5e1;background:#ffffff;padding:14px;border-radius:16px;font-size:13px;font-weight:700;color:#475569;cursor:pointer\">\n            + Thêm Địa Chỉ Nhà Khác\n          </button>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "1_6",
+    "num": "1.6",
+    "module": "PHÂN HỆ 1: KHÁCH HÀNG",
+    "moduleKey": "customer",
+    "title": "Danh Sách Dịch Vụ Yêu Thích (Favorites)",
+    "type": "PAGE",
+    "role": "Khách hàng (Customer)",
+    "dbTables": "favorites join services (RLS fav_own)",
+    "logic": "Lọc các gói dịch vụ được lưu theo user_id = auth.uid().",
+    "removedClutter": "Bỏ các nhãn hướng dẫn dài dòng, tập trung vào lưới thẻ dịch vụ yêu thích.",
+    "keyChanges": "Nút tim đỏ nổi bật, nút 'Đặt lại dịch vụ' 1-chạm đưa thẳng vào cấu hình lịch.",
+    "mockupHtml": "\n      <div style=\"background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:32px;display:flex;flex-direction:column;gap:20px\">\n        <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;font-weight:800;color:#0f172a;margin:0\">Dịch Vụ Đã Lưu Yêu Thích</h3>\n        <div style=\"display:grid;grid-template-columns:repeat(3,1fr);gap:16px\">\n          <div style=\"border:1px solid #e2e8f0;border-radius:18px;padding:20px;background:#f8fafc;position:relative\">\n            <span style=\"position:absolute;top:16px;right:16px;color:#e07a5f;font-size:20px;cursor:pointer\">♥</span>\n            <div style=\"font-size:32px\">🧹</div>\n            <div style=\"font-size:15px;font-weight:800;color:#0f172a;margin-top:12px\">Dọn Dẹp Nhà Theo Giờ</div>\n            <div style=\"font-size:14px;font-weight:700;color:#059669;margin:6px 0 16px\">90.000 đ/giờ</div>\n            <button style=\"width:100%;background:#0f3826;color:#ffffff;border:none;padding:10px;border-radius:9999px;font-size:12px;font-weight:700;cursor:pointer\">Đặt Lịch Ngay →</button>\n          </div>\n          <div style=\"border:1px solid #e2e8f0;border-radius:18px;padding:20px;background:#f8fafc;position:relative\">\n            <span style=\"position:absolute;top:16px;right:16px;color:#e07a5f;font-size:20px;cursor:pointer\">♥</span>\n            <div style=\"font-size:32px\">❄️</div>\n            <div style=\"font-size:15px;font-weight:800;color:#0f172a;margin-top:12px\">Vệ Sinh Máy Lạnh Treo Tường</div>\n            <div style=\"font-size:14px;font-weight:700;color:#059669;margin:6px 0 16px\">180.000 đ/máy</div>\n            <button style=\"width:100%;background:#0f3826;color:#ffffff;border:none;padding:10px;border-radius:9999px;font-size:12px;font-weight:700;cursor:pointer\">Đặt Lịch Ngay →</button>\n          </div>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "1_7",
+    "num": "1.7",
+    "module": "PHÂN HỆ 1: KHÁCH HÀNG",
+    "moduleKey": "customer",
+    "title": "Hồ Sơ Công Khai Của Thợ (Provider Profile)",
+    "type": "DRAWER / MODAL",
+    "role": "Khách hàng xem hồ sơ thợ",
+    "dbTables": "provider_public_profiles (View), reviews, provider_services",
+    "logic": "Chỉ hiển thị thông tin công khai an toàn, ẩn số CCCD và thông tin nhạy cảm.",
+    "removedClutter": "Bỏ các mục thông tin thừa, thay bằng huy hiệu sao 4.9 và cuộn đánh giá khách hàng cũ.",
+    "keyChanges": "Thiết kế Drawer trượt từ cạnh phải, avatar lớn có tick xanh Verified CCCD, tag kỹ năng gọn gàng.",
+    "mockupHtml": "\n      <div style=\"max-width:480px;margin:20px auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:32px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.1)\">\n        <div style=\"text-align:center;margin-bottom:20px\">\n          <div style=\"width:72px;height:72px;border-radius:50%;background:#0f3826;color:#ffffff;font-size:24px;font-weight:800;display:flex;align-items:center;justify-content:center;margin:0 auto 12px\">ML</div>\n          <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;font-weight:800;color:#0f172a;margin:0\">Nguyễn Mai Lan</h3>\n          <div style=\"display:flex;justify-content:center;align-items:center;gap:6px;margin-top:6px\">\n            <span style=\"background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700\">✓ ĐÃ XÁC THỰC CCCD</span>\n            <span style=\"font-weight:700;color:#f59e0b;font-size:13px\">★ 4.96 (188 Đánh giá)</span>\n          </div>\n        </div>\n        <p style=\"font-size:13px;color:#475569;line-height:1.6;margin-bottom:16px;text-align:center\">\n          \"Tôi có 5 năm kinh nghiệm dọn dẹp căn hộ chung cư cao cấp. Làm việc cẩn thận, đúng giờ, tôn trọng sự riêng tư của gia chủ.\"\n        </p>\n        <div style=\"border-top:1px solid #f1f5f9;padding-top:16px\">\n          <h4 style=\"font-size:13px;font-weight:800;color:#0f172a;margin-bottom:8px\">Đánh Giá Từ Khách Hàng Gần Đây</h4>\n          <div style=\"background:#f8fafc;padding:12px;border-radius:12px;font-size:12px;color:#334155;margin-bottom:8px\">\n            <div style=\"display:flex;justify-content:space-between;font-weight:700\"><span>Chị Minh Anh (Q.1)</span><span style=\"color:#f59e0b\">★★★★★</span></div>\n            <div style=\"margin-top:4px\">Chị Lan làm rất sạch và kỹ, lau từng góc bếp sạch bóng. Lần sau sẽ đặt tiếp!</div>\n          </div>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "1_8",
+    "num": "1.8",
+    "module": "PHÂN HỆ 1: KHÁCH HÀNG",
+    "moduleKey": "customer",
+    "title": "Cổng Thanh Toán QR Chuyển Khoản (VietQR Checkout)",
+    "type": "MODAL",
+    "role": "Khách hàng (Customer)",
+    "dbTables": "bookings (total_amount, payment_status)",
+    "logic": "Gọi RPC rpc_confirm_booking_payment chuyển payment_status = 'paid'. Sinh cú pháp GDX [booking_id].",
+    "removedClutter": "Bỏ các hướng dẫn ngân hàng dài dòng; hiển thị mã QR to rõ kèm nút copy cú pháp 1-chạm.",
+    "keyChanges": "Hộp thoại Modal bo góc 24px, mã QR NAPAS 24/7 sắc nét, trạng thái đối soát tự động qua webhook.",
+    "mockupHtml": "\n      <div style=\"max-width:440px;margin:20px auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:32px;text-align:center;box-shadow:0 10px 25px -5px rgba(0,0,0,0.1)\">\n        <span style=\"font-size:11px;font-weight:800;color:#ea580c;background:#fff7ed;padding:3px 10px;border-radius:9999px\">VIETQR CHUYỂN KHOẢN TỰ ĐỘNG</span>\n        <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;font-weight:800;color:#0f172a;margin:10px 0 4px\">Quét Mã QR Bằng App Ngân Hàng</h3>\n        <p style=\"font-size:12px;color:#64748b;margin-bottom:16px\">Hệ thống tự động kích hoạt trạng thái \"Đã thanh toán\" sau 3 giây</p>\n        <div style=\"width:160px;height:160px;background:#0f172a;border-radius:14px;margin:0 auto 16px;display:flex;align-items:center;justify-content:center;color:#a7f3d0;font-size:12px;font-weight:700\">\n          [ QR VIETQR NAPAS ]\n        </div>\n        <div style=\"background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:14px;margin-bottom:16px;text-align:left;font-size:13px\">\n          <div style=\"display:flex;justify-content:space-between\"><span>Số tiền:</span><strong style=\"color:#0f3826;font-size:15px\">270.000 đ</strong></div>\n          <div style=\"display:flex;justify-content:space-between;margin-top:6px\"><span>Cú pháp bắt buộc:</span><code style=\"background:#eaf4ee;color:#0f3826;padding:2px 6px;border-radius:4px;font-weight:700\">GDX 88392</code></div>\n        </div>\n        <button style=\"width:100%;background:#0f3826;color:#ffffff;border:none;padding:14px;border-radius:9999px;font-weight:700;font-size:13px;cursor:pointer\">\n          Tôi Đã Hoàn Tất Chuyển Khoản\n        </button>\n      </div>\n    "
+  },
+  {
+    "id": "1_9",
+    "num": "1.9",
+    "module": "PHÂN HỆ 1: KHÁCH HÀNG",
+    "moduleKey": "customer",
+    "title": "Đánh Giá & Chấm Điểm Thợ (Review & Rating)",
+    "type": "MODAL",
+    "role": "Khách hàng sau khi hoàn thành",
+    "dbTables": "reviews, bookings, provider_profiles",
+    "logic": "INSERT vào reviews, kích hoạt trigger tự động tính lại average_rating và total_reviews của thợ.",
+    "removedClutter": "Bỏ các thang đo rườm rà, tập trung vào 5 ngôi sao lớn và chip nhận xét nhanh.",
+    "keyChanges": "Modal bo góc 24px, 5 ngôi sao đổi màu vàng ấm Terracotta #E07A5F, các thẻ chip 'Đúng giờ', 'Sạch sẽ'.",
+    "mockupHtml": "\n      <div style=\"max-width:440px;margin:20px auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:32px;text-align:center;box-shadow:0 10px 25px -5px rgba(0,0,0,0.1)\">\n        <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;font-weight:800;color:#0f172a;margin:0\">Đánh Giá Dịch Vụ Của Thợ</h3>\n        <p style=\"font-size:12px;color:#64748b;margin:4px 0 16px\">Đơn hàng #GDX-88392 · Thợ: Nguyễn Mai Lan</p>\n        <div style=\"font-size:36px;color:#f59e0b;margin-bottom:16px;cursor:pointer\">★★★★★</div>\n        <div style=\"display:flex;flex-wrap:wrap;justify-content:center;gap:6px;margin-bottom:16px\">\n          <span style=\"background:#f0fdf4;color:#0f3826;border:1px solid #10b981;padding:4px 12px;border-radius:9999px;font-size:12px;font-weight:700\">✓ Rất đúng giờ</span>\n          <span style=\"background:#f0fdf4;color:#0f3826;border:1px solid #10b981;padding:4px 12px;border-radius:9999px;font-size:12px;font-weight:700\">✓ Sạch sẽ, tỉ mỉ</span>\n          <span style=\"background:#ffffff;border:1px solid #cbd5e1;color:#64748b;padding:4px 12px;border-radius:9999px;font-size:12px\">+ Nhiệt tình</span>\n        </div>\n        <textarea placeholder=\"Chia sẻ thêm cảm nhận của bạn để thợ hoàn thiện tốt hơn...\" style=\"width:100%;box-sizing:border-box;height:80px;border:1px solid #cbd5e1;border-radius:12px;padding:12px;font-size:13px;margin-bottom:16px;outline:none\"></textarea>\n        <button style=\"width:100%;background:#0f3826;color:#ffffff;border:none;padding:14px;border-radius:9999px;font-weight:700;font-size:13px;cursor:pointer\">\n          Gửi Đánh Giá &amp; Tích Điểm\n        </button>\n      </div>\n    "
+  },
+  {
+    "id": "1_10",
+    "num": "1.10",
+    "module": "PHÂN HỆ 1: KHÁCH HÀNG",
+    "moduleKey": "customer",
+    "title": "Xác Nhận Hủy Lịch Hẹn (Cancel Booking)",
+    "type": "MODAL",
+    "role": "Khách hàng (Customer)",
+    "dbTables": "bookings, booking_status_history",
+    "logic": "Gọi RPC rpc_transition_booking_status sang 'cancelled'. Bắt buộc nhập reason.",
+    "removedClutter": "Bỏ các điều khoản phạt dài dòng, tập trung vào cảnh báo ngắn gọn và lý do hủy.",
+    "keyChanges": "Modal bo góc 24px, viền đỏ nhẹ, danh sách radio lý do hủy đơn giản, nút Giữ lịch hẹn nổi bật.",
+    "mockupHtml": "\n      <div style=\"max-width:440px;margin:20px auto;background:#ffffff;border:1px solid #fee2e2;border-radius:24px;padding:32px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.1)\">\n        <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;color:#dc2626;margin:0\">Xác Nhận Hủy Lịch Hẹn #GDX-88392?</h3>\n        <p style=\"font-size:12px;color:#64748b;margin:6px 0 16px\">Thợ Mai Lan đang chuẩn bị xuất phát. Vui lòng cho biết lý do hủy đơn:</p>\n        <div style=\"display:flex;flex-direction:column;gap:8px;text-align:left;font-size:13px;color:#334155;margin-bottom:20px\">\n          <label><input type=\"radio\" name=\"cancel\" checked> Bận việc đột xuất không có nhà</label>\n          <label><input type=\"radio\" name=\"cancel\"> Muốn đổi khung giờ khác</label>\n          <label><input type=\"radio\" name=\"cancel\"> Đã tự xử lý xong vấn đề</label>\n        </div>\n        <div style=\"display:grid;grid-template-columns:1fr 1fr;gap:10px\">\n          <button style=\"background:#fee2e2;color:#dc2626;border:none;padding:12px;border-radius:9999px;font-weight:700;font-size:13px;cursor:pointer\">Hủy Lịch Này</button>\n          <button style=\"background:#0f3826;color:#ffffff;border:none;padding:12px;border-radius:9999px;font-weight:700;font-size:13px;cursor:pointer\">Giữ Lịch Hẹn</button>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "1_11",
+    "num": "1.11",
+    "module": "PHÂN HỆ 1: KHÁCH HÀNG",
+    "moduleKey": "customer",
+    "title": "Trung Tâm Hỗ Trợ & Khiếu Nại (Support Tickets)",
+    "type": "DRAWER",
+    "role": "Khách hàng (Customer)",
+    "dbTables": "support_tickets, bookings",
+    "logic": "INSERT vào support_tickets theo RLS support_tickets_own. Gán mức priority.",
+    "removedClutter": "Bỏ các cam kết bảo hiểm dài dòng, thay bằng form tạo vé hỗ trợ nhanh kèm hotline trực ban.",
+    "keyChanges": "Drawer trượt cạnh phải bo góc 24px, mức ưu tiên bằng tag màu, danh sách vé cũ có trạng thái rõ ràng.",
+    "mockupHtml": "\n      <div style=\"max-width:480px;margin:20px auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:32px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.1)\">\n        <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;color:#0f172a;margin:0 0 4px\">Trung Tâm Hỗ Trợ 24/7</h3>\n        <p style=\"font-size:12px;color:#64748b;margin:0 0 20px\">Phản hồi khiếu nại trong vòng 30 phút theo chuẩn SLA</p>\n        <div style=\"display:flex;flex-direction:column;gap:12px\">\n          <div>\n            <label style=\"font-size:12px;font-weight:700;color:#334155;display:block;margin-bottom:6px\">Đơn hàng cần phản ánh</label>\n            <select style=\"width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #cbd5e1;border-radius:12px;font-size:13px\">\n              <option>#GDX-88392 · Dọn dẹp nhà theo giờ (Hôm nay)</option>\n            </select>\n          </div>\n          <div>\n            <label style=\"font-size:12px;font-weight:700;color:#334155;display:block;margin-bottom:6px\">Vấn đề gặp phải</label>\n            <input type=\"text\" placeholder=\"Ví dụ: Thợ đến trễ quá 20 phút...\" style=\"width:100%;box-sizing:border-box;padding:10px 14px;border:1px solid #cbd5e1;border-radius:12px;font-size:13px\">\n          </div>\n          <div>\n            <label style=\"font-size:12px;font-weight:700;color:#334155;display:block;margin-bottom:6px\">Mức độ khẩn cấp</label>\n            <div style=\"display:flex;gap:8px\">\n              <span style=\"flex:1;text-align:center;padding:8px;background:#fef2f2;color:#dc2626;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer\">Khẩn Cấp</span>\n              <span style=\"flex:1;text-align:center;padding:8px;background:#fffbeb;color:#b45309;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer\">Trung Bình</span>\n              <span style=\"flex:1;text-align:center;padding:8px;background:#f1f5f9;color:#64748b;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer\">Thường</span>\n            </div>\n          </div>\n          <button style=\"background:#0f3826;color:#ffffff;border:none;padding:12px;border-radius:9999px;font-weight:700;font-size:13px;cursor:pointer;margin-top:8px\">Gửi Phiếu Hỗ Trợ</button>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "2_1",
+    "num": "2.1",
+    "module": "PHÂN HỆ 2: ĐỐI TÁC THỢ",
+    "moduleKey": "provider",
+    "title": "Sàn Nhận Việc Làm (Job Board)",
+    "type": "PAGE",
+    "role": "Đối tác Thợ (Provider)",
+    "dbTables": "bookings (status = 'pending'), services, ward",
+    "logic": "Lọc đơn hàng theo provider_services và provider_areas. Gọi rpc_transition_booking_status chuyển 'confirmed'.",
+    "removedClutter": "Bỏ bảng biểu nhiều cột chữ nhỏ; thay bằng thẻ đơn hàng di động to rõ dễ chạm khi đi xe.",
+    "keyChanges": "Nút Nhận việc to nổi bật, thù lao ròng hiển thị lớn bằng font IBM Plex Mono tabular-nums.",
+    "mockupHtml": "\n      <div style=\"background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:32px;display:flex;flex-direction:column;gap:20px\">\n        <div style=\"display:flex;justify-content:space-between;align-items:center\">\n          <div>\n            <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;font-weight:800;color:#0f172a;margin:0\">Sàn Nhận Việc Mới</h3>\n            <p style=\"font-size:12px;color:#64748b;margin:2px 0 0\">Tự động làm mới theo thời gian thực tại khu vực Quận 1</p>\n          </div>\n          <div style=\"background:#eaf4ee;color:#059669;padding:6px 14px;border-radius:9999px;font-size:12px;font-weight:800\">● 3 Ca Mới Gần Bạn</div>\n        </div>\n        <div style=\"display:flex;flex-direction:column;gap:14px\">\n          <div style=\"border:2px solid #10b981;border-radius:18px;padding:20px;background:#f0fdf4;display:flex;justify-content:space-between;align-items:center\">\n            <div>\n              <div style=\"display:flex;gap:8px;align-items:center\">\n                <span style=\"background:#10b981;color:#0f3826;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:800\">MỚI PHÁT SINH</span>\n                <span style=\"font-weight:800;font-size:16px;color:#0f172a\">Dọn Dẹp Căn Hộ 2PN (3 Giờ)</span>\n              </div>\n              <p style=\"font-size:13px;color:#475569;margin:6px 0 4px\">📍 128 Nguyễn Huệ, Phường Bến Nghé (Cách bạn 1.2 km)</p>\n              <div style=\"font-size:12px;color:#64748b\">Bắt đầu lúc: <strong>14:00 Hôm nay</strong> · Khách: Minh Thảo</div>\n            </div>\n            <div style=\"text-align:right\">\n              <div style=\"font-family:'IBM Plex Mono',monospace;font-size:20px;font-weight:800;color:#0f3826\">270.000 đ</div>\n              <div style=\"display:flex;gap:8px;margin-top:10px\">\n                <button style=\"background:#ffffff;border:1px solid #cbd5e1;color:#64748b;padding:8px 14px;border-radius:9999px;font-size:12px;font-weight:700\">Từ Chối</button>\n                <button style=\"background:#0f3826;color:#ffffff;border:none;padding:8px 20px;border-radius:9999px;font-size:12px;font-weight:800\">Nhận Ca Ngay</button>\n              </div>\n            </div>\n          </div>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "2_2",
+    "num": "2.2",
+    "module": "PHÂN HỆ 2: ĐỐI TÁC THỢ",
+    "moduleKey": "provider",
+    "title": "Ca Làm Việc Hiện Tại & Bấm Giờ (Live Timer)",
+    "type": "PAGE",
+    "role": "Đối tác Thợ (Provider)",
+    "dbTables": "bookings, services, booking_status_history",
+    "logic": "Bấm giờ làm việc thực tế, check-in GPS, gọi RPC chuyển in_progress -> completed.",
+    "removedClutter": "Bỏ bảng tọa độ thô, thay bằng đồng hồ số IBM Plex Mono siêu lớn chống chói nắng.",
+    "keyChanges": "Màn hình tối ưu hiển thị ngoài trời, nút bấm kích thước lớn dễ chạm khi đeo găng tay.",
+    "mockupHtml": "\n      <div style=\"max-width:640px;margin:20px auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:32px;text-align:center;box-shadow:0 10px 25px -5px rgba(0,0,0,0.06)\">\n        <span style=\"background:#eaf4ee;color:#059669;padding:4px 14px;border-radius:9999px;font-size:12px;font-weight:800\">CA ĐANG THỰC HIỆN #GDX-88392</span>\n        <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;font-weight:800;color:#0f172a;margin:10px 0 2px\">Dọn Dẹp Nhà Theo Giờ (3h)</h3>\n        <p style=\"font-size:13px;color:#64748b;margin-bottom:20px\">📍 128 Nguyễn Huệ, P. Bến Nghé, Q.1 · Khách: Chị Thảo (0988 776 655)</p>\n        \n        <div style=\"width:200px;height:200px;border-radius:50%;border:8px solid #e2f1e8;border-top-color:#10b981;display:flex;flex-direction:column;align-items:center;justify-content:center;margin:0 auto 20px;background:#f8fafc\">\n          <div style=\"font-family:'IBM Plex Mono',monospace;font-size:36px;font-weight:800;color:#0f172a\">01:45:20</div>\n          <div style=\"font-size:11px;font-weight:800;color:#059669;text-transform:uppercase\">Đang tính giờ</div>\n        </div>\n\n        <div style=\"display:grid;grid-template-columns:repeat(3,1fr);gap:12px\">\n          <button style=\"background:#f1f5f9;border:1px solid #cbd5e1;padding:12px;border-radius:14px;font-weight:700;font-size:13px;color:#334155\">Tạm Dừng</button>\n          <button style=\"background:#fffbeb;border:1px solid #fde68a;padding:12px;border-radius:14px;font-weight:700;font-size:13px;color:#b45309\">📷 + Báo Phụ Phí</button>\n          <button style=\"background:#0f3826;color:#ffffff;border:none;padding:12px;border-radius:14px;font-weight:800;font-size:13px\">✓ Hoàn Thành</button>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "2_3",
+    "num": "2.3",
+    "module": "PHÂN HỆ 2: ĐỐI TÁC THỢ",
+    "moduleKey": "provider",
+    "title": "Ví Thu Nhập & Lịch Ca (Wallet & Schedule)",
+    "type": "PAGE",
+    "role": "Đối tác Thợ (Provider)",
+    "dbTables": "bookings, availability_schedules, reviews",
+    "logic": "Tổng hợp doanh thu từ đơn hàng completed & paid, hiển thị lịch cố định theo thứ trong tuần.",
+    "removedClutter": "Bỏ các dòng diễn giải kế toán khô khan; thay bằng 3 thẻ KPI tài chính và biểu đồ cột SVG.",
+    "keyChanges": "Số tiền VND hiển thị to rõ, biểu đồ cột thu nhập 7 ngày, nút cài đặt lịch tuần dễ chạm.",
+    "mockupHtml": "\n      <div style=\"background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:32px;display:flex;flex-direction:column;gap:24px\">\n        <div style=\"display:grid;grid-template-columns:repeat(3,1fr);gap:16px\">\n          <div style=\"background:#f0fdf4;border:1px solid #bbf7d0;border-radius:18px;padding:20px\">\n            <div style=\"font-size:12px;color:#15803d;font-weight:700\">Thu nhập khả dụng</div>\n            <div style=\"font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:800;color:#0f3826;margin:6px 0\">4.850.000 đ</div>\n            <button style=\"background:#0f3826;color:#ffffff;border:none;padding:6px 14px;border-radius:9999px;font-size:11px;font-weight:700\">Rút tiền về ATM</button>\n          </div>\n          <div style=\"background:#f8fafc;border:1px solid #e2e8f0;border-radius:18px;padding:20px\">\n            <div style=\"font-size:12px;color:#64748b;font-weight:700\">Số ca hoàn thành tháng</div>\n            <div style=\"font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:800;color:#0f172a;margin:6px 0\">28 Ca</div>\n            <div style=\"font-size:11px;color:#059669\">↑ Tăng 12% so với tháng trước</div>\n          </div>\n          <div style=\"background:#f8fafc;border:1px solid #e2e8f0;border-radius:18px;padding:20px\">\n            <div style=\"font-size:12px;color:#64748b;font-weight:700\">Điểm sao uy tín</div>\n            <div style=\"font-family:'IBM Plex Mono',monospace;font-size:24px;font-weight:800;color:#f59e0b;margin:6px 0\">★ 4.96</div>\n            <div style=\"font-size:11px;color:#64748b\">188 lượt khách khen ngợi</div>\n          </div>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "2_4",
+    "num": "2.4",
+    "module": "PHÂN HỆ 2: ĐỐI TÁC THỢ",
+    "moduleKey": "provider",
+    "title": "Cấu Hình Năng Lực & Khu Vực Hoạt Động",
+    "type": "PAGE",
+    "role": "Đối tác Thợ (Provider)",
+    "dbTables": "provider_profiles, provider_services, provider_areas",
+    "logic": "Cập nhật dịch vụ nhận làm và phường hoạt động. CCCD bị khóa Readonly an toàn sau khi verified.",
+    "removedClutter": "Bỏ bảng biểu nhiều cột, thay bằng các nhóm chip tag lựa chọn dạng lưới thoáng đãng.",
+    "keyChanges": "Khối CCCD có nhãn 'Đã khóa bảo mật sau duyệt', lưới checkbox dịch vụ chia theo nhóm nghề.",
+    "mockupHtml": "\n      <div style=\"background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:32px;display:grid;grid-template-columns:1fr 1fr;gap:24px\">\n        <div style=\"display:flex;flex-direction:column;gap:16px\">\n          <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;color:#0f172a;margin:0\">Định Danh Đã Xác Thực</h3>\n          <div style=\"background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:16px\">\n            <div style=\"font-size:12px;color:#64748b\">Số CCCD gắn chip (Đã khóa an toàn)</div>\n            <div style=\"font-family:'IBM Plex Mono',monospace;font-size:15px;font-weight:700;color:#0f172a;margin-top:2px\">0790 •••• 8899 (Verified)</div>\n          </div>\n          <div>\n            <label style=\"font-size:12px;font-weight:700;color:#334155;display:block;margin-bottom:6px\">Kinh nghiệm &amp; Giới thiệu bản thân</label>\n            <textarea style=\"width:100%;box-sizing:border-box;height:80px;border:1px solid #cbd5e1;border-radius:12px;padding:12px;font-size:13px\">5 năm kinh nghiệm dọn dẹp căn hộ và bảo dưỡng máy lạnh gia đình...</textarea>\n          </div>\n        </div>\n        <div style=\"display:flex;flex-direction:column;gap:16px\">\n          <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;color:#0f172a;margin:0\">Khu Vực Phục Vụ (Phường/Xã)</h3>\n          <div style=\"display:flex;flex-wrap:wrap;gap:8px\">\n            <span style=\"background:#f0fdf4;border:1px solid #10b981;color:#0f3826;padding:6px 14px;border-radius:9999px;font-size:12px;font-weight:700\">✓ P. Bến Nghé, Q.1</span>\n            <span style=\"background:#f0fdf4;border:1px solid #10b981;color:#0f3826;padding:6px 14px;border-radius:9999px;font-size:12px;font-weight:700\">✓ P. Bến Thành, Q.1</span>\n            <span style=\"background:#f0fdf4;border:1px solid #10b981;color:#0f3826;padding:6px 14px;border-radius:9999px;font-size:12px;font-weight:700\">✓ P. Đa Kao, Q.1</span>\n            <span style=\"background:#ffffff;border:1px solid #cbd5e1;color:#64748b;padding:6px 14px;border-radius:9999px;font-size:12px;font-weight:600\">+ Thêm Phường Khác</span>\n          </div>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "2_5",
+    "num": "2.5",
+    "module": "PHÂN HỆ 2: ĐỐI TÁC THỢ",
+    "moduleKey": "provider",
+    "title": "Thanh Trạng Thái Nhận Việc & GPS (Header Component)",
+    "type": "HEADER COMPONENT",
+    "role": "Đối tác Thợ (Provider)",
+    "dbTables": "provider_profiles (is_available_online, lattitude, longtitude)",
+    "logic": "Cập nhật realtime trạng thái nhận đơn và vị trí phục vụ thuật toán dispatch.",
+    "removedClutter": "Bỏ các dòng trạng thái dài dòng, thay bằng pill switch xanh lá và nút ghim vệ tinh nhỏ gọn.",
+    "keyChanges": "Thiết kế component nổi gọn trên topbar, chuyển trạng thái chỉ bằng 1 cú chạm nhẹ.",
+    "mockupHtml": "\n      <div style=\"background:#0f3826;border-radius:20px;padding:16px 28px;display:flex;align-items:center;justify-content:space-between;color:#ffffff\">\n        <div style=\"display:flex;align-items:center;gap:12px\">\n          <div style=\"width:12px;height:12px;border-radius:50%;background:#10b981;box-shadow:0 0 8px #10b981\"></div>\n          <span style=\"font-weight:800;font-size:14px\">ĐANG TRỰC TUYẾN NHẬN ĐƠN HÀNG</span>\n        </div>\n        <div style=\"display:flex;align-items:center;gap:12px\">\n          <span style=\"font-size:12px;background:rgba(255,255,255,0.15);padding:4px 12px;border-radius:9999px\">📍 Tọa độ: 10.7769° N, 106.7009° E</span>\n          <button style=\"background:#10b981;color:#0f3826;border:none;padding:6px 16px;border-radius:9999px;font-weight:800;font-size:12px;cursor:pointer\">Cập Nhật Vị Trí</button>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "2_6",
+    "num": "2.6",
+    "module": "PHÂN HỆ 2: ĐỐI TÁC THỢ",
+    "moduleKey": "provider",
+    "title": "Thiết Lập Lịch Cố Định & Xin Nghỉ Phép",
+    "type": "MODAL",
+    "role": "Đối tác Thợ (Provider)",
+    "dbTables": "availability_schedules, availability_exceptions",
+    "logic": "Ràng buộc end_time > start_time. Các ngày trong exceptions bị loại khỏi gợi ý Booking Wizard.",
+    "removedClutter": "Bỏ các quy định nghỉ phép khô khan, thay bằng 2 Tab trực quan: Lịch tuần & Ngày nghỉ.",
+    "keyChanges": "Modal bo góc 24px, bộ chọn giờ bo góc mềm mại, nút thêm khung giờ rảnh dễ thao tác.",
+    "mockupHtml": "\n      <div style=\"max-width:520px;margin:20px auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:32px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.1)\">\n        <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;color:#0f172a;margin:0 0 16px\">Cài Đặt Lịch Làm Việc Cố Định</h3>\n        <div style=\"display:flex;flex-direction:column;gap:10px\">\n          <div style=\"display:flex;justify-content:space-between;align-items:center;padding:10px;background:#f8fafc;border-radius:12px\">\n            <strong style=\"font-size:13px\">Thứ 2 đến Thứ 6</strong>\n            <span style=\"font-size:13px;font-family:'IBM Plex Mono',monospace;color:#059669\">08:00 - 18:00</span>\n          </div>\n          <div style=\"display:flex;justify-content:space-between;align-items:center;padding:10px;background:#f8fafc;border-radius:12px\">\n            <strong style=\"font-size:13px\">Thứ 7 &amp; Chủ Nhật</strong>\n            <span style=\"font-size:13px;font-family:'IBM Plex Mono',monospace;color:#059669\">08:30 - 17:00</span>\n          </div>\n        </div>\n        <button style=\"width:100%;background:#0f3826;color:#ffffff;border:none;padding:14px;border-radius:9999px;font-weight:700;font-size:13px;margin-top:20px;cursor:pointer\">\n          Lưu Thiết Lập Lịch Ca\n        </button>\n      </div>\n    "
+  },
+  {
+    "id": "2_7",
+    "num": "2.7",
+    "module": "PHÂN HỆ 2: ĐỐI TÁC THỢ",
+    "moduleKey": "provider",
+    "title": "Kê Khai Chi Phí Vật Tư Phát Sinh (Incidental Cost)",
+    "type": "MODAL",
+    "role": "Đối tác Thợ (Provider)",
+    "dbTables": "bookings (total_incidental, notes)",
+    "logic": "Gọi RPC rpc_update_incidental_cost cập nhật total_incidental >= 0 và ghi log kiểm toán.",
+    "removedClutter": "Bỏ cảnh báo trục lợi dài dòng; thay bằng form nhập số tiền to rõ và nút tải ảnh hóa đơn.",
+    "keyChanges": "Modal bo góc 24px, preview tính toán tổng mới ngay lập tức, nút lưu chi phí gửi thông báo cho khách.",
+    "mockupHtml": "\n      <div style=\"max-width:440px;margin:20px auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:32px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.1)\">\n        <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;color:#0f172a;margin:0 0 6px\">Kê Khai Vật Tư Thay Thế</h3>\n        <p style=\"font-size:12px;color:#64748b;margin:0 0 16px\">Phụ phí mua linh kiện phải có sự đồng thuận của khách</p>\n        <div style=\"display:flex;flex-direction:column;gap:12px\">\n          <div>\n            <label style=\"font-size:12px;font-weight:700;color:#334155;display:block;margin-bottom:6px\">Số tiền phát sinh (VND)</label>\n            <input type=\"text\" value=\"65.000\" style=\"width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #cbd5e1;border-radius:12px;font-size:16px;font-weight:700;font-family:'IBM Plex Mono',monospace\">\n          </div>\n          <div>\n            <label style=\"font-size:12px;font-weight:700;color:#334155;display:block;margin-bottom:6px\">Chi tiết linh kiện mua ngoài</label>\n            <input type=\"text\" value=\"Thay van khóa nước inox 304 phi 21\" style=\"width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #cbd5e1;border-radius:12px;font-size:13px\">\n          </div>\n          <button style=\"background:#0f3826;color:#ffffff;border:none;padding:14px;border-radius:9999px;font-weight:700;font-size:13px;cursor:pointer;margin-top:6px\">\n            Cộng Vào Đơn &amp; Báo Cho Khách\n          </button>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "2_8",
+    "num": "2.8",
+    "module": "PHÂN HỆ 2: ĐỐI TÁC THỢ",
+    "moduleKey": "provider",
+    "title": "Từ Chối Đơn & Hủy Ca Làm Việc (Reject Modal)",
+    "type": "MODAL",
+    "role": "Đối tác Thợ (Provider)",
+    "dbTables": "bookings, booking_status_history",
+    "logic": "Gọi RPC rpc_transition_booking_status sang 'rejected' hoặc 'cancelled'. Bắt buộc nhập reason.",
+    "removedClutter": "Bỏ các dòng cảnh báo kỷ luật thô bạo, thay bằng nhắc nhở tỷ lệ đáp ứng dịch vụ.",
+    "keyChanges": "Modal bo góc 24px, dropdown lý do nhanh, nút từ chối màu đỏ rõ ràng.",
+    "mockupHtml": "\n      <div style=\"max-width:440px;margin:20px auto;background:#ffffff;border:1px solid #fee2e2;border-radius:24px;padding:32px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.1)\">\n        <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;color:#dc2626;margin:0 0 6px\">Từ Chối Nhận Ca Làm Này?</h3>\n        <p style=\"font-size:12px;color:#64748b;margin:0 0 16px\">Đơn hàng sẽ được chuyển cho thợ khác trong khu vực</p>\n        <div style=\"display:flex;flex-direction:column;gap:12px\">\n          <select style=\"width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #cbd5e1;border-radius:12px;font-size:13px\">\n            <option>Xe hỏng đột xuất trên đường</option>\n            <option>Khoảng cách quá xa thời gian cao điểm</option>\n          </select>\n          <button style=\"background:#fee2e2;color:#dc2626;border:none;padding:14px;border-radius:9999px;font-weight:700;font-size:13px;cursor:pointer\">\n            Xác Nhận Từ Chối Ca\n          </button>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "2_9",
+    "num": "2.9",
+    "module": "PHÂN HỆ 2: ĐỐI TÁC THỢ",
+    "moduleKey": "provider",
+    "title": "Báo Cáo Sự Cố Khẩn Cấp Đối Tác (Incident Drawer)",
+    "type": "DRAWER",
+    "role": "Đối tác Thợ (Provider)",
+    "dbTables": "support_tickets (priority = 'urgent')",
+    "logic": "Tạo vé hỗ trợ khẩn cấp kích hoạt chuông cảnh báo trên Admin Dashboard 3.1.",
+    "removedClutter": "Bỏ các biểu mẫu thủ tục phức tạp, chỉ 2 nút bấm: Loại sự cố & Nút bấm gọi trực ban 24/7.",
+    "keyChanges": "Drawer đỏ nổi bật, nút phát tín hiệu cứu hộ khẩn cấp to tròn dễ bấm trong tình huống cấp bách.",
+    "mockupHtml": "\n      <div style=\"max-width:460px;margin:20px auto;background:#ffffff;border:1px solid #fee2e2;border-radius:24px;padding:32px;box-shadow:0 10px 25px -5px rgba(239,68,68,0.1)\">\n        <div style=\"display:flex;align-items:center;gap:10px;margin-bottom:12px\">\n          <span style=\"font-size:24px\">🚨</span>\n          <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;color:#dc2626;margin:0\">Báo Cáo Sự Cố Khẩn Cấp Hiện Trường</h3>\n        </div>\n        <p style=\"font-size:12px;color:#64748b;margin:0 0 16px\">Trực ban 24/7 sẽ gọi lại cho bạn trong vòng 3 phút</p>\n        <div style=\"display:flex;flex-direction:column;gap:10px\">\n          <button style=\"padding:12px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px;font-weight:700;font-size:13px;color:#dc2626;text-align:left\">\n            Khách vắng mặt không liên lạc được\n          </button>\n          <button style=\"padding:12px;background:#fef2f2;border:1px solid #fecaca;border-radius:12px;font-weight:700;font-size:13px;color:#dc2626;text-align:left\">\n            Hiện trường nguy hiểm / Tranh chấp\n          </button>\n          <button style=\"background:#dc2626;color:#ffffff;border:none;padding:14px;border-radius:9999px;font-weight:800;font-size:14px;margin-top:10px;cursor:pointer\">\n            Phát Tín Hiệu Trợ Giúp Khẩn Cấp\n          </button>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "3_1",
+    "num": "3.1",
+    "module": "PHÂN HỆ 3: QUẢN TRỊ VIÊN",
+    "moduleKey": "admin",
+    "title": "Dashboard Tổng Quan & Điều Phối Trung Tâm",
+    "type": "PAGE",
+    "role": "Quản trị viên (Admin)",
+    "dbTables": "bookings, provider_profiles, users, support_tickets",
+    "logic": "Giám sát toàn mạng lưới, cảnh báo đơn kẹt quá 15 phút, tính toán doanh thu.",
+    "removedClutter": "Bỏ bảng điều phối tĩnh nhiều chữ nhỏ, thay bằng 4 cột Kanban trực quan và thẻ KPI rõ ràng.",
+    "keyChanges": "Bố cục SaaS hiện đại với tone màu tối sang trọng, biểu đồ doanh thu SVG sắc nét.",
+    "mockupHtml": "\n      <div style=\"background:#0f172a;border-radius:24px;padding:32px;color:#ffffff\">\n        <div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:24px\">\n          <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;font-weight:800;margin:0\">Trung Tâm Điều Phối Trung Tâm</h3>\n          <span style=\"background:#10b981;color:#0f172a;font-size:11px;font-weight:800;padding:4px 12px;border-radius:9999px\">REALTIME DISPATCH</span>\n        </div>\n        <div style=\"display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px\">\n          <div style=\"background:#1e293b;border:1px solid #334155;border-radius:16px;padding:16px\">\n            <div style=\"font-size:12px;color:#94a3b8\">Doanh thu hôm nay</div>\n            <div style=\"font-size:22px;font-weight:700;color:#10b981;margin-top:4px\">38.450.000 đ</div>\n          </div>\n          <div style=\"background:#1e293b;border:1px solid #334155;border-radius:16px;padding:16px\">\n            <div style=\"font-size:12px;color:#94a3b8\">Ca đang chạy</div>\n            <div style=\"font-size:22px;font-weight:700;color:#38bdf8;margin-top:4px\">42 Ca</div>\n          </div>\n          <div style=\"background:#1e293b;border:1px solid #334155;border-radius:16px;padding:16px\">\n            <div style=\"font-size:12px;color:#94a3b8\">Đơn kẹt &gt; 15p</div>\n            <div style=\"font-size:22px;font-weight:700;color:#ef4444;margin-top:4px\">2 Đơn!</div>\n          </div>\n          <div style=\"background:#1e293b;border:1px solid #334155;border-radius:16px;padding:16px\">\n            <div style=\"font-size:12px;color:#94a3b8\">Chờ duyệt KYC</div>\n            <div style=\"font-size:22px;font-weight:700;color:#f59e0b;margin-top:4px\">5 Hồ sơ</div>\n          </div>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "3_2",
+    "num": "3.2",
+    "module": "PHÂN HỆ 3: QUẢN TRỊ VIÊN",
+    "moduleKey": "admin",
+    "title": "Quản Lý Danh Mục & Cấu Hình Biểu Giá (Pricing Config)",
+    "type": "PAGE",
+    "role": "Quản trị viên (Admin)",
+    "dbTables": "service_categories, services",
+    "logic": "CRUD danh mục và gói dịch vụ. Bật/tắt services.is_active.",
+    "removedClutter": "Bỏ các cột thông tin kỹ thuật không cần thiết; bảng hiển thị đơn giá to rõ kèm switch toggle.",
+    "keyChanges": "Bảng dữ liệu bo góc 18px, switch bật/tắt xanh lá, nút '+ Thêm dịch vụ mới' nổi bật.",
+    "mockupHtml": "\n      <div style=\"background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:32px\">\n        <div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:20px\">\n          <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;font-weight:800;color:#0f172a;margin:0\">Quản Lý Danh Mục &amp; Biểu Giá</h3>\n          <button style=\"background:#0f3826;color:#ffffff;border:none;padding:10px 20px;border-radius:9999px;font-weight:700;font-size:13px;cursor:pointer\">+ Thêm Dịch Vụ Mới</button>\n        </div>\n        <table style=\"width:100%;border-collapse:collapse;font-size:13px;text-align:left\">\n          <tr style=\"border-bottom:2px solid #f1f5f9;color:#64748b\">\n            <th style=\"padding:10px\">Tên Dịch Vụ</th>\n            <th>Danh Mục</th>\n            <th>Đơn Giá</th>\n            <th>Thời Lượng</th>\n            <th>Trạng Thái</th>\n          </tr>\n          <tr style=\"border-bottom:1px solid #f1f5f9\">\n            <td style=\"padding:12px;font-weight:700;color:#0f172a\">Dọn dẹp nhà theo giờ</td>\n            <td>Vệ sinh nhà cửa</td>\n            <td style=\"font-weight:700;color:#059669\">90.000 đ/h</td>\n            <td>60 phút</td>\n            <td><span style=\"background:#dcfce7;color:#15803d;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:700\">Đang bật</span></td>\n          </tr>\n        </table>\n      </div>\n    "
+  },
+  {
+    "id": "3_3",
+    "num": "3.3",
+    "module": "PHÂN HỆ 3: QUẢN TRỊ VIÊN",
+    "moduleKey": "admin",
+    "title": "Xét Duyệt Hồ Sơ Đối Tác (KYC Review)",
+    "type": "PAGE",
+    "role": "Quản trị viên (Admin)",
+    "dbTables": "provider_profiles, users, provider_services, provider_areas",
+    "logic": "Phê duyệt hoặc từ chối hồ sơ thợ (cập nhật verification_status).",
+    "removedClutter": "Bỏ bảng danh sách phẳng; thay bằng lưới thẻ hồ sơ đối tác có ảnh chân dung và CCCD preview.",
+    "keyChanges": "3 Tab phân loại (Chờ duyệt, Đã duyệt, Từ chối), 2 nút bấm thao tác nhanh Duyệt / Từ chối.",
+    "mockupHtml": "\n      <div style=\"background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:32px\">\n        <div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:20px\">\n          <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:20px;font-weight:800;color:#0f172a;margin:0\">Thẩm Định Hồ Sơ Đối Tác KYC</h3>\n          <div style=\"display:flex;gap:6px\">\n            <button style=\"background:#0f3826;color:#ffffff;border:none;padding:6px 16px;border-radius:9999px;font-size:12px;font-weight:700\">Chờ duyệt (5)</button>\n            <button style=\"background:#f1f5f9;color:#64748b;border:none;padding:6px 16px;border-radius:9999px;font-size:12px;font-weight:600\">Đã phê duyệt</button>\n          </div>\n        </div>\n        <div style=\"border:1px solid #e2e8f0;border-radius:18px;padding:20px;display:flex;justify-content:space-between;align-items:center;background:#f8fafc\">\n          <div style=\"display:flex;gap:16px;align-items:center\">\n            <div style=\"width:48px;height:48px;border-radius:50%;background:#e2e8f0;display:flex;align-items:center;justify-content:center;font-weight:700\">QH</div>\n            <div>\n              <div style=\"font-weight:800;font-size:15px;color:#0f172a\">Trần Quang Hùng (CCCD: 0790 8822 1199)</div>\n              <div style=\"font-size:12px;color:#64748b;margin-top:2px\">Đăng ký: Vệ sinh máy lạnh, Sửa điện nước · Khu vực: Quận 1, Quận 3</div>\n            </div>\n          </div>\n          <div style=\"display:flex;gap:8px\">\n            <button style=\"background:#ffffff;border:1px solid #cbd5e1;color:#64748b;padding:8px 16px;border-radius:9999px;font-size:12px;font-weight:700\">Xem CCCD Gốc</button>\n            <button style=\"background:#0f3826;color:#ffffff;border:none;padding:8px 20px;border-radius:9999px;font-size:12px;font-weight:800\">Phê Duyệt Ngay</button>\n          </div>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "3_4",
+    "num": "3.4",
+    "module": "PHÂN HỆ 3: QUẢN TRỊ VIÊN",
+    "moduleKey": "admin",
+    "title": "Quản Lý Người Dùng & Giải Quyết Khiếu Nại",
+    "type": "PAGE SPLIT TABS",
+    "role": "Quản trị viên (Admin)",
+    "dbTables": "users, support_tickets, reviews",
+    "logic": "Khóa/mở khóa tài khoản qua users.is_active. Xóa đánh giá vi phạm kích hoạt trigger tính lại sao.",
+    "removedClutter": "Bỏ giao diện nhồi nhét, chia 3 Tab độc lập: Người dùng | Vé hỗ trợ | Kiểm duyệt đánh giá.",
+    "keyChanges": "Switch khóa tài khoản trực tiếp, lọc tìm kiếm người dùng theo SĐT 1 giây.",
+    "mockupHtml": "\n      <div style=\"background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:32px\">\n        <div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:20px\">\n          <div style=\"display:flex;gap:8px\">\n            <button style=\"background:#0f3826;color:#ffffff;border:none;padding:8px 18px;border-radius:9999px;font-size:12px;font-weight:700\">Tài Khoản (1,240)</button>\n            <button style=\"background:#f1f5f9;color:#64748b;border:none;padding:8px 18px;border-radius:9999px;font-size:12px;font-weight:600\">Phiếu Hỗ Trợ (4)</button>\n            <button style=\"background:#f1f5f9;color:#64748b;border:none;padding:8px 18px;border-radius:9999px;font-size:12px;font-weight:600\">Kiểm Duyệt Review</button>\n          </div>\n          <input type=\"text\" placeholder=\"Tìm kiếm SĐT, tên...\" style=\"padding:8px 16px;border:1px solid #cbd5e1;border-radius:9999px;font-size:12px\">\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "3_5",
+    "num": "3.5",
+    "module": "PHÂN HỆ 3: QUẢN TRỊ VIÊN",
+    "moduleKey": "admin",
+    "title": "Tra Cứu Chi Tiết Đơn & Lịch Sử Kiểm Toán (Audit Log)",
+    "type": "DRAWER",
+    "role": "Quản trị viên (Admin)",
+    "dbTables": "bookings, booking_status_history, users",
+    "logic": "Truy vết dòng thời gian bất biến (immutable) của đơn hàng phục vụ giải quyết tranh chấp.",
+    "removedClutter": "Bỏ bảng chuỗi ký tự thô, thay bằng sơ đồ nhánh dòng thời gian (Timeline) rõ ràng.",
+    "keyChanges": "Timeline từng bước chuyển trạng thái có thời gian chính xác, người thực hiện và lý do giải trình.",
+    "mockupHtml": "\n      <div style=\"max-width:540px;margin:20px auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:32px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.1)\">\n        <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;color:#0f172a;margin:0 0 16px\">Lịch Sử Kiểm Toán Đơn #GDX-88392</h3>\n        <div style=\"display:flex;flex-direction:column;gap:14px;border-left:2px solid #e2e8f0;padding-left:16px;margin-left:8px\">\n          <div style=\"position:relative\">\n            <span style=\"position:absolute;left:-21px;top:2px;width:10px;height:10px;border-radius:50%;background:#10b981\"></span>\n            <div style=\"font-size:13px;font-weight:700;color:#0f172a\">Đơn hàng được khởi tạo (Pending)</div>\n            <div style=\"font-size:11px;color:#64748b\">14:02:15 · Khách: Minh Thảo</div>\n          </div>\n          <div style=\"position:relative\">\n            <span style=\"position:absolute;left:-21px;top:2px;width:10px;height:10px;border-radius:50%;background:#10b981\"></span>\n            <div style=\"font-size:13px;font-weight:700;color:#0f172a\">Thợ nhận đơn thành công (Confirmed)</div>\n            <div style=\"font-size:11px;color:#64748b\">14:03:02 · Thợ: Mai Lan</div>\n          </div>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "3_6",
+    "num": "3.6",
+    "module": "PHÂN HỆ 3: QUẢN TRỊ VIÊN",
+    "moduleKey": "admin",
+    "title": "Thêm Danh Mục Dịch Vụ Mới (Add Category)",
+    "type": "MODAL",
+    "role": "Quản trị viên (Admin)",
+    "dbTables": "service_categories",
+    "logic": "INSERT vào service_categories với slug duy nhất (UNIQUE).",
+    "removedClutter": "Bỏ các trường cấu hình rườm rà, tập trung vào tên danh mục, slug và trạng thái kích hoạt.",
+    "keyChanges": "Modal bo góc 24px, tự động sinh slug thân thiện từ tên danh mục.",
+    "mockupHtml": "\n      <div style=\"max-width:440px;margin:20px auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:32px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.1)\">\n        <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;color:#0f172a;margin:0 0 16px\">Tạo Danh Mục Dịch Vụ Mới</h3>\n        <div style=\"display:flex;flex-direction:column;gap:12px\">\n          <div>\n            <label style=\"font-size:12px;font-weight:700;color:#334155;display:block;margin-bottom:6px\">Tên danh mục</label>\n            <input type=\"text\" value=\"Bảo Trì Năng Lượng Mặt Trời\" style=\"width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #cbd5e1;border-radius:12px;font-size:13px\">\n          </div>\n          <button style=\"background:#0f3826;color:#ffffff;border:none;padding:14px;border-radius:9999px;font-weight:700;font-size:13px;cursor:pointer;margin-top:8px\">Lưu Danh Mục Mới</button>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "3_7",
+    "num": "3.7",
+    "module": "PHÂN HỆ 3: QUẢN TRỊ VIÊN",
+    "moduleKey": "admin",
+    "title": "Thêm & Chỉnh Sửa Dịch Vụ (Add/Edit Service)",
+    "type": "MODAL",
+    "role": "Quản trị viên (Admin)",
+    "dbTables": "services, service_categories",
+    "logic": "Ràng buộc kiểm tra: price >= 0 và estimated_duration > 0.",
+    "removedClutter": "Bỏ các trường chú thích nội bộ thừa thãi, tập trung vào các trường cốt lõi hiển thị cho khách.",
+    "keyChanges": "Modal bo góc 24px, bộ chọn loại tính giá (theo giờ / cố định) dạng chip viên thuốc.",
+    "mockupHtml": "\n      <div style=\"max-width:460px;margin:20px auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:32px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.1)\">\n        <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;color:#0f172a;margin:0 0 16px\">Cấu Hình Gói Dịch Vụ</h3>\n        <div style=\"display:flex;flex-direction:column;gap:12px\">\n          <div>\n            <label style=\"font-size:12px;font-weight:700;color:#334155;display:block;margin-bottom:6px\">Tên gói dịch vụ</label>\n            <input type=\"text\" value=\"Vệ sinh máy lạnh Inverter\" style=\"width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #cbd5e1;border-radius:12px;font-size:13px\">\n          </div>\n          <div style=\"display:grid;grid-template-columns:1fr 1fr;gap:10px\">\n            <div>\n              <label style=\"font-size:12px;font-weight:700;color:#334155;display:block;margin-bottom:6px\">Đơn giá niêm yết (VND)</label>\n              <input type=\"text\" value=\"180.000\" style=\"width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #cbd5e1;border-radius:12px;font-size:14px;font-family:'IBM Plex Mono',monospace;font-weight:700\">\n            </div>\n            <div>\n              <label style=\"font-size:12px;font-weight:700;color:#334155;display:block;margin-bottom:6px\">Thời lượng (phút)</label>\n              <input type=\"number\" value=\"60\" style=\"width:100%;box-sizing:border-box;padding:12px 14px;border:1px solid #cbd5e1;border-radius:12px;font-size:14px\">\n            </div>\n          </div>\n          <button style=\"background:#0f3826;color:#ffffff;border:none;padding:14px;border-radius:9999px;font-weight:700;font-size:13px;cursor:pointer;margin-top:8px\">Lưu Cấu Hình Dịch Vụ</button>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "3_8",
+    "num": "3.8",
+    "module": "PHÂN HỆ 3: QUẢN TRỊ VIÊN",
+    "moduleKey": "admin",
+    "title": "Chi Tiết Đối Tác Thợ & Xét Duyệt KYC (Detail Modal)",
+    "type": "MODAL",
+    "role": "Quản trị viên (Admin)",
+    "dbTables": "provider_profiles, users, provider_services",
+    "logic": "Đối chiếu ảnh chụp CCCD gốc 2 mặt với số hiệu khai báo trước khi bấm Duyệt.",
+    "removedClutter": "Bỏ các khối text quy chế kỷ luật, tập trung vào bộ xem ảnh phóng to và đối chiếu số hiệu.",
+    "keyChanges": "Trình xem ảnh thẻ CCCD 2 mặt sắc nét kèm 2 nút hành động lớn: Phê duyệt (Xanh) hoặc Từ chối (Đỏ).",
+    "mockupHtml": "\n      <div style=\"max-width:580px;margin:20px auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:32px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.1)\">\n        <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;color:#0f172a;margin:0 0 16px\">Đối Chiếu Hồ Sơ Thợ: Trần Quang Hùng</h3>\n        <div style=\"display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px\">\n          <div style=\"background:#0f172a;height:120px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#a7f3d0;font-size:12px\">[ ẢNH MẶT TRƯỚC CCCD ]</div>\n          <div style=\"background:#0f172a;height:120px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#a7f3d0;font-size:12px\">[ ẢNH MẶT SAU CCCD ]</div>\n        </div>\n        <div style=\"display:grid;grid-template-columns:1fr 1fr;gap:12px\">\n          <button style=\"background:#fee2e2;color:#dc2626;border:none;padding:14px;border-radius:9999px;font-weight:700;font-size:13px;cursor:pointer\">Từ Chối (Yêu Cầu Nộp Lại)</button>\n          <button style=\"background:#0f3826;color:#ffffff;border:none;padding:14px;border-radius:9999px;font-weight:800;font-size:13px;cursor:pointer\">✓ Phê Duyệt Hồ Sơ</button>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "3_9",
+    "num": "3.9",
+    "module": "PHÂN HỆ 3: QUẢN TRỊ VIÊN",
+    "moduleKey": "admin",
+    "title": "Xử Lý & Cập Nhật Phiếu Hỗ Trợ (Ticket Detail)",
+    "type": "DRAWER",
+    "role": "Quản trị viên (Admin)",
+    "dbTables": "support_tickets, users, bookings",
+    "logic": "Cập nhật status (open, in_progress, resolved, closed) và priority.",
+    "removedClutter": "Bỏ các biểu mẫu hành chính rườm rà, tập trung vào nội dung sự cố và ô phản hồi khách.",
+    "keyChanges": "Drawer trượt bo góc 24px, bộ chọn trạng thái dạng viên thuốc chuyển đổi nhanh.",
+    "mockupHtml": "\n      <div style=\"max-width:480px;margin:20px auto;background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:32px;box-shadow:0 10px 25px -5px rgba(0,0,0,0.1)\">\n        <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;color:#0f172a;margin:0 0 6px\">Giải Quyết Khiếu Nại #TCK-302</h3>\n        <p style=\"font-size:12px;color:#64748b;margin:0 0 16px\">Người gửi: Phạm Minh Thảo (0988 776 655) · Đơn #GDX-88392</p>\n        <div style=\"background:#f8fafc;padding:14px;border-radius:14px;font-size:13px;color:#334155;margin-bottom:16px\">\n          \"Thợ đến trễ 25 phút so với giờ hẹn và không báo trước.\"\n        </div>\n        <div style=\"display:flex;flex-direction:column;gap:12px\">\n          <div>\n            <label style=\"font-size:12px;font-weight:700;color:#334155;display:block;margin-bottom:6px\">Cập nhật trạng thái xử lý</label>\n            <div style=\"display:flex;gap:6px\">\n              <span style=\"flex:1;text-align:center;padding:8px;background:#eaf4ee;color:#059669;border-radius:9999px;font-size:11px;font-weight:700\">Đã Giải Quyết</span>\n              <span style=\"flex:1;text-align:center;padding:8px;background:#f1f5f9;color:#64748b;border-radius:9999px;font-size:11px;font-weight:600\">Đang Xử Lý</span>\n            </div>\n          </div>\n          <button style=\"background:#0f3826;color:#ffffff;border:none;padding:14px;border-radius:9999px;font-weight:700;font-size:13px;cursor:pointer\">Gửi Phản Hồi Cho Khách</button>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "3_10",
+    "num": "3.10",
+    "module": "PHỤ LỤC BỔ TRỢ",
+    "moduleKey": "appendix",
+    "title": "Biểu Giá Niêm Yết Dịch Vụ Minh Bạch (Public Charter)",
+    "type": "MODAL / CHARTER",
+    "role": "Dùng chung (Khách & Thợ)",
+    "dbTables": "services, service_categories",
+    "logic": "Bảng cam kết đơn giá công khai minh bạch, đối chiếu chống thu tiền ngoài trái quy định.",
+    "removedClutter": "Bỏ các dòng văn bản khế ước giấy kraft nặng nề; thay bằng bảng biểu giá dạng card thanh lịch.",
+    "keyChanges": "Bảng niêm yết chuẩn mực, 4 cam kết vàng bảo hành, phông số IBM Plex Mono căn thẳng hàng.",
+    "mockupHtml": "\n      <div style=\"background:#ffffff;border:1px solid #e2e8f0;border-radius:24px;padding:32px\">\n        <div style=\"text-align:center;margin-bottom:24px\">\n          <span style=\"background:#eaf4ee;color:#059669;padding:4px 12px;border-radius:9999px;font-size:11px;font-weight:800\">CAM KẾT MINH BẠCH 2026</span>\n          <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:22px;font-weight:800;color:#0f172a;margin:8px 0 4px\">Biểu Giá Niêm Yết Dịch Vụ Gia Đình Xanh</h3>\n          <p style=\"font-size:13px;color:#64748b\">Tuyệt đối không thu phụ phí nếu không có sự đồng thuận bằng văn bản</p>\n        </div>\n        <div style=\"display:grid;grid-template-columns:repeat(3,1fr);gap:16px\">\n          <div style=\"border:1px solid #e2e8f0;border-radius:16px;padding:18px;background:#f8fafc\">\n            <div style=\"font-size:14px;font-weight:800;color:#0f172a\">Dọn Dẹp Nhà Theo Giờ</div>\n            <div style=\"font-size:20px;font-weight:800;color:#059669;margin:8px 0\">90.000 đ/h</div>\n            <div style=\"font-size:12px;color:#64748b\">Bao gồm dụng cụ lau dọn cơ bản</div>\n          </div>\n          <div style=\"border:1px solid #e2e8f0;border-radius:16px;padding:18px;background:#f8fafc\">\n            <div style=\"font-size:14px;font-weight:800;color:#0f172a\">Vệ Sinh Máy Lạnh</div>\n            <div style=\"font-size:20px;font-weight:800;color:#059669;margin:8px 0\">180.000 đ/máy</div>\n            <div style=\"font-size:12px;color:#64748b\">Vệ sinh dàn nóng, dàn lạnh &amp; kiểm tra gas</div>\n          </div>\n          <div style=\"border:1px solid #e2e8f0;border-radius:16px;padding:18px;background:#f8fafc\">\n            <div style=\"font-size:14px;font-weight:800;color:#0f172a\">Sửa Điện Nước</div>\n            <div style=\"font-size:20px;font-weight:800;color:#059669;margin:8px 0\">150.000 đ/ca</div>\n            <div style=\"font-size:12px;color:#64748b\">Kiểm tra &amp; sửa chữa van khóa, công tắc</div>\n          </div>\n        </div>\n      </div>\n    "
+  },
+  {
+    "id": "3_11",
+    "num": "3.11",
+    "module": "PHỤ LỤC BỔ TRỢ",
+    "moduleKey": "appendix",
+    "title": "Bảng Trạng Thái Kết Nối Backend Supabase (Health Monitor)",
+    "type": "MODAL / HEALTH MONITOR",
+    "role": "Kỹ sư hệ thống & Ban Quản trị",
+    "dbTables": "16 Bảng PostgreSQL, View provider_public_profiles, 4 RPC",
+    "logic": "Giám sát 16 bảng PostgreSQL, đo latency kết nối mạng và tính sẵn sàng của RLS.",
+    "removedClutter": "Bỏ các dòng log thô của máy chủ; hiển thị lưới kiểm tra 16 bảng với badge tích xanh.",
+    "keyChanges": "Modal công nghệ cao với đèn xanh trực tuyến, ping đo mili-giây, danh sách 4 hàm Stored Procedure.",
+    "mockupHtml": "\n      <div style=\"background:#0f172a;border-radius:24px;padding:32px;color:#ffffff\">\n        <div style=\"display:flex;justify-content:space-between;align-items:center;margin-bottom:20px\">\n          <div style=\"display:flex;align-items:center;gap:10px\">\n            <span style=\"width:12px;height:12px;border-radius:50%;background:#10b981;box-shadow:0 0 10px #10b981\"></span>\n            <h3 style=\"font-family:'Plus Jakarta Sans',sans-serif;font-size:18px;font-weight:800;margin:0\">Trạng Thái Kết Nối Backend Supabase</h3>\n          </div>\n          <span style=\"font-family:'IBM Plex Mono',monospace;font-size:12px;color:#38bdf8\">Ping: 34 ms · SSL Active</span>\n        </div>\n        <div style=\"display:grid;grid-template-columns:repeat(4,1fr);gap:10px;font-size:12px\">\n          <div style=\"background:#1e293b;padding:10px;border-radius:8px\">✓ users (RLS)</div>\n          <div style=\"background:#1e293b;padding:10px;border-radius:8px\">✓ bookings (RLS)</div>\n          <div style=\"background:#1e293b;padding:10px;border-radius:8px\">✓ provider_profiles</div>\n          <div style=\"background:#1e293b;padding:10px;border-radius:8px\">✓ services (16)</div>\n        </div>\n        <div style=\"margin-top:16px;padding-top:16px;border-top:1px solid #334155;font-size:12px;color:#94a3b8\">\n          4 Stored Procedures (RPC): rpc_transition_booking_status, rpc_update_incidental_cost, rpc_confirm_booking_payment, rpc_create_support_ticket [ALL VERIFIED]\n        </div>\n      </div>\n    "
+  }
+];
+    let activeIndex = 0;
+
+    const sidebar = document.getElementById('sidebarList');
+    const stage = document.getElementById('mainStage');
+    const searchInput = document.getElementById('searchInput');
+
+    // Build Sidebar
+    function buildSidebar(filterText = '') {
+      sidebar.innerHTML = '';
+      let currentModule = '';
+
+      screensData.forEach((s, idx) => {
+        if (filterText) {
+          const match = s.title.toLowerCase().includes(filterText) ||
+                        s.num.toLowerCase().includes(filterText) ||
+                        s.module.toLowerCase().includes(filterText) ||
+                        s.dbTables.toLowerCase().includes(filterText);
+          if (!match) return;
+        }
+
+        if (s.module !== currentModule) {
+          currentModule = s.module;
+          const secTitle = document.createElement('div');
+          secTitle.className = 'sidebar-section-title';
+          secTitle.textContent = currentModule;
+          sidebar.appendChild(secTitle);
+        }
+
+        const btn = document.createElement('div');
+        btn.className = 'screen-item-btn' + (idx === activeIndex ? ' active' : '');
+        btn.onclick = () => selectScreen(idx);
+        btn.innerHTML = `
+          <div>
+            <div class="item-num">MÀN HÌNH ${s.num}</div>
+            <div class="item-title">${s.title}</div>
+          </div>
+          <span class="item-badge">${s.type}</span>
+        `;
+        sidebar.appendChild(btn);
+      });
+    }
+
+    // Render Active Screen
+    function renderScreen(index) {
+      if (index < 0) index = 0;
+      if (index >= screensData.length) index = screensData.length - 1;
+      activeIndex = index;
+
+      const s = screensData[index];
+
+      stage.innerHTML = `
+        <div class="stage-card">
+          <div class="stage-header">
+            <div>
+              <div style="font-family:'IBM Plex Mono', monospace; font-size:13px; font-weight:700; color:var(--accent-warm);">
+                MÀN HÌNH ${s.num} · PHIÊN BẢN ĐỀ XUẤT 2.0
+              </div>
+              <h2 class="stage-main-title">${s.title}</h2>
+              <div class="stage-meta-badges">
+                <span class="meta-badge badge-${s.moduleKey}">${s.module}</span>
+                <span class="meta-badge" style="background:#F1F5F9; color:#475569;">LOẠI: ${s.type}</span>
+                <span class="meta-badge" style="background:#F8FAFC; border:1px solid #E2E8F0; color:#334155;">VAI TRÒ: ${s.role}</span>
+              </div>
+            </div>
+            <div style="font-family:'IBM Plex Mono', monospace; font-size:13px; color:#64748B;">
+              ${index + 1} / ${screensData.length}
+            </div>
+          </div>
+
+          <!-- The Live Redesigned 2.0 Mockup -->
+          <div style="background:#F8FAFC; border:1px solid var(--border); border-radius:var(--radius-lg); padding:24px; min-height:360px; overflow-x:auto;">
+            ${s.mockupHtml}
+          </div>
+
+          <!-- Improvements Breakdown -->
+          <div class="specs-grid">
+            <div class="spec-box">
+              <div class="spec-box-title">✂️ Những Gì Đã Lược Bỏ (Anti-Clutter)</div>
+              <p class="spec-box-text">${s.removedClutter}</p>
+              
+              <div class="spec-box-title" style="margin-top:14px;">🔘 Thiết Kế Bo Tròn &amp; Hiện Đại Hóa</div>
+              <p class="spec-box-text">${s.keyChanges}</p>
+            </div>
+
+            <div class="spec-box">
+              <div class="spec-box-title">🗄️ Bảng CSDL PostgreSQL Ánh Xạ</div>
+              <p class="spec-box-text" style="font-family:'IBM Plex Mono', monospace; font-size:12px; color:#0F3826; font-weight:700;">
+                ${s.dbTables}
+              </p>
+
+              <div class="spec-box-title" style="margin-top:14px;">⚡ Logic Nghiệp Vụ &amp; RLS Độc Lập</div>
+              <p class="spec-box-text">${s.logic}</p>
+            </div>
+          </div>
+
+          <!-- Footer Next/Prev -->
+          <div class="nav-bar-footer">
+            <button class="nav-btn" onclick="prevScreen()" ${index === 0 ? 'disabled style="opacity:0.4"' : ''}>
+              ← Màn Hình Trước
+            </button>
+            <div style="font-size:12px; color:#64748B;">
+              Sử dụng phím mũi tên ← → để duyệt nhanh từng màn hình
+            </div>
+            <button class="nav-btn" onclick="nextScreen()" ${index === screensData.length - 1 ? 'disabled style="opacity:0.4"' : ''}>
+              Màn Hình Tiếp Theo →
+            </button>
+          </div>
+        </div>
+      `;
+
+      // Highlight in sidebar
+      const buttons = sidebar.querySelectorAll('.screen-item-btn');
+      buttons.forEach((b, idx) => {
+        if (idx === index) b.classList.add('active');
+        else b.classList.remove('active');
+      });
+
+      stage.scrollTop = 0;
+    }
+
+    function selectScreen(index) {
+      renderScreen(index);
+    }
+
+    function nextScreen() {
+      if (activeIndex < screensData.length - 1) {
+        renderScreen(activeIndex + 1);
+      }
+    }
+
+    function prevScreen() {
+      if (activeIndex > 0) {
+        renderScreen(activeIndex - 1);
+      }
+    }
+
+    searchInput.addEventListener('input', (e) => {
+      const txt = e.target.value.toLowerCase().trim();
+      buildSidebar(txt);
+    });
+
+    // Keyboard Shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === 'ArrowRight' || e.key === 'PageDown') {
+        e.preventDefault();
+        nextScreen();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        prevScreen();
+      }
+    });
+
+    // Init
+    buildSidebar();
+    renderScreen(0);
+  </script>
+</body>
+</html>

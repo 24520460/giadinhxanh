@@ -1,0 +1,3207 @@
+/* ==========================================================================
+   GIA ĐÌNH XANH — V3 BREAKTHROUGH UI THEME
+   Frosted Glass · Ambient Mesh · Bento Grid · Editorial Lifestyle · Progress Rings
+   100% tương thích với mọi ID, class và luồng nghiệp vụ của app.js
+   ========================================================================== */
+
+:root {
+  --v3-glass-bg: rgba(255, 255, 255, 0.84);
+  --v3-glass-border: rgba(255, 255, 255, 0.72);
+  --v3-shadow-soft: 0 10px 32px rgba(27, 67, 50, 0.06), 0 2px 8px rgba(27, 67, 50, 0.04);
+  --v3-shadow-hover: 0 18px 42px rgba(27, 67, 50, 0.11), 0 4px 12px rgba(27, 67, 50, 0.06);
+}
+
+/* 1. Ambient Mesh Gradient Canvas */
+body {
+  background-color: #F5F7F6 !important;
+  position: relative;
+}
+
+.framed-shell,
+.shell-sheet,
+.hero-section,
+.section-services,
+.section-pillars,
+.section-trust,
+.section-stories {
+  background: transparent !important;
+  position: relative;
+  z-index: 1;
+}
+
+.framed-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(680px circle at 8% 10%, rgba(167, 243, 208, 0.52), transparent 65%),
+    radial-gradient(620px circle at 92% 16%, rgba(254, 215, 170, 0.52), transparent 65%),
+    radial-gradient(540px circle at 50% 92%, rgba(209, 250, 229, 0.45), transparent 70%);
+}
+
+/* 2. Floating Frosted Glass Header */
+body:not([data-view-mode="dev"]) .shell-topbar.site-header {
+  position: sticky;
+  top: 12px;
+  z-index: 60;
+  margin: 12px auto 0;
+  width: min(1360px, calc(100% - 32px)) !important;
+  max-width: min(1360px, calc(100% - 32px)) !important;
+  border-radius: 18px;
+  background: var(--v3-glass-bg) !important;
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  border: 1px solid var(--v3-glass-border) !important;
+  box-shadow: var(--v3-shadow-soft);
+}
+
+body:not([data-view-mode="dev"]) .shell-sheet:not([data-surface-mode="stationery"]) {
+  max-width: 1360px !important;
+}
+
+body:not([data-view-mode="dev"]) .topbar-inner.site-container {
+  padding: 10px 20px;
+}
+
+/* Hide Dev Switcher unless ?mode=dev or ?dev=1 is active */
+body:not([data-dev-enabled="true"]) .mode-switch-pill {
+  display: none !important;
+}
+
+/* Ensure all 5 portal tabs (0, 1, 2, 4, 3) are visible in Dev Mode topbar without clipping */
+body[data-view-mode="dev"] .topbar-inner.site-container {
+  gap: 10px !important;
+  padding-inline: 16px !important;
+  flex-wrap: wrap !important;
+}
+
+body[data-view-mode="dev"] .portal-switcher {
+  flex-wrap: wrap !important;
+  overflow-x: visible !important;
+  max-width: 100%;
+}
+
+body[data-view-mode="dev"] .portal-switcher .portal-tab {
+  padding: 5px 10px !important;
+  font-size: 12.5px !important;
+  white-space: nowrap;
+}
+
+/* Active Nav Pill */
+.portal-switcher .portal-tab[aria-selected="true"],
+.user-main-nav .portal-tab.is-active,
+.user-main-nav .nav-link.is-active,
+.user-main-nav .nav-tab.is-active {
+  background: #E8F5E9 !important;
+  color: #1B4332 !important;
+  font-weight: 700 !important;
+  border-radius: 10px !important;
+}
+
+/* 3. V3 Hero Section, Omni-Search & Floating Live Pill (Match Figma V3 1:1) */
+.site-container {
+  max-width: 1360px !important;
+}
+
+.hero-section {
+  padding-top: 32px !important;
+  padding-bottom: 24px !important;
+}
+
+.hero-grid {
+  display: grid !important;
+  grid-template-columns: 1.05fr 1fr !important;
+  gap: 48px !important;
+  align-items: center !important;
+}
+
+.hero-media-wrapper {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+.hero-media-frame,
+.hero-media-card,
+.hero-visual {
+  position: relative;
+  width: 100% !important;
+  height: 360px !important;
+  border-radius: 24px !important;
+  overflow: hidden;
+  box-shadow: var(--v3-shadow-hover);
+}
+
+.hero-media-frame img {
+  width: 100% !important;
+  height: 360px !important;
+  object-fit: cover;
+  display: block;
+}
+
+.hero-wizard-prompt {
+  display: flex !important;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 18px !important;
+  border-radius: 16px !important;
+  background: var(--v3-glass-bg) !important;
+  border: 1px solid rgba(27, 67, 50, 0.08) !important;
+}
+
+.v3-live-pill {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  box-shadow: 0 8px 24px rgba(18, 47, 35, 0.14);
+  font-size: 13px;
+  font-weight: 700;
+  color: #1B4332;
+}
+
+.omni-search,
+.hero-search-bar,
+.search-bar-card {
+  background: var(--v3-glass-bg) !important;
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  border: 1px solid var(--v3-glass-border) !important;
+  border-radius: 20px !important;
+  box-shadow: var(--v3-shadow-soft) !important;
+  padding: 8px 10px 8px 16px !important;
+}
+
+.omni-form {
+  display: grid !important;
+  grid-template-columns: 1.3fr 1fr 1fr auto !important;
+  gap: 0 !important;
+  align-items: center !important;
+}
+
+.omni-field {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  padding: 4px 14px !important;
+  box-shadow: none !important;
+  min-width: 0 !important;
+}
+
+.omni-field:not(:last-of-type) {
+  border-right: 1px solid rgba(27, 67, 50, 0.12) !important;
+}
+
+.omni-label {
+  white-space: nowrap !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  color: #4A5568 !important;
+  margin-bottom: 3px !important;
+}
+
+.omni-input {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 18px 0 0 !important;
+  min-height: 24px !important;
+  height: auto !important;
+  font-size: 13.5px !important;
+  font-weight: 600 !important;
+  color: #16201C !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+.search-submit-btn {
+  border-radius: 14px !important;
+  padding: 12px 20px !important;
+  white-space: nowrap !important;
+}
+
+.hero-stats {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 14px !important;
+  margin-top: 20px !important;
+}
+
+.hero-stats .stat-item {
+  background: #FFFFFF;
+  border: 1px solid rgba(27, 67, 50, 0.08);
+  border-radius: 18px;
+  padding: 16px 18px;
+  box-shadow: var(--v3-shadow-soft);
+}
+
+.hero-stats .stat-item:first-child {
+  background: #1B4332;
+  color: #FFFFFF;
+}
+
+.hero-stats .stat-item:first-child .stat-number {
+  color: #FFFFFF;
+}
+
+.hero-stats .stat-item:first-child .stat-desc {
+  color: rgba(235, 242, 238, 0.86);
+}
+
+/* 4. Cards, Surface Elevation & Soft Lift Hover */
+.card,
+.service-card,
+.provider-card,
+.job-card,
+.kpi-card,
+.stat-card,
+.order-card,
+.booking-summary,
+.wizard-panel,
+.panel-card {
+  border-radius: 20px !important;
+  border: 1px solid rgba(27, 67, 50, 0.08) !important;
+  box-shadow: var(--v3-shadow-soft);
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.service-card:hover,
+.provider-card:hover,
+.job-card:hover,
+.order-card:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--v3-shadow-hover);
+}
+
+/* Bento Service Grid: 1 Featured (2fr) + 3 Compact (1fr each) on ONE row like Figma V3 */
+@media (min-width: 1024px) {
+  .services-grid {
+    display: grid !important;
+    grid-template-columns: 1.9fr 1fr 1fr 1fr !important;
+    gap: 20px !important;
+    align-items: stretch !important;
+  }
+
+  .services-grid .service-card {
+    padding: 14px !important;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .services-grid .service-card:first-child {
+    grid-column: span 1 !important;
+    display: grid !important;
+    grid-template-columns: 1fr 1.05fr !important;
+    gap: 18px !important;
+    align-items: stretch !important;
+  }
+
+  .services-grid .service-card:first-child .service-card-media {
+    height: 100% !important;
+    min-height: 290px !important;
+    max-height: 340px !important;
+    width: 100% !important;
+    border-radius: 16px !important;
+    overflow: hidden !important;
+  }
+
+  .services-grid .service-card:not(:first-child) .service-card-media {
+    height: 160px !important;
+    width: 100% !important;
+    border-radius: 14px !important;
+    overflow: hidden !important;
+  }
+
+  .services-grid .service-card:not(:first-child) ul {
+    display: none !important;
+  }
+
+  .services-grid .service-card:not(:first-child) .price-label {
+    display: none !important;
+  }
+}
+
+.services-grid .service-card-media {
+  position: relative;
+}
+
+.services-grid .service-card-media img {
+  width: 100% !important;
+  height: 100% !important;
+  max-width: none !important;
+  object-fit: cover !important;
+  display: block !important;
+}
+
+.services-grid .service-card-media .service-badge-pill,
+.services-grid .service-card-media .service-card-badge {
+  display: none !important;
+}
+
+.services-grid .service-card-body {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 !important;
+  padding: 12px 4px 4px !important;
+}
+
+.services-grid .service-card-desc,
+.services-grid .service-card-body p {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 13px !important;
+  margin-bottom: 10px !important;
+}
+
+.services-grid .service-card-footer {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  margin-top: auto !important;
+  padding-top: 12px !important;
+}
+
+.services-grid .price-value {
+  white-space: nowrap !important;
+  font-size: 16px !important;
+}
+
+.services-grid .service-card-footer .primary-btn {
+  white-space: nowrap !important;
+  padding: 8px 12px !important;
+  font-size: 12.5px !important;
+}
+
+/* KPI Card Accent & Sparkline Bar */
+.kpi-card {
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi-card::after {
+  content: "";
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  width: 64px;
+  height: 28px;
+  opacity: 0.25;
+  background: linear-gradient(90deg,
+    #1B4332 0 10px, transparent 10px 14px,
+    #2D6A4F 14px 24px, transparent 24px 28px,
+    #1B4332 28px 38px, transparent 38px 42px,
+    #E07A5F 42px 52px, transparent 52px 56px,
+    #1B4332 56px 64px);
+  border-radius: 4px;
+  pointer-events: none;
+}
+
+/* 5. Frosted Glass Modals & Drawers */
+dialog.modal-dialog {
+  border-radius: 24px !important;
+  background: rgba(255, 255, 255, 0.92) !important;
+  backdrop-filter: blur(22px) saturate(180%);
+  -webkit-backdrop-filter: blur(22px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.78) !important;
+  box-shadow: 0 24px 60px rgba(18, 47, 35, 0.22) !important;
+}
+
+dialog.modal-dialog::backdrop {
+  background: rgba(15, 26, 22, 0.45);
+  backdrop-filter: blur(6px);
+}
+
+/* 6. Auth 0.1 — Editorial Lifestyle Photo + Frosted Glass Cards */
+.auth-split-card {
+  border-radius: 28px !important;
+  background: var(--v3-glass-bg) !important;
+  backdrop-filter: blur(20px) saturate(170%);
+  border: 1px solid var(--v3-glass-border) !important;
+  box-shadow: var(--v3-shadow-hover) !important;
+  overflow: hidden;
+}
+
+.auth-brand-side {
+  position: relative;
+  background:
+    linear-gradient(180deg, rgba(18, 47, 35, 0.35) 0%, rgba(18, 47, 35, 0.86) 68%, rgba(15, 36, 27, 0.96) 100%),
+    url('/assets/family-story.jpg') center/cover no-repeat !important;
+  border-radius: 22px;
+}
+
+.auth-brand-badge,
+.auth-trust-item {
+  background: rgba(255, 255, 255, 0.14) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.24) !important;
+  border-radius: 16px !important;
+  padding: 12px 14px;
+}
+
+/* 7. Live Timer Circular Ring (2.2) & VietQR Countdown (1.8) */
+.timer-display,
+.live-timer-clock {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 28px;
+  border-radius: 999px;
+  border: 4px solid #1B4332;
+  background: #F5F7F6;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 0 8px rgba(27, 67, 50, 0.08);
+}
+
+/* 8. Soft 14px Inputs & Focus Ring */
+.input,
+.select,
+.textarea,
+input[type="text"],
+input[type="password"],
+input[type="email"],
+input[type="tel"],
+input[type="number"],
+input[type="date"],
+input[type="time"],
+select,
+textarea {
+  border-radius: 14px !important;
+  background-color: #F5F7F6;
+  border-color: rgba(27, 67, 50, 0.12);
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus,
+input:focus,
+select:focus,
+textarea:focus {
+  background-color: #FFFFFF;
+  border-color: #1B4332 !important;
+  box-shadow: 0 0 0 3px rgba(27, 67, 50, 0.12) !important;
+  outline: none;
+}
+
+.btn {
+  border-radius: 12px !important;
+  transition: transform 160ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+/* 9. Tabular Nums & Live Pulse Dot */
+.kpi-value,
+.price,
+.vietqr-timer,
+.stat-value {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes v3Pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.45); }
+  50% { box-shadow: 0 0 0 6px rgba(22, 163, 74, 0); }
+}
+
+.status-dot.is-online {
+  animation: v3Pulse 2s infinite;
+}
+
+/* 10. V3 Hero Pill & Auth Editorial Quote Card */
+.v3-hero-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(27, 67, 50, 0.12);
+  color: #1B4332;
+  font-size: 12.5px;
+  font-weight: 700;
+  margin-bottom: 14px;
+  box-shadow: 0 4px 12px rgba(27, 67, 50, 0.05);
+}
+
+.v3-auth-editorial {
+  display: flex !important;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 580px;
+  padding: 28px !important;
+  background:
+    linear-gradient(180deg, rgba(18, 47, 35, 0.18) 0%, rgba(18, 47, 35, 0.45) 100%),
+    url('/assets/family-story.jpg') center/cover no-repeat !important;
+}
+
+.v3-auth-quote-card {
+  background: rgba(255, 255, 255, 0.88);
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.78);
+  border-radius: 22px;
+  padding: 22px 24px;
+  box-shadow: 0 18px 40px rgba(15, 36, 27, 0.22);
+}
+
+.v3-auth-quote-text {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.5;
+  color: #16201C;
+  margin-bottom: 10px;
+}
+
+.v3-auth-quote-author {
+  font-size: 13px;
+  font-weight: 500;
+  color: #4A5568;
+  margin-bottom: 14px;
+}
+
+.v3-auth-quote-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.v3-quote-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #FFFFFF;
+  color: #1B4332;
+}
+
+.v3-quote-pill.is-mint {
+  background: #E8F5E9;
+}
+
+/* 11. Minimalist V3 Homepage — Hide Redundant Clutter, Keep 100% Core Flows */
+.quick-chips,
+.hero-wizard-prompt,
+.section-services .section-subtitle,
+.section-services .filter-toolbar,
+.services-wizard-callout,
+.section-gallery-showcase,
+.section-providers,
+.section-trust,
+.section-stories,
+.section-testimonial {
+  display: none !important;
+}
+
+.section-services {
+  padding-top: 24px !important;
+  padding-bottom: 56px !important;
+}
+
+.section-services .section-header {
+  margin-bottom: 20px !important;
+  text-align: left !important;
+}
+
+.hero-content .hero-stats {
+  display: none !important;
+}
+
+.v3-bento-metrics {
+  margin-top: 28px !important;
+}
+
+/* 12. Support Center V3 Segmented Tabs, Upload Pill & Ticket Cards */
+.v3-seg-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  padding: 5px;
+  margin: 0 24px 12px;
+  border-radius: 14px;
+  background: #F1F5F3;
+}
+
+.v3-seg-tab {
+  border: 0;
+  background: transparent;
+  padding: 9px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4A5568;
+  cursor: pointer;
+  transition: background-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
+}
+
+.v3-seg-tab.is-active {
+  background: #FFFFFF;
+  color: #1B4332;
+  box-shadow: 0 2px 8px rgba(27, 67, 50, 0.08);
+}
+
+.v3-upload-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 14px;
+  border-radius: 14px;
+  background: #F5F7F6;
+  border: 1px dashed rgba(27, 67, 50, 0.28);
+  color: #1B4332;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.v3-upload-btn:hover {
+  background: #E8F5E9;
+}
+
+.v3-ticket-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #FFFFFF;
+  border: 1px solid rgba(27, 67, 50, 0.08);
+  box-shadow: 0 4px 14px rgba(27, 67, 50, 0.04);
+}
+
+.v3-ticket-code {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #E8F5E9;
+  color: #1B4332;
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ==========================================================================
+   8. Screen 1.3 Live Tracking (Match Figma V3 1:1)
+   ========================================================================== */
+body:not([data-view-mode="dev"]) .shell-sheet[data-surface-mode="map"] {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 16px 0 0 !important;
+  background: transparent !important;
+}
+
+.v3-tracking-stage {
+  position: relative;
+  width: 100%;
+  min-height: calc(100vh - 96px);
+  background: #D7E0DA;
+  border-radius: 28px 28px 0 0;
+  overflow: hidden;
+  padding: 32px 36px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 32px;
+}
+
+body[data-view-mode="dev"] .v3-tracking-stage {
+  min-height: 680px;
+  border-radius: 24px;
+}
+
+.v3-tracking-map-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 68% 48%, rgba(255, 255, 255, 0.35) 0%, transparent 45%),
+    linear-gradient(to right, rgba(27, 67, 50, 0.04) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(27, 67, 50, 0.04) 1px, transparent 1px);
+  background-size: 100% 100%, 64px 64px, 64px 64px;
+}
+
+.v3-track-top-controls {
+  position: absolute;
+  top: 20px;
+  right: 24px;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.v3-track-select {
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(27, 67, 50, 0.14);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  color: #1B4332;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.v3-track-chip-btn {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(27, 67, 50, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  color: #1E293B;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.v3-track-chip-btn:hover {
+  background: #FFFFFF;
+  transform: translateY(-1px);
+}
+
+.v3-tracking-card {
+  position: relative;
+  z-index: 4;
+  width: min(410px, 100%);
+  background: #FFFFFF;
+  border-radius: 24px;
+  padding: 28px;
+  box-shadow: 0 20px 50px rgba(27, 67, 50, 0.10), 0 4px 12px rgba(27, 67, 50, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.v3-track-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.v3-track-status-pill.is-progress {
+  background: #E0F2FE;
+  color: #0369A1;
+}
+
+.v3-track-status-pill.is-progress .v3-track-status-dot {
+  background: #16A34A;
+}
+
+.v3-track-status-pill.is-confirmed,
+.v3-track-status-pill.is-pending {
+  background: #FEF3C7;
+  color: #B45309;
+}
+
+.v3-track-status-pill.is-confirmed .v3-track-status-dot,
+.v3-track-status-pill.is-pending .v3-track-status-dot {
+  background: #D97706;
+}
+
+.v3-track-status-pill.is-completed {
+  background: #E8F5E9;
+  color: #1B4332;
+}
+
+.v3-track-status-pill.is-completed .v3-track-status-dot {
+  background: #16A34A;
+}
+
+.v3-track-status-pill.is-cancelled {
+  background: #FEE2E2;
+  color: #DC2626;
+}
+
+.v3-track-status-pill.is-cancelled .v3-track-status-dot {
+  background: #DC2626;
+}
+
+.v3-track-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.v3-track-headline {
+  margin: 0;
+  font-size: 24px;
+  line-height: 1.28;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -0.02em;
+}
+
+.v3-track-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.v3-track-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13.5px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.v3-track-step.is-done {
+  background: #EAF6ED;
+  color: #1B4332;
+  font-weight: 600;
+}
+
+.v3-track-step.is-current {
+  background: #E0F2FE;
+  color: #0369A1;
+  font-weight: 700;
+}
+
+.v3-track-step.is-upcoming {
+  background: #FFFFFF;
+  border: 1px solid #F1F5F9;
+  color: #334155;
+}
+
+.v3-track-step-icon {
+  font-size: 13px;
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.v3-track-provider-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 16px;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  cursor: pointer;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.v3-track-provider-card:hover {
+  border-color: #1B4332;
+  box-shadow: 0 6px 18px rgba(27, 67, 50, 0.08);
+}
+
+.v3-track-provider-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #E2E8F0;
+}
+
+.v3-track-provider-name {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.v3-track-provider-meta {
+  margin-top: 3px;
+  font-size: 13.5px;
+  color: #64748B;
+}
+
+.v3-track-star {
+  color: #64748B;
+}
+
+.v3-track-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  padding-top: 4px;
+}
+
+.v3-track-btn-primary {
+  height: 46px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 12px;
+  background: #1B3B2B;
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.v3-track-btn-primary:hover {
+  background: #142C20;
+  transform: translateY(-1px);
+}
+
+.v3-track-btn-danger {
+  height: 46px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 12px;
+  background: #FEE2E2;
+  color: #DC2626;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.v3-track-btn-danger:hover {
+  background: #FECACA;
+  transform: translateY(-1px);
+}
+
+.v3-track-cancel-link {
+  background: none;
+  border: none;
+  padding: 2px 0;
+  color: #64748B;
+  font-size: 12.5px;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  align-self: center;
+}
+
+.v3-track-cancel-link:hover {
+  color: #DC2626;
+}
+
+/* Floating Map Marker */
+.v3-track-map-pin-wrap {
+  position: relative;
+  z-index: 3;
+  flex: 1;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+}
+
+.v3-track-map-pulse {
+  position: absolute;
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background: rgba(27, 67, 50, 0.08);
+  animation: v3-pulse-ring 2.4s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes v3-pulse-ring {
+  0% { transform: scale(0.75); opacity: 0.7; }
+  100% { transform: scale(1.65); opacity: 0; }
+}
+
+.v3-track-map-pin {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 22px;
+  border-radius: 999px;
+  background: #1B3B2B;
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 600;
+  box-shadow: 0 12px 28px rgba(27, 59, 43, 0.25);
+}
+
+.v3-track-map-address {
+  position: relative;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.85);
+  color: #334155;
+  font-size: 12.5px;
+  font-weight: 500;
+  max-width: 360px;
+  text-align: center;
+}
+
+/* Collapsible Details Drawer */
+.v3-track-details-drawer {
+  position: absolute;
+  top: 68px;
+  right: 24px;
+  z-index: 6;
+  width: min(380px, calc(100% - 48px));
+  background: #FFFFFF;
+  border-radius: 20px;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.16);
+  border: 1px solid rgba(27, 67, 50, 0.10);
+  display: none;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.v3-track-details-drawer.is-open {
+  display: flex;
+}
+
+.v3-track-drawer-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid #F1F5F9;
+  font-size: 14px;
+  color: #111827;
+}
+
+.v3-track-drawer-close {
+  border: none;
+  background: none;
+  font-size: 20px;
+  line-height: 1;
+  color: #64748B;
+  cursor: pointer;
+}
+
+.v3-track-drawer-body {
+  padding: 16px 18px;
+  font-size: 13.5px;
+}
+
+@media (max-width: 960px) {
+  .v3-tracking-stage {
+    flex-direction: column;
+    padding: 72px 16px 28px;
+    border-radius: 20px 20px 0 0;
+  }
+
+  .v3-tracking-card {
+    width: 100%;
+  }
+
+  .v3-track-map-pin-wrap {
+    width: 100%;
+    padding: 36px 12px;
+  }
+}
+
+/* ==========================================================================
+   9. Screen 1.4 Appointments List (Match Figma V3 1:1)
+   ========================================================================== */
+.v3-appointments-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.v3-appointments-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.v3-appointments-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -0.02em;
+}
+
+.v3-appointments-new-btn {
+  height: 44px;
+  padding: 0 22px;
+  border: none;
+  border-radius: 10px;
+  background: #1B3B2B;
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.v3-appointments-new-btn:hover {
+  background: #142C20;
+  transform: translateY(-1px);
+}
+
+.v3-appointments-filters {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.v3-appt-filter-pill {
+  height: 34px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(27, 67, 50, 0.08);
+  background: #FFFFFF;
+  color: #1E293B;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(27, 67, 50, 0.04);
+  transition: all 150ms ease;
+}
+
+.v3-appt-filter-pill:hover {
+  border-color: rgba(27, 67, 50, 0.25);
+}
+
+.v3-appt-filter-pill.is-active {
+  background: #1B3B2B;
+  color: #FFFFFF;
+  border-color: #1B3B2B;
+}
+
+.v3-appointments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.v3-booking-row {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 24px;
+  padding: 20px 26px;
+  border-radius: 20px;
+  background: #FFFFFF;
+  border: 1px solid rgba(27, 67, 50, 0.06);
+  box-shadow: 0 6px 24px rgba(27, 67, 50, 0.05);
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.v3-booking-row:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 30px rgba(27, 67, 50, 0.08);
+}
+
+.v3-booking-thumb {
+  width: 112px;
+  height: 76px;
+  border-radius: 14px;
+  object-fit: cover;
+  cursor: pointer;
+  background: #E2E8F0;
+}
+
+.v3-booking-info {
+  min-width: 0;
+  cursor: pointer;
+}
+
+.v3-booking-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #111827;
+  line-height: 1.35;
+}
+
+.v3-booking-meta {
+  margin-top: 6px;
+  font-size: 13.5px;
+  color: #64748B;
+}
+
+.v3-booking-status-col {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.v3-booking-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.v3-booking-pill.is-progress {
+  background: #E0F2FE;
+  color: #0369A1;
+}
+
+.v3-booking-pill.is-progress .v3-booking-pill-icon {
+  color: #16A34A;
+}
+
+.v3-booking-pill.is-pending {
+  background: #FEF3C7;
+  color: #B45309;
+}
+
+.v3-booking-pill.is-pending .v3-booking-pill-icon {
+  color: #F59E0B;
+}
+
+.v3-booking-pill.is-completed {
+  background: #E8F5E9;
+  color: #1B4332;
+}
+
+.v3-booking-pill.is-completed .v3-booking-pill-icon {
+  color: #16A34A;
+}
+
+.v3-booking-pill.is-cancelled {
+  background: #FEE2E2;
+  color: #DC2626;
+}
+
+.v3-booking-action-btn {
+  min-width: 154px;
+  height: 44px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 10px;
+  background: #1B3B2B;
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.v3-booking-action-btn:hover {
+  background: #142C20;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 820px) {
+  .v3-booking-row {
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .v3-booking-thumb {
+    width: 88px;
+    height: 68px;
+  }
+
+  .v3-booking-status-col {
+    justify-content: flex-start;
+  }
+
+  .v3-booking-action-btn {
+    width: 100%;
+  }
+}
+
+/* ==========================================================================
+   10. Screen 1.5 Profile & Address Book (Match Figma V3 1:1)
+   ========================================================================== */
+.v3-profile-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.v3-profile-page-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -0.02em;
+}
+
+.v3-profile-grid {
+  display: grid;
+  grid-template-columns: 380px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.v3-profile-card,
+.v3-address-card {
+  background: #FFFFFF;
+  border-radius: 24px;
+  padding: 28px;
+  border: 1px solid rgba(27, 67, 50, 0.06);
+  box-shadow: 0 10px 32px rgba(27, 67, 50, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.v3-profile-identity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.v3-profile-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #E2E8F0;
+}
+
+.v3-profile-name {
+  font-size: 19px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.v3-profile-tier-pill {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: #E8F5E9;
+  color: #1B4332;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.v3-profile-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.v3-profile-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.v3-profile-field label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1E293B;
+}
+
+.v3-profile-input {
+  height: 44px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: 1px solid #E2E8F0;
+  background: #F4F6F5;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 500;
+  outline: none;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.v3-profile-input:focus {
+  border-color: #1B3B2B;
+  background: #FFFFFF;
+}
+
+.v3-profile-save-btn {
+  height: 46px;
+  width: 100%;
+  margin-top: 6px;
+  border: none;
+  border-radius: 10px;
+  background: #1B3B2B;
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.v3-profile-save-btn:hover {
+  background: #142C20;
+  transform: translateY(-1px);
+}
+
+.v3-address-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.v3-address-card-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.v3-address-add-btn {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(27, 67, 50, 0.16);
+  background: #FFFFFF;
+  color: #1B3B2B;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.v3-address-add-btn:hover {
+  background: #E8F5E9;
+}
+
+.v3-address-pill-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.v3-address-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 16px;
+  border-radius: 10px;
+  background: #F4F6F5;
+  color: #334155;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 150ms ease;
+}
+
+.v3-address-pill:hover {
+  background: #E9EFEA;
+}
+
+.v3-address-pill.is-default {
+  background: #E8F5E9;
+  color: #1B4332;
+}
+
+.v3-address-pill-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.v3-addr-mini-btn {
+  border: none;
+  background: rgba(255, 255, 255, 0.85);
+  color: #1B3B2B;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.v3-addr-mini-btn.is-del {
+  color: #DC2626;
+}
+
+.v3-address-map-box {
+  position: relative;
+  height: 360px;
+  border-radius: 18px;
+  background: #D7E0DA;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.v3-address-gps-toggle {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 4;
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(27, 67, 50, 0.14);
+  background: rgba(255, 255, 255, 0.9);
+  color: #1B3B2B;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.v3-address-gps-panel {
+  display: none;
+  flex-direction: column;
+  gap: 14px;
+  padding-top: 8px;
+  border-top: 1px solid #F1F5F9;
+}
+
+.v3-address-gps-panel.is-open {
+  display: flex;
+}
+
+@media (max-width: 960px) {
+  .v3-profile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .v3-address-map-box {
+    height: 260px;
+  }
+}
+
+/* ==========================================================================
+   11. Screen 1.6 Favorites (Match Figma V3 1:1)
+   ========================================================================== */
+.v3-fav-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.v3-fav-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.v3-fav-page-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -0.02em;
+}
+
+.v3-fav-explore-btn {
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(27, 67, 50, 0.16);
+  background: #FFFFFF;
+  color: #1B3B2B;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.v3-fav-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 320px));
+  gap: 24px;
+}
+
+.v3-fav-card {
+  background: #FFFFFF;
+  border-radius: 20px;
+  padding: 14px;
+  border: 1px solid rgba(27, 67, 50, 0.06);
+  box-shadow: 0 8px 28px rgba(27, 67, 50, 0.06);
+  display: flex;
+  flex-direction: column;
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+
+.v3-fav-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 34px rgba(27, 67, 50, 0.10);
+}
+
+.v3-fav-card-media {
+  position: relative;
+  height: 170px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #E2E8F0;
+}
+
+.v3-fav-card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.v3-fav-saved-pill {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: none;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #1E293B;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+}
+
+.v3-fav-heart {
+  color: #E11D48;
+  font-size: 12px;
+}
+
+.v3-fav-card-body {
+  padding: 14px 4px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.v3-fav-card-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.v3-fav-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.v3-fav-card-price {
+  font-size: 17px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.v3-fav-card-price span {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.v3-fav-rebook-btn {
+  height: 40px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 10px;
+  background: #1B3B2B;
+  color: #FFFFFF;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.v3-fav-rebook-btn:hover {
+  background: #142C20;
+  transform: translateY(-1px);
+}
+
+.v3-fav-providers-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 8px;
+}
+
+.v3-fav-section-subtitle {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: #111827;
+}
+
+@media (max-width: 640px) {
+  .v3-fav-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================================================
+   12. Screen 1.8 VietQR Payment (Match Figma V3 1:1)
+   ========================================================================== */
+.v3-vietqr-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 28px 16px 48px;
+}
+
+.v3-vietqr-card {
+  width: min(740px, 100%);
+  background: #FFFFFF;
+  border-radius: 28px;
+  padding: 36px 40px 44px;
+  border: 1px solid rgba(27, 67, 50, 0.06);
+  box-shadow: 0 18px 48px rgba(27, 67, 50, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.v3-vietqr-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.v3-vietqr-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -0.02em;
+}
+
+.v3-vietqr-timer-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 16px;
+  border-radius: 999px;
+  background: #FEF3C7;
+  border: 1px solid #F59E0B;
+  color: #B45309;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.v3-vietqr-body {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 40px;
+  align-items: center;
+}
+
+.v3-vietqr-qr-box {
+  width: 260px;
+  height: 260px;
+  padding: 16px;
+  border-radius: 20px;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.04);
+}
+
+.v3-vietqr-qr-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
+.v3-vietqr-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.v3-vietqr-amount {
+  font-size: 36px;
+  font-weight: 800;
+  color: #1B3B2B;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.v3-vietqr-meta-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.v3-vietqr-memo {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+  cursor: pointer;
+}
+
+.v3-vietqr-memo:hover,
+.v3-vietqr-bank:hover {
+  text-decoration: underline;
+}
+
+.v3-vietqr-bank {
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748B;
+  cursor: pointer;
+}
+
+.v3-vietqr-confirm-btn {
+  margin-top: 12px;
+  width: 100%;
+  max-width: 310px;
+  height: 46px;
+  padding: 0 22px;
+  border: none;
+  border-radius: 10px;
+  background: #1B3B2B;
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.v3-vietqr-confirm-btn:hover {
+  background: #142C20;
+  transform: translateY(-1px);
+}
+
+.v3-vietqr-back-link {
+  background: none;
+  border: none;
+  padding: 2px 0;
+  color: #64748B;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.v3-vietqr-back-link:hover {
+  color: #1B3B2B;
+  text-decoration: underline;
+}
+
+@media (max-width: 720px) {
+  .v3-vietqr-card {
+    padding: 24px 20px;
+  }
+
+  .v3-vietqr-body {
+    grid-template-columns: 1fr;
+    gap: 24px;
+    justify-items: center;
+    text-align: center;
+  }
+
+  .v3-vietqr-info {
+    align-items: center;
+  }
+}
+
+/* ==========================================================================
+   13. Modal 1.7 Provider Public Profile Drawer (Match Figma V3 1:1)
+   ========================================================================== */
+.v3-prov-drawer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 460px;
+  padding: 28px;
+  gap: 24px;
+}
+
+.v3-prov-drawer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.v3-prov-identity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.v3-prov-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #E2E8F0;
+}
+
+.v3-prov-name {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.v3-prov-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: #E8F5E9;
+  color: #1B4332;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.v3-prov-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.v3-prov-icon-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  color: #334155;
+  font-size: 16px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.v3-prov-icon-btn.is-active {
+  color: #E11D48;
+  border-color: #FECDD3;
+  background: #FFF1F2;
+}
+
+.v3-prov-drawer-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.v3-prov-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.v3-prov-tag {
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  color: #1E293B;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.v3-prov-review-quote {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #334155;
+}
+
+.v3-prov-expand-btn {
+  align-self: flex-start;
+  background: none;
+  border: none;
+  padding: 2px 0;
+  color: #64748B;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.v3-prov-expand-btn:hover {
+  color: #1B3B2B;
+  text-decoration: underline;
+}
+
+.v3-prov-extra {
+  display: none;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.v3-prov-extra.is-open {
+  display: flex;
+}
+
+.v3-prov-drawer-foot {
+  padding-top: 12px;
+}
+
+.v3-prov-cta-btn {
+  width: 100%;
+  height: 46px;
+  padding: 0 20px;
+  border: none;
+  border-radius: 10px;
+  background: #1B3B2B;
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.v3-prov-cta-btn:hover {
+  background: #142C20;
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   14. Screen 2.1 Provider Job Board (Match Figma V3 1:1)
+   ========================================================================== */
+.v3-jobs-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.v3-jobs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.v3-jobs-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -0.02em;
+}
+
+.v3-jobs-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 16px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.v3-jobs-status-pill.is-online {
+  background: #E8F5E9;
+  color: #1B4332;
+}
+
+.v3-jobs-status-pill.is-online .v3-jobs-status-dot {
+  background: #16A34A;
+}
+
+.v3-jobs-status-pill.is-offline {
+  background: #F1F5F9;
+  color: #64748B;
+}
+
+.v3-jobs-status-pill.is-offline .v3-jobs-status-dot {
+  background: #94A3B8;
+}
+
+.v3-jobs-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.v3-jobs-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.v3-job-card {
+  display: grid;
+  grid-template-columns: 128px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 24px;
+  padding: 20px 26px;
+  border-radius: 20px;
+  background: #FFFFFF;
+  border: 1px solid rgba(27, 67, 50, 0.06);
+  box-shadow: 0 6px 24px rgba(27, 67, 50, 0.05);
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.v3-job-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 30px rgba(27, 67, 50, 0.08);
+}
+
+.v3-job-thumb {
+  width: 128px;
+  height: 92px;
+  border-radius: 14px;
+  object-fit: cover;
+  background: #E2E8F0;
+}
+
+.v3-job-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.v3-job-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+.v3-job-badge.is-direct {
+  background: #E8F5E9;
+  color: #1B4332;
+}
+
+.v3-job-badge.is-broadcast {
+  background: #E0F2FE;
+  color: #0369A1;
+}
+
+.v3-job-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.v3-job-meta {
+  font-size: 13.5px;
+  color: #64748B;
+}
+
+.v3-job-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.v3-job-price {
+  font-size: 22px;
+  font-weight: 800;
+  color: #1B3B2B;
+}
+
+.v3-job-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.v3-job-skip-btn {
+  height: 40px;
+  padding: 0 18px;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  background: #F8FAFC;
+  color: #334155;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.v3-job-skip-btn:hover {
+  background: #F1F5F9;
+}
+
+.v3-job-accept-btn {
+  height: 40px;
+  padding: 0 20px;
+  border: none;
+  border-radius: 10px;
+  background: #1B3B2B;
+  color: #FFFFFF;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.v3-job-accept-btn:hover {
+  background: #142C20;
+  transform: translateY(-1px);
+}
+
+@media (max-width: 820px) {
+  .v3-job-card {
+    grid-template-columns: 1fr;
+    gap: 16px;
+    padding: 18px;
+  }
+
+  .v3-job-thumb {
+    width: 100%;
+    height: 150px;
+  }
+
+  .v3-job-right {
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .v3-job-actions {
+    width: 100%;
+  }
+
+  .v3-job-skip-btn,
+  .v3-job-accept-btn {
+    flex: 1;
+  }
+}
+
+/* ==========================================================================
+   15. Screen 2.2 Live Shift Timer (Match Figma V3 1:1)
+   ========================================================================== */
+.v3-shift-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 24px 16px 48px;
+}
+
+.v3-shift-card {
+  width: min(720px, 100%);
+  background: #FFFFFF;
+  border-radius: 28px;
+  padding: 36px 40px 40px;
+  border: 1px solid rgba(27, 67, 50, 0.06);
+  box-shadow: 0 18px 48px rgba(27, 67, 50, 0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 26px;
+}
+
+.v3-shift-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: #E0F2FE;
+  color: #0369A1;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.v3-shift-status-pill.is-done {
+  background: #E8F5E9;
+  color: #1B4332;
+}
+
+.v3-shift-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #16A34A;
+}
+
+.v3-shift-ring-wrap {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.v3-shift-ring-svg {
+  display: block;
+}
+
+.v3-shift-ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  text-align: center;
+}
+
+.v3-shift-timer {
+  font-size: 32px;
+  font-weight: 800;
+  color: #1B3B2B;
+  letter-spacing: 0.02em;
+}
+
+.v3-shift-pct {
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748B;
+}
+
+.v3-shift-summary {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+  text-align: center;
+}
+
+.v3-shift-dock {
+  width: 100%;
+  max-width: 560px;
+  padding: 10px 12px;
+  border-radius: 16px;
+  background: #FFFFFF;
+  border: 1px solid #F1F5F9;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.05);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.v3-shift-btn-muted {
+  height: 44px;
+  padding: 0 18px;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  background: #F8FAFC;
+  color: #334155;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.v3-shift-btn-muted:hover {
+  background: #F1F5F9;
+}
+
+.v3-shift-btn-danger {
+  height: 44px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 10px;
+  background: #FEE2E2;
+  color: #DC2626;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.v3-shift-btn-danger:hover {
+  background: #FECACA;
+}
+
+.v3-shift-btn-primary {
+  flex: 1;
+  min-width: 200px;
+  height: 44px;
+  padding: 0 20px;
+  border: none;
+  border-radius: 10px;
+  background: #1B3B2B;
+  color: #FFFFFF;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.v3-shift-btn-primary:hover {
+  background: #142C20;
+  transform: translateY(-1px);
+}
+
+.v3-shift-sub-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  font-size: 12.5px;
+  color: #64748B;
+}
+
+@media (max-width: 640px) {
+  .v3-shift-card {
+    padding: 24px 18px;
+  }
+
+  .v3-shift-dock {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* ==========================================================================
+   16. Screen 2.3 Wallet & Schedule KPIs (Match Figma V3 1:1)
+   ========================================================================== */
+.v3-wallet-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.v3-wallet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.v3-wallet-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -0.02em;
+}
+
+.v3-wallet-primary-btn {
+  height: 44px;
+  padding: 0 22px;
+  border: none;
+  border-radius: 10px;
+  background: #1B3B2B;
+  color: #FFFFFF;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 150ms ease, transform 150ms ease;
+}
+
+.v3-wallet-primary-btn:hover {
+  background: #142C20;
+  transform: translateY(-1px);
+}
+
+.v3-kpi-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 22px;
+}
+
+.v3-kpi-card {
+  background: #FFFFFF;
+  border-radius: 20px;
+  padding: 24px 26px;
+  border: 1px solid rgba(27, 67, 50, 0.06);
+  box-shadow: 0 8px 28px rgba(27, 67, 50, 0.05);
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.v3-kpi-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748B;
+}
+
+.v3-kpi-value {
+  margin-top: 8px;
+  font-size: 28px;
+  font-weight: 800;
+  color: #1B3B2B;
+  line-height: 1.15;
+}
+
+.v3-kpi-sub {
+  margin-top: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #EA580C;
+}
+
+.v3-kpi-bars {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.v3-kpi-bars span {
+  width: 8px;
+  border-radius: 4px;
+  background: #E8F5E9;
+}
+
+.v3-kpi-bars span.is-peak {
+  background: #1B3B2B;
+}
+
+@media (max-width: 900px) {
+  .v3-kpi-grid-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ==========================================================================
+   17. Screen 2.4 Provider Skills & Area Radius (Match Figma V3 1:1)
+   ========================================================================== */
+.v3-skills-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.v3-skills-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.v3-skills-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -0.02em;
+}
+
+.v3-skills-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.v3-skill-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 16px;
+}
+
+.v3-skill-card {
+  background: #FFFFFF;
+  border-radius: 18px;
+  padding: 10px;
+  border: 1.5px solid #1B3B2B;
+  box-shadow: 0 6px 20px rgba(27, 67, 50, 0.05);
+  display: flex;
+  flex-direction: column;
+}
+
+.v3-skill-card-media {
+  position: relative;
+  height: 136px;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #E2E8F0;
+}
+
+.v3-skill-card-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.v3-skill-status-pill {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #1B3B2B;
+  color: #FFFFFF;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.v3-skill-card-title {
+  padding: 12px 4px 4px;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.v3-area-map-card {
+  position: relative;
+  min-height: 440px;
+  border-radius: 24px;
+  background: #D7E0DA;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.v3-skills-config-panel {
+  display: none;
+  background: #FFFFFF;
+  border-radius: 20px;
+  padding: 24px;
+  border: 1px solid rgba(27, 67, 50, 0.08);
+  box-shadow: 0 10px 30px rgba(27, 67, 50, 0.06);
+}
+
+.v3-skills-config-panel.is-open {
+  display: flex;
+}
+
+@media (max-width: 960px) {
+  .v3-skills-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .v3-area-map-card {
+    min-height: 280px;
+  }
+}
+
+/* ==========================================================================
+   18. Screen 3.1 Admin Dispatch Dashboard (Match Figma V3 1:1)
+   ========================================================================== */
+.v3-admin-page {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.v3-admin-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -0.02em;
+}
+
+.v3-kpi-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.v3-kpi-card.is-clickable {
+  cursor: pointer;
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+
+.v3-kpi-card.is-clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 14px 34px rgba(27, 67, 50, 0.09);
+}
+
+.v3-admin-dispatch-panel {
+  background: #FFFFFF;
+  border-radius: 24px;
+  padding: 28px;
+  border: 1px solid rgba(27, 67, 50, 0.06);
+  box-shadow: 0 10px 32px rgba(27, 67, 50, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.v3-admin-dispatch-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.v3-admin-dispatch-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.v3-dispatch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.v3-dispatch-row {
+  display: grid;
+  grid-template-columns: 120px minmax(0, 1.5fr) 160px 130px auto;
+  align-items: center;
+  gap: 18px;
+  padding: 16px 22px;
+  border-radius: 14px;
+  background: #F8FAF9;
+  border: 1px solid #EEF2F0;
+}
+
+.v3-dispatch-code {
+  font-size: 14px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.v3-dispatch-info {
+  min-width: 0;
+}
+
+.v3-dispatch-svc {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.v3-dispatch-meta {
+  margin-top: 3px;
+  font-size: 12.5px;
+  color: #64748B;
+}
+
+.v3-dispatch-amount {
+  font-size: 15px;
+  font-weight: 800;
+  color: #111827;
+  text-align: right;
+}
+
+.v3-dispatch-audit-btn {
+  height: 38px;
+  padding: 0 18px;
+  border-radius: 10px;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  color: #111827;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.v3-dispatch-audit-btn:hover {
+  border-color: #1B3B2B;
+  background: #F8FAFC;
+}
+
+@media (max-width: 1100px) {
+  .v3-kpi-grid-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 820px) {
+  .v3-kpi-grid-4 {
+    grid-template-columns: 1fr;
+  }
+
+  .v3-dispatch-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .v3-dispatch-amount {
+    text-align: left;
+  }
+}
+
+/* ==========================================================================
+   19. Screen 3.2 Admin Catalog & Pricing (Match Figma V3 1:1)
+   ========================================================================== */
+.v3-svc-admin-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.v3-svc-admin-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.v3-svc-admin-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -0.02em;
+}
+
+.v3-svc-admin-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.v3-svc-admin-btn-light {
+  height: 42px;
+  padding: 0 20px;
+  border-radius: 10px;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  color: #111827;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.v3-svc-admin-btn-light:hover {
+  background: #F8FAFC;
+}
+
+.v3-svc-admin-btn-dark {
+  height: 42px;
+  padding: 0 22px;
+  border: none;
+  border-radius: 10px;
+  background: #1B3B2B;
+  color: #FFFFFF;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.v3-svc-admin-btn-dark:hover {
+  background: #142C20;
+}
+
+.v3-svc-admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.v3-svc-admin-row {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 22px;
+  padding: 18px 26px;
+  border-radius: 20px;
+  background: #FFFFFF;
+  border: 1px solid rgba(27, 67, 50, 0.06);
+  box-shadow: 0 6px 24px rgba(27, 67, 50, 0.05);
+}
+
+.v3-svc-admin-thumb {
+  width: 112px;
+  height: 76px;
+  border-radius: 14px;
+  object-fit: cover;
+  background: #E2E8F0;
+}
+
+.v3-svc-admin-info {
+  min-width: 0;
+}
+
+.v3-svc-admin-name {
+  font-size: 17px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.v3-svc-admin-price {
+  margin-top: 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #1B4332;
+}
+
+.v3-svc-admin-edit-btn {
+  height: 40px;
+  padding: 0 22px;
+  border-radius: 10px;
+  border: 1px solid #E2E8F0;
+  background: #F4F6F5;
+  color: #111827;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.v3-svc-admin-edit-btn:hover {
+  background: #E9EFEA;
+}
+
+@media (max-width: 720px) {
+  .v3-svc-admin-row {
+    grid-template-columns: 88px minmax(0, 1fr);
+    gap: 14px;
+    padding: 16px;
+  }
+
+  .v3-svc-admin-thumb {
+    width: 88px;
+    height: 64px;
+  }
+
+  .v3-svc-admin-edit-btn {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}
+
+/* ==========================================================================
+   20. Screen 3.3 Company KYC Approval (Figma V3 Card Language)
+   ========================================================================== */
+.v3-kyc-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.v3-kyc-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -0.02em;
+}
+
+.v3-kyc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.v3-kyc-row {
+  display: grid;
+  grid-template-columns: 60px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 26px;
+  border-radius: 20px;
+  background: #FFFFFF;
+  border: 1px solid rgba(27, 67, 50, 0.06);
+  box-shadow: 0 6px 24px rgba(27, 67, 50, 0.05);
+}
+
+.v3-kyc-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: #E8F5E9;
+  color: #1B3B2B;
+  font-size: 18px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.v3-kyc-info {
+  min-width: 0;
+}
+
+.v3-kyc-name {
+  font-size: 16.5px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.v3-kyc-meta {
+  margin-top: 5px;
+  font-size: 13.5px;
+  color: #64748B;
+}
+
+.v3-kyc-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.v3-kyc-btn-primary {
+  height: 40px;
+  padding: 0 18px;
+  border: none;
+  border-radius: 10px;
+  background: #1B3B2B;
+  color: #FFFFFF;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.v3-kyc-btn-primary:hover {
+  background: #142C20;
+}
+
+.v3-kyc-btn-danger {
+  height: 40px;
+  padding: 0 16px;
+  border: none;
+  border-radius: 10px;
+  background: #FEE2E2;
+  color: #DC2626;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.v3-kyc-btn-light {
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid #E2E8F0;
+  background: #FFFFFF;
+  color: #334155;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+@media (max-width: 880px) {
+  .v3-kyc-row {
+    grid-template-columns: 52px minmax(0, 1fr);
+    gap: 14px;
+    padding: 18px;
+  }
+
+  .v3-kyc-avatar {
+    width: 52px;
+    height: 52px;
+    font-size: 16px;
+  }
+
+  .v3-kyc-actions {
+    grid-column: 1 / -1;
+  }
+}
+
+/* ==========================================================================
+   21. Screen 3.4 Users & Support Tickets (Match Figma V3 1:1)
+   ========================================================================== */
+.v3-admin-users-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.v3-admin-users-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.v3-admin-users-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -0.02em;
+}
+
+.v3-ticket-admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.v3-ticket-admin-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 24px;
+  padding: 22px 28px;
+  border-radius: 20px;
+  background: #FFFFFF;
+  border: 1px solid rgba(27, 67, 50, 0.06);
+  box-shadow: 0 6px 24px rgba(27, 67, 50, 0.05);
+}
+
+.v3-ticket-admin-info {
+  min-width: 0;
+}
+
+.v3-ticket-admin-title {
+  font-size: 16.5px;
+  font-weight: 800;
+  color: #111827;
+}
+
+.v3-ticket-admin-meta {
+  margin-top: 6px;
+  font-size: 13.5px;
+  color: #64748B;
+}
+
+.v3-ticket-admin-btn {
+  height: 40px;
+  padding: 0 22px;
+  border: none;
+  border-radius: 10px;
+  background: #1B3B2B;
+  color: #FFFFFF;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.v3-ticket-admin-btn:hover {
+  background: #142C20;
+}
+
+@media (max-width: 720px) {
+  .v3-ticket-admin-row {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    padding: 18px;
+  }
+
+  .v3-ticket-admin-btn {
+    width: 100%;
+  }
+}

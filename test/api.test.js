@@ -1,0 +1,771 @@
+const { test, describe, before, after } = require('node:test');
+const assert = require('node:assert');
+const http = require('node:http');
+const path = require('node:path');
+const fs = require('node:fs');
+const dbMock = require('../public/db-mock.js');
+
+describe('Gia Đình Xanh - Database Mock & Schema Verification', () => {
+  test('db-mock exports createInitialStore and initializes 16 required tables', () => {
+    assert.strictEqual(typeof dbMock.createInitialStore, 'function');
+    const store = dbMock.createInitialStore();
+    
+    const requiredTables = [
+      'province',
+      'ward',
+      'users',
+      'customer_profiles',
+      'provider_profiles',
+      'service_categories',
+      'services',
+      'provider_services',
+      'provider_areas',
+      'availability_schedules',
+      'availability_exceptions',
+      'bookings',
+      'booking_status_history',
+      'reviews',
+      'favorites',
+      'support_tickets'
+    ];
+
+    for (const table of requiredTables) {
+      assert.ok(Array.isArray(store[table]), `Table ${table} should be an array in store`);
+      assert.ok(store[table].length > 0, `Table ${table} should have initial seed data`);
+    }
+
+    assert.ok(store.session, 'Store should contain session configuration');
+  });
+
+  test('db-mock maintains referential relationships between users and profiles', () => {
+    const store = dbMock.createInitialStore();
+    const customerUsers = store.users.filter(u => u.role === 'customer');
+    const providerUsers = store.users.filter(u => u.role === 'provider');
+
+    assert.ok(customerUsers.length >= 2, 'Should have at least 2 customer users');
+    assert.ok(providerUsers.length >= 4, 'Should have at least 4 provider users');
+
+    for (const cp of store.customer_profiles) {
+      const u = store.users.find(x => x.user_id === cp.user_id);
+      assert.ok(u, `Customer profile ${cp.customer_id} references valid user_id ${cp.user_id}`);
+    }
+
+    for (const pp of store.provider_profiles) {
+      const u = store.users.find(x => x.user_id === pp.user_id);
+      assert.ok(u, `Provider profile ${pp.provider_id} references valid user_id ${pp.user_id}`);
+    }
+  });
+
+  test('db-mock initializes extended tables (addresses, ticket messages, notifications, audit_logs, AI chat)', () => {
+    const store = dbMock.createInitialStore();
+    const extendedTables = [
+      'customer_addresses',
+      'ticket_messages',
+      'notifications',
+      'audit_logs',
+      'ai_conversations',
+      'ai_messages'
+    ];
+
+    for (const table of extendedTables) {
+      assert.ok(Array.isArray(store[table]), `Extended table ${table} should be an array in store`);
+      assert.ok(store[table].length > 0, `Extended table ${table} should have initial seed data`);
+    }
+
+    // Check reviews have status
+    for (const r of store.reviews) {
+      assert.ok(r.status, `Review ${r.review_id} should have a status`);
+    }
+
+    // Check favorites support provider_id
+    const provFav = store.favorites.find(f => f.provider_id != null);
+    assert.ok(provFav, 'Should have at least one favorite provider record');
+
+    // Check bookings support auto_cancelled
+    const autoCancelledBk = store.bookings.find(b => b.status === 'auto_cancelled');
+    assert.ok(autoCancelledBk, 'Should have at least one auto_cancelled booking record');
+  });
+});
+
+describe('Gia Đình Xanh - Full-Stack REST API & RPC Verification', () => {
+  let targetPort = 3000;
+  let serverProcess = null;
+  let createdBookingId = null;
+
+  function pingServer(port) {
+    return new Promise((resolve) => {
+      const req = http.get(`http://127.0.0.1:${port}/api/status`, (res) => {
+        resolve(res.statusCode === 200);
+      });
+      req.on('error', () => resolve(false));
+      req.setTimeout(500, () => {
+        req.destroy();
+        resolve(false);
+      });
+    });
+  }
+
+  function makeRequest(method, reqPath, body = null, extraHeaders = {}) {
+    return new Promise((resolve, reject) => {
+      const req = http.request(
+        {
+          hostname: '127.0.0.1',
+          port: targetPort,
+          path: reqPath,
+          method,
+          headers: {
+            'Content-Type': 'application/json',
+            ...extraHeaders
+          }
+        },
+        (res) => {
+          let data = '';
+          res.on('data', chunk => { data += chunk; });
+          res.on('end', () => {
+            try {
+              const parsed = JSON.parse(data);
+              resolve({ statusCode: res.statusCode, data: parsed });
+            } catch (e) {
+              resolve({ statusCode: res.statusCode, raw: data });
+            }
+          });
+        }
+      );
+      req.on('error', reject);
+      if (body) {
+        req.write(JSON.stringify(body));
+      }
+      req.end();
+    });
+  }
+
+  before(async () => {
+    // Check if port 3000 is active
+    const isRunning = await pingServer(3000);
+    if (isRunning) {
+      targetPort = 3000;
+    } else {
+      // Otherwise spawn server
+      const { spawn } = require('node:child_process');
+      serverProcess = spawn(process.execPath, ['server.js'], {
+        cwd: path.resolve(__dirname, '..'),
+        stdio: 'pipe'
+      });
+
+      for (let i = 0; i < 20; i++) {
+        await new Promise(r => setTimeout(r, 200));
+        if (await pingServer(3000)) break;
+      }
+    }
+
+    // Ensure clean state before running tests
+    await makeRequest('POST', '/api/supabase/reset-local');
+  });
+
+  after(() => {
+    if (serverProcess) {
+      serverProcess.kill();
+    }
+  });
+
+  test('GET /api/status returns 200 with mode and table counts', async () => {
+    const res = await makeRequest('GET', '/api/status');
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.data.ok, true);
+    assert.ok(res.data.mode === 'local_sql_store' || res.data.mode === 'supabase');
+    assert.ok(res.data.tableCounts, 'Status response contains table counts');
+    assert.ok(res.data.tableCounts.bookings > 0);
+  });
+
+  test('GET /api/bootstrap loads 16 tables + provider_public_profiles view', async () => {
+    const res = await makeRequest('GET', '/api/bootstrap');
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.data.ok, true);
+    assert.ok(res.data.db.provider_public_profiles, 'Computed view provider_public_profiles exists');
+    assert.ok(Array.isArray(res.data.db.services), 'Services array exists');
+  });
+
+  test('POST /api/bookings creates a new booking with history record', async () => {
+    const futureTime = new Date(Date.now() + 5 * 86400000).toISOString();
+    const payload = {
+      customer_id: 101,
+      provider_id: 201,
+      service_id: 1,
+      ward_id: '27403',
+      address: '123 Đường Nguyễn Thị Thập, Phường Tân Phú, Quận 7',
+      scheduled_time: futureTime,
+      total_amount: 180000,
+      notes: 'Unit test booking creation'
+    };
+    const res = await makeRequest('POST', '/api/bookings', payload);
+    assert.strictEqual(res.statusCode, 201);
+    assert.strictEqual(res.data.ok, true);
+    assert.ok(res.data.booking.booking_id, 'New booking has booking_id');
+    assert.strictEqual(res.data.booking.status, 'pending');
+    assert.strictEqual(res.data.history.new_status, 'pending');
+    createdBookingId = res.data.booking.booking_id;
+  });
+
+  test('POST /api/rpc/transition-status updates booking status and logs audit trail', async () => {
+    const targetBookingId = createdBookingId || 1040;
+    const payload = {
+      booking_id: targetBookingId,
+      new_status: 'confirmed',
+      reason: 'Unit test transition',
+      changed_by: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b21'
+    };
+    const res = await makeRequest('POST', '/api/rpc/transition-status', payload);
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.data.ok, true);
+    assert.strictEqual(res.data.booking.status, 'confirmed');
+  });
+
+  test('POST /api/supabase/reset-local resets persistent store to pristine seed data', async () => {
+    const res = await makeRequest('POST', '/api/supabase/reset-local');
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.data.ok, true);
+    assert.ok(res.data.message.includes('Đã khôi phục dữ liệu'));
+  });
+
+  test('POST /api/onboarding/customer saves spatial GPS coordinates (latitude, longitude)', async () => {
+    const payload = {
+      user_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      full_name: 'Nguyễn Văn Test GPS',
+      phone_number: '0988776655',
+      ward_id: '27403',
+      default_address: 'Tòa nhà Landmark 81, Phường 22, Bình Thạnh',
+      latitude: 10.795123,
+      longitude: 106.721845
+    };
+    const res = await makeRequest('POST', '/api/onboarding/customer', payload);
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.data.ok, true);
+    assert.ok(res.data.customer_profile, 'Returns customer_profile');
+    assert.strictEqual(Number(res.data.customer_profile.latitude), 10.795123);
+    assert.strictEqual(Number(res.data.customer_profile.longitude), 106.721845);
+    assert.strictEqual(res.data.customer_profile.ward_id, '27403');
+  });
+
+  test('PUT /api/profile/customer updates default address and ward seamlessly', async () => {
+    const payload = {
+      customer_id: 101,
+      user_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      full_name: 'Nguyễn Minh Thảo Cập Nhật',
+      phone_number: '0901234567',
+      ward_id: '26734',
+      default_address: 'Số 45 Đường Lê Duẩn, Phường Bến Nghé, Quận 1',
+      latitude: 10.779123,
+      longitude: 106.699876
+    };
+    const res = await makeRequest('PUT', '/api/profile/customer', payload);
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.data.ok, true);
+    assert.ok(res.data.customer_profile);
+    assert.strictEqual(res.data.customer_profile.ward_id, '26734');
+    assert.strictEqual(res.data.customer_profile.default_address, 'Số 45 Đường Lê Duẩn, Phường Bến Nghé, Quận 1');
+  });
+
+  test('GET /api/geo/reverse validates coordinates and returns Vietnamese reverse geocoding info', async () => {
+    // 1. Missing coordinates validation
+    const invalidRes = await makeRequest('GET', '/api/geo/reverse');
+    assert.strictEqual(invalidRes.statusCode, 400);
+    assert.strictEqual(invalidRes.data.ok, false);
+
+    // 2. Valid coordinates lookup (with caching)
+    const validRes = await makeRequest('GET', '/api/geo/reverse?lat=10.8798&lng=106.8068');
+    assert.strictEqual(validRes.statusCode, 200);
+    assert.strictEqual(validRes.data.ok, true);
+    assert.ok(typeof validRes.data.detailed_address === 'string' && validRes.data.detailed_address.length > 0);
+    assert.ok(typeof validRes.data.full_address === 'string');
+    assert.ok(validRes.data.province_name);
+    assert.strictEqual(validRes.data.lat, 10.8798);
+    assert.strictEqual(validRes.data.lng, 106.8068);
+  });
+
+  test('POST /api/auth/register enforces password requirement and allows login verification', async () => {
+    const testPhone = '0936' + Math.floor(100000 + Math.random() * 900000);
+    
+    // 1. Missing or short password fails with 400
+    const shortPwRes = await makeRequest('POST', '/api/auth/register', {
+      full_name: 'Nguyễn Văn Test',
+      phone_number: testPhone,
+      email: 'test@giadinhxanh.vn',
+      password: '123'
+    });
+    assert.strictEqual(shortPwRes.statusCode, 400);
+    assert.strictEqual(shortPwRes.data.ok, false);
+
+    // 2. Valid registration with password
+    const regRes = await makeRequest('POST', '/api/auth/register', {
+      full_name: 'Nguyễn Văn Test',
+      phone_number: testPhone,
+      email: `${testPhone}@test.vn`,
+      password: 'StrongPassword123',
+      role: 'customer'
+    });
+    assert.strictEqual(regRes.statusCode, 201);
+    assert.strictEqual(regRes.data.ok, true);
+    assert.strictEqual(regRes.data.user.phone_number, testPhone);
+
+    // 3. Login with wrong password returns 401
+    const wrongLoginRes = await makeRequest('POST', '/api/auth/login', {
+      identifier: testPhone,
+      password: 'WrongPassword'
+    });
+    assert.strictEqual(wrongLoginRes.statusCode, 401);
+    assert.strictEqual(wrongLoginRes.data.ok, false);
+
+    // 4. Login with correct password returns 200 and user info
+    const correctLoginRes = await makeRequest('POST', '/api/auth/login', {
+      identifier: testPhone,
+      password: 'StrongPassword123'
+    });
+    assert.strictEqual(correctLoginRes.statusCode, 200);
+    assert.strictEqual(correctLoginRes.data.ok, true);
+    assert.strictEqual(correctLoginRes.data.user.phone_number, testPhone);
+  });
+
+  test('Job Dispatch Inbox & Concurrency: POST /api/bookings supports broadcast pool and /accept prevents double-booking (expired lock)', async () => {
+    // 1. Create a broadcast order (provider_id = null)
+    const broadcastPayload = {
+      customer_id: 101,
+      provider_id: null,
+      service_id: 301,
+      ward_id: '27403',
+      address: 'KTX Khu A ĐHQG, Tạ Quang Bửu, Phường Linh Trung',
+      total_amount: 170000,
+      notes: 'Đơn broadcast gửi tới toàn bộ thợ'
+    };
+    const createRes = await makeRequest('POST', '/api/bookings', broadcastPayload);
+    assert.strictEqual(createRes.statusCode, 201);
+    assert.strictEqual(createRes.data.ok, true);
+    const bkId = createRes.data.booking.booking_id;
+    assert.strictEqual(createRes.data.booking.dispatch_type, 'broadcast');
+
+    // 2. First provider accepts job successfully
+    const acceptRes1 = await makeRequest('POST', `/api/bookings/${bkId}/accept`, {
+      provider_id: 201,
+      user_id: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b21'
+    });
+    assert.strictEqual(acceptRes1.statusCode, 200);
+    assert.strictEqual(acceptRes1.data.ok, true);
+    assert.strictEqual(acceptRes1.data.booking.status, 'confirmed');
+    assert.strictEqual(acceptRes1.data.booking.provider_id, 201);
+
+    // 3. Second provider attempts to accept the same job -> returns 409 Expired
+    const acceptRes2 = await makeRequest('POST', `/api/bookings/${bkId}/accept`, {
+      provider_id: 202,
+      user_id: 5
+    });
+    assert.strictEqual(acceptRes2.statusCode, 409);
+    assert.strictEqual(acceptRes2.data.ok, false);
+    assert.strictEqual(acceptRes2.data.expired, true);
+  });
+
+  test('VietQR Payment: POST /api/bookings/:id/pay confirms transaction and records paid state in database', async () => {
+    // 1. Get an existing booking from bootstrap
+    const boot1 = await makeRequest('GET', '/api/bootstrap');
+    assert.strictEqual(boot1.statusCode, 200);
+    const targetBooking = boot1.data.db.bookings[0];
+    assert.ok(targetBooking, 'Should have at least one booking');
+    const targetId = targetBooking.booking_id;
+
+    // 2. Pay for target booking via VietQR
+    const payRes = await makeRequest('POST', `/api/bookings/${targetId}/pay`, {
+      booking_id: targetId,
+      method: 'VIETQR_BANK_TRANSFER',
+      transaction_id: 'VCB-QR-TEST-9988',
+      amount: 240000,
+      changed_by: 1
+    });
+    assert.strictEqual(payRes.statusCode, 200);
+    assert.strictEqual(payRes.data.ok, true);
+    assert.strictEqual(payRes.data.booking.payment_status, 'paid');
+    assert.strictEqual(payRes.data.transaction_id, 'VCB-QR-TEST-9988');
+
+    // 3. Verify via bootstrap that the database persisted payment_status and history
+    const boot2 = await makeRequest('GET', '/api/bootstrap');
+    assert.strictEqual(boot2.statusCode, 200);
+    const bk = boot2.data.db.bookings.find((b) => b.booking_id === targetId);
+    assert.ok(bk);
+    assert.strictEqual(bk.payment_status, 'paid');
+    const hist = (boot2.data.db.booking_status_history || []).find((h) => h.booking_id === targetId && (h.reason || '').includes('VCB-QR-TEST-9988'));
+    assert.ok(hist, 'Status history should log VietQR transaction');
+  });
+
+  test('Production Mode: /api/status?mode=production activates zero-mock production state', async () => {
+    const res = await makeRequest('GET', '/api/status?mode=production');
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.data.isProduction, true);
+    assert.strictEqual(res.data.mode, 'production');
+  });
+
+  test('Production Mode: POST /api/supabase/reset-local?mode=production is blocked with 403 Forbidden', async () => {
+    const res = await makeRequest('POST', '/api/supabase/reset-local?mode=production');
+    assert.strictEqual(res.statusCode, 403);
+    assert.strictEqual(res.data.ok, false);
+    assert.ok(res.data.error.includes('Production Mode'));
+  });
+
+  test('Double-booking & schedule exception prevention: POST /api/bookings returns 409 Conflict', async () => {
+    const seed = dbMock.createInitialStore();
+    const ex = seed.availability_exceptions.find((e) => Number(e.provider_id) === 201) || seed.availability_exceptions[0];
+    // 1. Provider 201 has exception on ex.exception_date
+    const conflictRes = await makeRequest('POST', '/api/bookings', {
+      customer_id: 101,
+      provider_id: ex.provider_id,
+      service_id: 1,
+      ward_id: '27403',
+      address: '123 Đường Nguyễn Thị Thập',
+      scheduled_time: `${ex.exception_date}T14:00:00+07:00`
+    });
+    assert.strictEqual(conflictRes.statusCode, 409);
+    assert.strictEqual(conflictRes.data.conflict, true);
+    assert.ok(conflictRes.data.error.includes('nghỉ làm hoặc bận'));
+
+    // 2. Provider 201 has confirmed/in_progress booking 1042
+    const activeBk = seed.bookings.find((b) => Number(b.provider_id) === 201 && ['confirmed', 'in_progress'].includes(b.status));
+    const overlapTime = new Date(Date.parse(activeBk.scheduled_time) + 30 * 60 * 1000).toISOString();
+    const overlapRes = await makeRequest('POST', '/api/bookings', {
+      customer_id: 101,
+      provider_id: 201,
+      service_id: 1,
+      ward_id: '27403',
+      address: '123 Đường Nguyễn Thị Thập',
+      scheduled_time: overlapTime
+    });
+    assert.strictEqual(overlapRes.statusCode, 409);
+    assert.strictEqual(overlapRes.data.conflict, true);
+    assert.ok(overlapRes.data.error.includes('trùng hoặc quá sát'));
+  });
+
+  test('24h Auto-expiration: POST /api/rpc/auto-expire expires overdue pending bookings', async () => {
+    const res = await makeRequest('POST', '/api/rpc/auto-expire');
+    assert.strictEqual(res.statusCode, 200);
+    assert.strictEqual(res.data.ok, true);
+    assert.strictEqual(typeof res.data.expired_count, 'number');
+  });
+
+  test('In-app Notifications: GET, read, and read-all endpoints', async () => {
+    const getRes = await makeRequest('GET', '/api/notifications');
+    assert.strictEqual(getRes.statusCode, 200);
+    assert.strictEqual(getRes.data.ok, true);
+    assert.ok(Array.isArray(getRes.data.notifications));
+
+    if (getRes.data.notifications.length > 0) {
+      const targetId = getRes.data.notifications[0].notification_id;
+      const readRes = await makeRequest('POST', `/api/notifications/${targetId}/read`);
+      assert.strictEqual(readRes.statusCode, 200);
+      assert.strictEqual(readRes.data.ok, true);
+    }
+
+    const readAllRes = await makeRequest('POST', '/api/notifications/read-all', { user_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' });
+    assert.strictEqual(readAllRes.statusCode, 200);
+    assert.strictEqual(readAllRes.data.ok, true);
+  });
+
+  test('Support Ticket Messages: GET & POST /api/tickets/:id/messages with internal notes support', async () => {
+    // 1. Post a public message
+    const pubRes = await makeRequest('POST', '/api/tickets/701/messages', {
+      sender_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      sender_role: 'customer',
+      content: 'Tôi muốn hỏi thời gian thợ có mặt.',
+      visibility: 'public'
+    });
+    assert.strictEqual(pubRes.statusCode, 201);
+    assert.strictEqual(pubRes.data.ok, true);
+
+    // 2. Post an internal note by admin
+    const intRes = await makeRequest('POST', '/api/tickets/701/messages', {
+      sender_id: 'c2eebc99-9c0b-4ef8-bb6d-6bb9bd380c99',
+      sender_role: 'admin',
+      content: 'Ghi chú nội bộ: Khách VIP, ưu tiên giải quyết ngay.',
+      visibility: 'internal'
+    });
+    assert.strictEqual(intRes.statusCode, 201);
+    assert.strictEqual(intRes.data.ok, true);
+
+    // 3. Customer GET tickets messages should NOT see internal notes
+    const custMsgs = await makeRequest('GET', '/api/tickets/701/messages?role=customer');
+    assert.strictEqual(custMsgs.statusCode, 200);
+    const hasInternal = custMsgs.data.messages.some(m => m.visibility === 'internal');
+    assert.strictEqual(hasInternal, false, 'Customer should not see internal notes');
+
+    // 4. Admin GET tickets messages SHOULD see internal notes
+    const adminMsgs = await makeRequest('GET', '/api/tickets/701/messages?role=admin');
+    assert.strictEqual(adminMsgs.statusCode, 200);
+    const adminHasInternal = adminMsgs.data.messages.some(m => m.visibility === 'internal');
+    assert.strictEqual(adminHasInternal, true, 'Admin should see internal notes');
+  });
+
+  test('Customer Saved Addresses: CRUD /api/customer/addresses', async () => {
+    // Create
+    const createRes = await makeRequest('POST', '/api/customer/addresses', {
+      customer_id: 101,
+      tag: 'Căn hộ chung cư',
+      street_address: 'Tầng 12 Tháp B, Sunrise City',
+      ward_id: '27403',
+      latitude: 10.7456,
+      longitude: 106.7012,
+      is_default: true
+    });
+    assert.strictEqual(createRes.statusCode, 201);
+    assert.strictEqual(createRes.data.ok, true);
+    const newAddressId = createRes.data.address.address_id;
+
+    // Read
+    const getRes = await makeRequest('GET', '/api/customer/addresses?customer_id=101');
+    assert.strictEqual(getRes.statusCode, 200);
+    assert.ok(getRes.data.addresses.some(a => String(a.address_id) === String(newAddressId)));
+
+    // Update
+    const updateRes = await makeRequest('PUT', `/api/customer/addresses/${newAddressId}`, {
+      tag: 'Căn hộ Sunrise',
+      is_default: false
+    });
+    assert.strictEqual(updateRes.statusCode, 200);
+    assert.strictEqual(updateRes.data.ok, true);
+
+    // Delete
+    const delRes = await makeRequest('DELETE', `/api/customer/addresses/${newAddressId}`);
+    assert.strictEqual(delRes.statusCode, 200);
+    assert.strictEqual(delRes.data.ok, true);
+  });
+
+  test('Favorites: POST /api/favorites/toggle supports both services and providers', async () => {
+    // Toggle service
+    const sFav = await makeRequest('POST', '/api/favorites/toggle', { customer_id: 101, service_id: 301 });
+    assert.strictEqual(sFav.statusCode, 200);
+    assert.strictEqual(sFav.data.ok, true);
+
+    // Toggle provider
+    const pFav = await makeRequest('POST', '/api/favorites/toggle', { customer_id: 101, provider_id: 202 });
+    assert.strictEqual(pFav.statusCode, 200);
+    assert.strictEqual(pFav.data.ok, true);
+
+    // Get favorites
+    const getFavs = await makeRequest('GET', '/api/favorites?customer_id=101');
+    assert.strictEqual(getFavs.statusCode, 200);
+    assert.ok(Array.isArray(getFavs.data.favorites));
+  });
+
+  test('Review Moderation & Audit Logs: soft-hide review and log admin action (requires Admin auth)', async () => {
+    const adminSession = await makeRequest('POST', '/api/auth/demo-session', { role: 'admin' });
+    assert.strictEqual(adminSession.statusCode, 200);
+    const authHeader = { Authorization: `Bearer ${adminSession.data.token}` };
+
+    // Moderate review (hide)
+    const modRes = await makeRequest('PATCH', '/api/admin/reviews/801/moderate', {
+      status: 'hidden',
+      moderation_reason: 'Ngôn từ không phù hợp quy tắc cộng đồng',
+      actor_id: 'c2eebc99-9c0b-4ef8-bb6d-6bb9bd380c99'
+    }, authHeader);
+    assert.strictEqual(modRes.statusCode, 200);
+    assert.strictEqual(modRes.data.ok, true);
+    assert.strictEqual(modRes.data.review.status, 'hidden');
+
+    // Audit logs should record this action
+    const auditRes = await makeRequest('GET', '/api/admin/audit-logs', null, authHeader);
+    assert.strictEqual(auditRes.statusCode, 200);
+    const foundLog = auditRes.data.audit_logs.find(l => l.action === 'HIDE_REVIEW');
+    assert.ok(foundLog, 'Audit logs should record HIDE_REVIEW action');
+  });
+
+  test('Security & Input Validation Fixes: phone regex, past scheduled_time, negative incidental, and RBAC', async () => {
+    // 1. Invalid phone rejected with 400 (TC04 fix)
+    const badPhone = await makeRequest('POST', '/api/auth/register', {
+      full_name: 'Bad Phone User',
+      phone_number: 'abc-xyz',
+      password: 'password123'
+    });
+    assert.strictEqual(badPhone.statusCode, 400);
+
+    // 2. Past scheduled_time rejected with 400 (TC06 fix)
+    const pastBk = await makeRequest('POST', '/api/bookings', {
+      customer_id: 101,
+      service_id: 301,
+      ward_id: '27403',
+      address: '100 Nguyễn Văn Linh',
+      scheduled_time: '2020-01-01T09:00:00.000Z'
+    });
+    assert.strictEqual(pastBk.statusCode, 400);
+
+    // 3. Unauthenticated admin-adjust rejected with 401 (TC12 fix)
+    const unauthAdmin = await makeRequest('POST', '/api/rpc/admin-adjust', {
+      booking_id: 1042,
+      total_amount: 0
+    });
+    assert.strictEqual(unauthAdmin.statusCode, 401);
+
+    // 4. Customer token on admin-adjust rejected with 403 (TC12 fix)
+    const custSess = await makeRequest('POST', '/api/auth/demo-session', { role: 'customer' });
+    const custAdmin = await makeRequest('POST', '/api/rpc/admin-adjust', {
+      booking_id: 1042,
+      total_amount: 0
+    }, { Authorization: `Bearer ${custSess.data.token}` });
+    assert.strictEqual(custAdmin.statusCode, 403);
+
+    // 5. Negative incidental rejected with 400 (TC11 fix)
+    const provSess = await makeRequest('POST', '/api/auth/demo-session', { role: 'provider' });
+    const negInc = await makeRequest('POST', '/api/rpc/update-incidental', {
+      booking_id: 1042,
+      total_incidental: -50000
+    }, { Authorization: `Bearer ${provSess.data.token}` });
+    assert.strictEqual(negInc.statusCode, 400);
+  });
+
+  test('Clean Path SPA Routes: /home, /auth/login, /bookings/new, /provider/jobs, /admin/kyc and /company/* return 200 HTML', async () => {
+    const paths = [
+      '/home',
+      '/auth/login',
+      '/auth/register',
+      '/onboarding/company',
+      '/company/status',
+      '/bookings/new',
+      '/provider/jobs',
+      '/admin/kyc',
+      '/company/dashboard',
+      '/company/staff',
+      '/company/services'
+    ];
+    for (const p of paths) {
+      const res = await makeRequest('GET', p);
+      assert.strictEqual(res.statusCode, 200, `${p} should return 200`);
+      assert.ok(typeof res.raw === 'string' && res.raw.includes('<!DOCTYPE html>'), `${p} should serve SPA HTML`);
+    }
+  });
+
+  test('Company B2B2C Workflow: Company registration, Admin KYC, Staff/Service management, Provider service restriction & Support Image', async () => {
+    await makeRequest('POST', '/api/supabase/reset-local');
+
+    // 1. Public registration for role 'provider' is blocked with 403
+    const regProv = await makeRequest('POST', '/api/auth/register', {
+      full_name: 'Self Register Prov',
+      phone_number: '0988777666',
+      password: 'password123',
+      role: 'provider'
+    });
+    assert.strictEqual(regProv.statusCode, 403);
+
+    // 2. Company registers & submits company onboarding
+    const regComp = await makeRequest('POST', '/api/auth/register', {
+      full_name: 'Công ty Test Mới',
+      phone_number: '0909555666',
+      email: 'comp_test@gd.vn',
+      password: 'password123',
+      role: 'company'
+    });
+    assert.strictEqual(regComp.statusCode, 201);
+    assert.strictEqual(regComp.data.user.role, 'company');
+    const compToken = regComp.data.token;
+    const compUserId = regComp.data.user.user_id;
+
+    const obComp = await makeRequest('POST', '/api/onboarding/company', {
+      user_id: compUserId,
+      company_name: 'Công ty Dịch Vụ Xanh Test',
+      tax_code: '0319000111',
+      phone_number: '0909555666',
+      ward_id: '27403',
+      address: '250 Nguyễn Thị Thập, Quận 7',
+      description: 'Đơn vị cung ứng dọn dẹp chuyên nghiệp'
+    });
+    assert.strictEqual(obComp.statusCode, 200);
+    assert.strictEqual(obComp.data.ok, true);
+    const newCompId = obComp.data.company_profile.company_id;
+
+    // 3. Admin verifies the new company and tests toggle-active
+    const adminSess = await makeRequest('POST', '/api/auth/demo-session', { role: 'admin' });
+    const adminAuth = { Authorization: `Bearer ${adminSess.data.token}` };
+    const verifyRes = await makeRequest('PATCH', `/api/admin/companies/${newCompId}/verify`, {
+      verification_status: 'verified'
+    }, adminAuth);
+    assert.strictEqual(verifyRes.statusCode, 200);
+    assert.strictEqual(verifyRes.data.company_profile.verification_status, 'verified');
+
+    // 4. Company creates a service and a provider, then bans/unbans the provider
+    const compAuth = { Authorization: `Bearer ${compToken}` };
+    const createSvc = await makeRequest('POST', '/api/company/services', {
+      company_id: newCompId,
+      category_id: 3,
+      title: 'Dọn dẹp văn phòng theo giờ',
+      pricing_type: 'hourly',
+      price: 110000,
+      estimated_duration: 120,
+      description: 'Dịch vụ thuộc công ty test'
+    }, compAuth);
+    assert.strictEqual(createSvc.statusCode, 201);
+    const createdSvcId = createSvc.data.service.service_id;
+
+    const updateSvc = await makeRequest('PUT', `/api/company/services/${createdSvcId}`, {
+      company_id: newCompId,
+      price: 125000
+    }, compAuth);
+    assert.strictEqual(updateSvc.statusCode, 200);
+    assert.strictEqual(updateSvc.data.service.price, 125000);
+
+    const toggleSvc = await makeRequest('PATCH', `/api/company/services/${createdSvcId}/toggle`, {
+      company_id: newCompId
+    }, compAuth);
+    assert.strictEqual(toggleSvc.statusCode, 200);
+    assert.strictEqual(toggleSvc.data.is_active, false);
+
+    const createProv = await makeRequest('POST', '/api/company/providers', {
+      company_id: newCompId,
+      full_name: 'Thợ Công Ty Mới',
+      phone_number: '0908333444',
+      id_card_number: '079098007766',
+      info: 'Thợ lành nghề 3 năm kinh nghiệm',
+      service_ids: [createdSvcId],
+      ward_ids: ['27403']
+    }, compAuth);
+    assert.strictEqual(createProv.statusCode, 201);
+    const newProvId = createProv.data.provider_profile.provider_id;
+
+    const banRes = await makeRequest('PATCH', `/api/company/providers/${newProvId}/toggle-ban`, {
+      company_id: newCompId
+    }, compAuth);
+    assert.strictEqual(banRes.statusCode, 200);
+    assert.strictEqual(banRes.data.is_active, false);
+
+    // 5. Provider cannot self-register services via PUT /api/provider/capabilities
+    const provSess = await makeRequest('POST', '/api/auth/demo-session', { role: 'provider' });
+    const provSelfSvc = await makeRequest('PUT', '/api/provider/capabilities', {
+      provider_id: 201,
+      service_ids: [301, 302]
+    }, { Authorization: `Bearer ${provSess.data.token}` });
+    assert.strictEqual(provSelfSvc.statusCode, 403);
+
+    // 6. Support ticket supports image_url attachment
+    const ticketRes = await makeRequest('POST', '/api/support-tickets', {
+      user_id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      booking_id: 1042,
+      subject: 'Phiếu minh chứng hình ảnh',
+      description: 'Đính kèm ảnh kiểm tra chất lượng',
+      image_url: '/assets/cleaning-livingroom.jpg',
+      priority: 'high'
+    });
+    assert.strictEqual(ticketRes.statusCode, 201);
+    assert.strictEqual(ticketRes.data.ticket.image_url, '/assets/cleaning-livingroom.jpg');
+
+    // Reset local store cleanly
+    await makeRequest('POST', '/api/supabase/reset-local');
+  });
+
+  test('AI Chatbot Assistant: POST /api/ai/chat grounded domain reasoning & memory', async () => {
+    const chatRes = await makeRequest('POST', '/api/ai/chat', {
+      message: 'Tôi muốn tìm dịch vụ dọn dẹp nhà và xem giá bao nhiêu?'
+    });
+    assert.strictEqual(chatRes.statusCode, 200);
+    assert.strictEqual(chatRes.data.ok, true);
+    assert.ok(chatRes.data.conversation_id, 'Returns conversation_id');
+    assert.ok(chatRes.data.reply.length > 50, 'Returns detailed grounded response');
+    assert.ok(Array.isArray(chatRes.data.recommended_services), 'Returns recommended services');
+    assert.ok(Array.isArray(chatRes.data.suggestions), 'Returns quick prompt suggestions');
+
+    // Check conversation history
+    const histRes = await makeRequest('GET', `/api/ai/history?conversation_id=${chatRes.data.conversation_id}`);
+    assert.strictEqual(histRes.statusCode, 200);
+    assert.strictEqual(histRes.data.ok, true);
+    assert.ok(histRes.data.messages.length >= 2, 'History contains user message and assistant reply');
+  });
+});
