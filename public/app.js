@@ -3403,7 +3403,7 @@ window.GDXApp = (() => {
         <div class="site-container hero-grid">
           <!-- Left Column: Value Proposition + Omni-Search + Quick Chips + Wizard Prompt + Stats -->
           <div class="hero-content">
-            <span class="v3-hero-pill">✨ Đặt thợ chuẩn 30s · Xác minh CCCD 100%</span>
+
             <h1 class="hero-headline">
               Dọn dẹp chu đáo · Bữa cơm vẹn tròn
             </h1>
