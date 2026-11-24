@@ -2,6 +2,7 @@
 
 > **Dự án:** Gia Đình Xanh — Hệ thống Đặt lịch Dịch vụ Gia đình (Home Service Booking)  
 > **Kiến trúc:** Vanilla JavaScript SPA + Node.js HTTP API + Supabase PostgreSQL SDK
+> **Lưu ý schema:** Mô tả 16 bảng dưới đây phản ánh Local Store/schema lịch sử hiện tại. Baseline Supabase mới nằm trong `database/migrations/20261124000000_gia_dinh_xanh_schema.sql` và `docs/DATABASE.md`; hai bộ contract chưa được coi là tự động đồng bộ.
 > **Tài liệu tham chiếu mã nguồn:** `server.js`, `backend/app.js`, `database/supabase_rpc_functions.sql`, `shared/db-mock.js`, `backend/data/local-db.json`. Tài liệu `docs/NEXTJS_APP_ROUTER_SPEC_VA_MIDDLEWARE.md` là đề xuất Next.js, không phải kiến trúc đang chạy.
 
 ---

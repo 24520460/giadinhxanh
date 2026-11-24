@@ -9,7 +9,7 @@ Gia Đình Xanh là nền tảng kết nối trực tiếp giữa Khách hàng h
 3. **Quản trị viên (Admin):** Kiểm duyệt hồ sơ thợ (CCCD, chuyên môn), quản lý danh mục và dịch vụ, giám sát và điều phối đơn hàng, giải quyết khiếu nại (support tickets) và kích hoạt/vô hiệu hóa tài khoản.
 
 ## Data & Database Alignment
-- Hệ thống tuân thủ 100% cơ sở dữ liệu PostgreSQL gồm 16 bảng dữ liệu và các quy tắc RLS (Row-Level Security) từ `home_service_booking_supabase.sql`.
+- Schema Supabase baseline gồm các nhóm dữ liệu profile, customer, worker, business, service, booking, payment, review, support và notification. Chi tiết được lưu tại `database/migrations/20261124000000_gia_dinh_xanh_schema.sql` và `docs/DATABASE.md`.
 - Hỗ trợ lưu trữ bền vững tại chỗ (`backend/data/local-db.json`) và sẵn sàng kết nối trực tiếp với Supabase qua SDK `@supabase/supabase-js` và `.env.local`.
 
 ## Experience Philosophy

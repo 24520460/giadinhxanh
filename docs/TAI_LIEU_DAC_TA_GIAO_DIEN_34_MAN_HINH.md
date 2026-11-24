@@ -1,13 +1,13 @@
 # TÀI LIỆU ĐẶC TẢ GIAO DIỆN HỆ THỐNG (PRODUCTION UI SPECIFICATION)
 ## DỰ ÁN: GIA ĐÌNH XANH - ĐẶT LỊCH DỊCH VỤ GIA ĐÌNH (HOME SERVICE BOOKING)
-**Ánh xạ 1-1 với 16 bảng PostgreSQL & cơ chế phân quyền Row Level Security (RLS)**
+**Tài liệu giao diện hiện hành; schema Supabase baseline chuẩn được mô tả tại `docs/DATABASE.md`**
 
 ---
 
 ### TỔNG QUAN QUY MÔ HỆ THỐNG
 * **Tổng số lượng:** **34 màn hình & hộp thoại (19 Pages + 15 Modals / Drawers / Components)**.
 * **Số phân hệ:** **4 phân hệ nghiệp vụ** độc lập, bảo mật phân quyền theo `users.role` (`customer`, `provider`, `admin`).
-* **Database liên kết:** 16 bảng PostgreSQL, 7 kiểu ENUM, 1 View công khai `provider_public_profiles`, 4 hàm RPC Supabase kiểm toán giao dịch.
+* **Database liên kết:** Màn hình đang dùng bộ seed/Local Store hiện hành làm nguồn dữ liệu demo. Baseline Supabase chuẩn nằm tại `database/migrations/20261124000000_gia_dinh_xanh_schema.sql`; cần adapter và migration contract trước khi thay toàn bộ bảng giao diện.
 * **Phong cách thiết kế:** 
   - Khách hàng (Trang chủ & Đặt lịch): *The page is the object* (Stationery, Care Charter, Menu Pricing).
   - Khung ứng dụng & Vận hành (Thợ & Admin): *Framed sheet* (L-frame tinted, white inset sheet, typography chuẩn IBM Plex Sans & STIX Two Text, tabular-nums).
