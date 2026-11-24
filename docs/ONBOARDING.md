@@ -143,8 +143,9 @@ Tùy theo chế độ bạn lựa chọn ở Bước 1:
 #### Kịch bản B: Chạy với Supabase PostgreSQL
 Nếu bạn đã điền `NEXT_PUBLIC_SUPABASE_URL` và Keys vào `.env.local`:
 1. Mở giao diện **Supabase Studio -> SQL Editor**.
-2. Repo hiện không có tệp baseline `4. home_service_booking_supabase.sql`; chỉ có migration bổ sung `database/company_schema_migration.sql`. Cần có schema cơ sở tương thích trên Supabase trước khi áp dụng các script còn lại.
-3. Sau khi schema cơ sở đã có, thực thi `database/supabase_rpc_functions.sql` để cài các hàm RPC và chính sách cập nhật đơn tương ứng.
+2. Trước tiên thực thi baseline mới `database/migrations/20261124000000_gia_dinh_xanh_schema.sql` trên database thử nghiệm sạch.
+3. Chưa chạy `database/company_schema_migration.sql` hay `database/supabase_rpc_functions.sql` trước khi đối chiếu, vì đây là tài sản SQL từ schema cũ và có thể sử dụng tên bảng, kiểu ID và trạng thái không tương thích với baseline mới.
+4. Sau khi Backend, Frontend và Database thống nhất API contract, bổ sung migration adapter/seed cần thiết thay vì ghi đè schema baseline.
 
 ---
 
@@ -287,7 +288,9 @@ Dưới đây là các sự cố thường gặp nhất trong quá trình thiế
   ```
 - **Nguyên nhân:** Dự án Supabase của bạn mới được tạo và chưa được nạp schema cơ sở dữ liệu.
 - **Cách khắc phục:**
-  - Đảm bảo đã áp dụng schema cơ sở tương thích trước; repo hiện chỉ có migration công ty tại `database/company_schema_migration.sql` và các hàm RPC tại `database/supabase_rpc_functions.sql`.
+  - Chạy baseline [database/migrations/20261124000000_gia_dinh_xanh_schema.sql](../database/migrations/20261124000000_gia_dinh_xanh_schema.sql) trên database thử nghiệm sạch.
+  - Đối chiếu tên bảng, kiểu UUID/ID số, vai trò và trạng thái với [docs/DATABASE.md](DATABASE.md) trước khi kích hoạt backend Supabase.
+  - Không chạy mặc nhiên `database/company_schema_migration.sql` và `database/supabase_rpc_functions.sql` sau baseline, vì đây là tài sản SQL của schema cũ và chưa được chứng minh tương thích.
   - Hoặc tạm thời xóa giá trị biến `NEXT_PUBLIC_SUPABASE_URL` trong `.env.local`, máy chủ sẽ tự động chuyển sang vận hành trên **Persistent Local SQL Store** giúp bạn tiếp tục làm việc mà không bị gián đoạn.
 
 ### 5. Lỗi phân quyền ghi tệp Local Store trong Docker / Linux (`EACCES: permission denied`)

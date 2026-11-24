@@ -13,7 +13,7 @@ Dự án được xây dựng theo mô hình **Modular Monolith & Two-Tier Archi
   * *Chế độ Nhà phát triển (`dev mode`):* Hiển thị danh mục 34 UI phân theo 4 phân hệ nghiệp vụ, trực quan hóa ánh xạ 1-1 với lược đồ cơ sở dữ liệu và lời gọi hàm RPC.
 * **Application & Gateway Layer (Backend):** Node.js dùng HTTP module chuẩn, với entrypoint `server.js` và phần định tuyến/tĩnh trong `backend/app.js`. Backend chia theo config, db, middleware, routes, services và utils; sử dụng `@supabase/supabase-js` khi tích hợp Supabase.
 * **Hybrid Data Layer (Cơ sở dữ liệu lai):**
-  * *Primary Cloud Database:* Supabase Managed PostgreSQL 15+ gồm 16 bảng dữ liệu, 7 ENUMs, 1 View bảo mật (`provider_public_profiles`), 4 hàm thủ tục lưu trữ RPC kiểm toán giao dịch (Transaction Security Definer) và hệ thống chính sách Row-Level Security (RLS).
+  * *Primary Cloud Database:* Baseline Supabase Managed PostgreSQL mới nằm tại `database/migrations/20261124000000_gia_dinh_xanh_schema.sql`, gồm các bảng profile/customer/worker/business/service/booking, enum, RLS, trigger và RPC. Các file SQL cũ trong `database/` là schema bổ sung cần đối chiếu, chưa tạo thành chuỗi migration hoàn toàn đồng nhất.
   * *Persistent Local Fallback Store:* Tệp JSON runtime (`backend/data/local-db.json`) được khởi tạo từ seed/schema dùng chung tại `shared/db-mock.js`.
 
 ### 1.2. Mục tiêu Nghiệp vụ Cốt lõi (Business Objectives)
@@ -33,14 +33,14 @@ Bảng dưới đây tổng hợp đầy đủ ngăn xếp công nghệ được
 | :--- | :--- | :--- | :--- |
 | **Runtime & Language** | Node.js | `>= 20.0.0` (xác định tại `package.json`) | Môi trường thực thi phía Server |
 | | JavaScript | CommonJS phía server; browser JavaScript trong `public/js/app.js`; seed CommonJS/UMD tại `shared/db-mock.js` | Chưa dùng React, TypeScript hoặc frontend bundler |
-| | SQL / PL/pgSQL | PostgreSQL (`database/supabase_rpc_functions.sql`) | Hàm RPC; migration hiện có trong `database/` |
+| | SQL / PL/pgSQL | PostgreSQL (`database/migrations/20261124000000_gia_dinh_xanh_schema.sql`) | Baseline mới; các file SQL cũ tại `database/` phải đối chiếu trước khi chạy |
 | | HTML5 & CSS3 | Native Web Standards (CSS Variables, Logical Viewports, `:user-invalid`, Native `<dialog>`) | Không dùng Tailwind/Bootstrap; tự xây dựng Design System |
 | **Web Frameworks & Core Libs** | HTTP Server | Node.js Native `http` module (`server.js`) | Không sử dụng Express, Fastify hay Koa |
 | | Database SDK | `@supabase/supabase-js` v2.49.1 (`package.json`) | Client giao tiếp REST & RPC với Supabase |
 | | Frontend State Management | Vanilla JavaScript closure/state trong `public/js/app.js` | Quản lý trạng thái Client, đồng bộ qua REST APIs |
 | | Charts & Data Viz | HTML5 Canvas 2D (`public/assets/charts.js`) | Thư viện biểu đồ thuần vẽ KPI và đường xu hướng |
 | | Typography | Google Fonts: `Plus Jakarta Sans`, `Inter`, `IBM Plex Mono` | Tích hợp trực tiếp tại `public/index.html` và CSS |
-| **Database & Storage** | Primary Database | PostgreSQL 15+ (Hosted on Supabase) | 16 bảng quan hệ, 7 kiểu ENUM, 1 View, 4 hàm RPC |
+| **Database & Storage** | Primary Database | PostgreSQL (Hosted on Supabase) | Baseline mới gồm profile, customer, worker, business, service, booking, payment và RLS/RPC |
 | | Fallback Store | Local Persistent JSON Store (`backend/data/local-db.json`) | Động cơ lưu trữ file cục bộ tuân thủ 100% schema |
 | | Caching Layer | **Not configured/Found** | Chưa tích hợp Redis/Memcached |
 | | Message Queues | **Not configured/Found** | Giao dịch và cập nhật xử lý đồng bộ trực tiếp |

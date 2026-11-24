@@ -2,7 +2,7 @@
 
 ## 1. Triết lý Thiết kế (Warm Minimalism)
 - **Tham chiếu thẩm mỹ:** Tân trang theo phong cách **Warm Minimalism** từ `demo giao dien-giadinhxanh`, tối ưu khoảng trắng hai bên lề (`.site-container` `max-width: 1200px; margin-inline: auto; padding-inline: 24px`) để toàn bộ 34 giao diện luôn thoáng đãng, hiện đại và truyền tải trọn vẹn thông điệp mà không gây ngợp mắt.
-- **Mô hình dữ liệu:** Giao diện tham chiếu seed/schema tại `shared/db-mock.js`; các hàm RPC bổ sung nằm trong `database/supabase_rpc_functions.sql`. Repo hiện không có baseline DDL đầy đủ, vì vậy các tệp này không xác nhận schema đang triển khai trên Supabase.
+- **Mô hình dữ liệu:** Local Store hiện tham chiếu seed tại `shared/db-mock.js`. Baseline PostgreSQL/Supabase chuẩn mới nằm trong `database/migrations/20261124000000_gia_dinh_xanh_schema.sql` và được mô tả trong `docs/DATABASE.md`. Hai hệ dữ liệu chưa được đồng bộ contract và đang cần migration adapter/seed để thống nhất.
 
 ## 2. Bảng màu (Color Palette)
 - **Deep Forest Green (`--color-primary: #1B4332`, hover `#143326`):** Màu chủ đạo cho thương hiệu, các nút hành động chính (`.primary-btn`), nhãn dịch vụ và điểm nhấn tin cậy.

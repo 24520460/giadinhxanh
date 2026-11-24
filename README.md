@@ -44,7 +44,7 @@ npm start
 
 ## 👥 Danh Sách Tài Khoản Dùng Thử (Demo Accounts)
 
-Hệ thống đã nạp sẵn dữ liệu mẫu cho 16 bảng PostgreSQL. Tại giao diện web, bạn có thể **chuyển nhanh góc nhìn** bằng thanh chọn tài khoản ở góc trên bên phải, hoặc đăng nhập trực tiếp:
+Local Store đã nạp sẵn dữ liệu mẫu cho bộ dữ liệu nội bộ hiện hành. Baseline Supabase mới nằm trong `database/migrations/` và có thể khác contract schema cũ; tài liệu chi tiết tại [docs/DATABASE.md](docs/DATABASE.md). Tại giao diện web, bạn có thể **chuyển nhanh góc nhìn** bằng thanh chọn tài khoản ở góc trên bên phải, hoặc đăng nhập trực tiếp:
 
 | Vai trò | Họ tên | Email | Số điện thoại | Mật khẩu |
 | :--- | :--- | :--- | :--- | :--- |
@@ -65,7 +65,7 @@ Hệ thống đã nạp sẵn dữ liệu mẫu cho 16 bảng PostgreSQL. Tại 
 | **Cổng Đối tác Thợ (Provider Portal)** | [http://localhost:3000/?mode=user#provider](http://localhost:3000/?mode=user#provider) | Nhận việc từ sàn (Job Board), bấm giờ làm việc, cập nhật phụ phí |
 | **Cổng Quản trị (Admin Portal)** | [http://localhost:3000/?mode=user#admin](http://localhost:3000/?mode=user#admin) | Duyệt hồ sơ thợ (KYC CCCD), giá dịch vụ, xử lý khiếu nại |
 | **Đặc tả 34 Màn hình (Dev Spec)** | [http://localhost:3000/?mode=dev](http://localhost:3000/?mode=dev) | Xem chi tiết 34 màn hình UI, ánh xạ bảng SQL & các hàm RPC |
-| **Kiểm tra trạng thái (API Status)** | [http://localhost:3000/api/status](http://localhost:3000/api/status) | JSON trả về tình trạng kết nối DB & số lượng bản ghi 16 bảng |
+| **Kiểm tra trạng thái (API Status)** | [http://localhost:3000/api/status](http://localhost:3000/api/status) | JSON trả về tình trạng kết nối DB và số lượng bản ghi Local Store/Supabase |
 
 ---
 
@@ -107,6 +107,12 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-public-key
 SUPABASE_SERVICE_ROLE_KEY=your-service-role-secret-key
 ```
 
+### Khởi tạo Supabase
+
+Migration baseline chuẩn của đồ án là [20261124000000_gia_dinh_xanh_schema.sql](database/migrations/20261124000000_gia_dinh_xanh_schema.sql). Tài liệu mô tả chi tiết schema, enum, RLS, trigger, RPC và Storage nằm trong [docs/DATABASE.md](docs/DATABASE.md).
+
+Trước khi áp dụng, cần kiểm tra database thử nghiệm sạch và thống nhất contract giữa baseline mới với backend/Local Store hiện hành. Các file SQL cũ trong thư mục `database/` không được coi là một chuỗi migration hoàn chỉnh cho baseline mới.
+
 ---
 
 ## 📁 Cấu Trúc Thư Mục Dự Án
@@ -123,8 +129,11 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-secret-key
 │   ├── services/             # Booking, audit và geo logic
 │   ├── utils/                # HTTP và validation helpers
 │   └── data/                 # Local database runtime data
-├── database/                 # SQL schema và RPC definitions
-├── docs/                     # Kiến trúc, onboarding, sản phẩm và thiết kế
+├── database/
+│   ├── migrations/           # Baseline Supabase và migration theo thứ tự
+│   ├── company_schema_migration.sql # SQL bổ sung schema công ty cần đối chiếu
+│   └── supabase_rpc_functions.sql   # RPC từ schema cũ cần đối chiếu
+├── docs/                     # Kiến trúc, onboarding, database, sản phẩm và thiết kế
 ├── public/
 │   ├── assets/               # Ảnh, biểu đồ và vendor assets
 │   ├── js/app.js             # Vanilla JS SPA (screen renderers và UI flows)
