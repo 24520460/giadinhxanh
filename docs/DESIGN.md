@@ -2,7 +2,7 @@
 
 ## 1. Triết lý Thiết kế (Warm Minimalism)
 - **Tham chiếu thẩm mỹ:** Tân trang theo phong cách **Warm Minimalism** từ `demo giao dien-giadinhxanh`, tối ưu khoảng trắng hai bên lề (`.site-container` `max-width: 1200px; margin-inline: auto; padding-inline: 24px`) để toàn bộ 34 giao diện luôn thoáng đãng, hiện đại và truyền tải trọn vẹn thông điệp mà không gây ngợp mắt.
-- **Tuân thủ 100% cơ sở dữ liệu PostgreSQL:** Mọi trường dữ liệu, bộ lọc, trạng thái và luồng thao tác trên 34 giao diện đều ánh xạ 1-1 với 16 bảng, 1 View (`provider_public_profiles`) và 4 RPC trong `4. home_service_booking_supabase.sql`. Tuyệt đối không đưa vào các cam kết vượt ngoài phạm vi cơ sở dữ liệu.
+- **Mô hình dữ liệu:** Giao diện tham chiếu seed/schema tại `shared/db-mock.js`; các hàm RPC bổ sung nằm trong `database/supabase_rpc_functions.sql`. Repo hiện không có baseline DDL đầy đủ, vì vậy các tệp này không xác nhận schema đang triển khai trên Supabase.
 
 ## 2. Bảng màu (Color Palette)
 - **Deep Forest Green (`--color-primary: #1B4332`, hover `#143326`):** Màu chủ đạo cho thương hiệu, các nút hành động chính (`.primary-btn`), nhãn dịch vụ và điểm nhấn tin cậy.

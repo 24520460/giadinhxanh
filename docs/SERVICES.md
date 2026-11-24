@@ -1,20 +1,20 @@
 # Core Services & API Specifications
 
 > **Dự án:** Gia Đình Xanh — Hệ thống Đặt lịch Dịch vụ Gia đình (Home Service Booking)  
-> **Kiến trúc:** Node.js Backend Server + Supabase PostgreSQL SDK + Next.js App Router / Middleware Architecture  
-> **Tài liệu tham chiếu mã nguồn:** `server.js`, `supabase_rpc_functions.sql`, `NEXTJS_APP_ROUTER_SPEC_VA_MIDDLEWARE.md`, `db-mock.js`, `backend/data/local-db.json`
+> **Kiến trúc:** Vanilla JavaScript SPA + Node.js HTTP API + Supabase PostgreSQL SDK
+> **Tài liệu tham chiếu mã nguồn:** `server.js`, `backend/app.js`, `database/supabase_rpc_functions.sql`, `shared/db-mock.js`, `backend/data/local-db.json`. Tài liệu `docs/NEXTJS_APP_ROUTER_SPEC_VA_MIDDLEWARE.md` là đề xuất Next.js, không phải kiến trúc đang chạy.
 
 ---
 
 ## 1. Domain/Module Breakdown
 
 ### Module: System & Environment Management Service
-* **Đường dẫn mã nguồn:** `server.js` (Dòng 32–94, 172–227, 266–336)
+* **Đường dẫn mã nguồn:** `backend/config/env.js`, `backend/app.js`, `server.js`
 * **Trách nhiệm chính (Core Responsibility):** Quản lý nạp biến môi trường động (`.env.local`), khởi tạo và quản lý kết nối client Supabase (`@supabase/supabase-js`), giám sát trạng thái sức khỏe kết nối (Health Check) và đồng bộ dữ liệu hạt nhân (Bootstrap 16 bảng + View) giữa bộ lưu trữ cục bộ và Supabase.
 * **Dependencies:**
   - `@supabase/supabase-js` (CreateClient)
   - `fs`, `path`, `http`, `url` (Node.js Native Modules)
-  - `db-mock.js` (`createInitialStore()`)
+  - `shared/db-mock.js` (`createInitialStore()`)
   - `backend/data/local-db.json` (Local Storage Persistence Layer)
 * **Public Interfaces / Methods:**
   - `loadEnvConfig(): { supabaseUrl: string, supabaseAnonKey: string, supabaseServiceKey: string, port: number }`
@@ -26,10 +26,10 @@
 ---
 
 ### Module: Authentication & Identity Service
-* **Đường dẫn mã nguồn:** `server.js` (Dòng 339–376), `NEXTJS_APP_ROUTER_SPEC_VA_MIDDLEWARE.md` (Dòng 111–224)
+* **Đường dẫn mã nguồn:** `backend/routes/authRoutes.js`, `backend/middleware/auth.js`
 * **Trách nhiệm chính (Core Responsibility):** Đăng ký tài khoản người dùng mới (`users`), phân định vai trò (`customer`, `provider`, `admin`), thực thi kiểm tra tính duy nhất của số điện thoại (`phone_number UNIQUE`) và cung cấp kiểm soát truy cập phân tầng (RBAC) qua Middleware.
 * **Dependencies:**
-  - `server.js` (`ensureLocalDb`, `saveLocalDb`, `getSupabaseClient`)
+  - `backend/db/localStore.js`, `backend/config/env.js`
   - PostgreSQL Table: `public.users`, `auth.users`
 * **Public Interfaces / Methods:**
   - `handleRegister(payload: { full_name: string, phone_number: string, email?: string, role?: 'customer' | 'provider' }): Promise<{ ok: boolean, user?: UserRecord, error?: string }>`
@@ -38,7 +38,7 @@
 ---
 
 ### Module: Customer Profile & Preferences Service
-* **Đường dẫn mã nguồn:** `server.js` (Dòng 379–411, 441–462, 749–770)
+* **Đường dẫn mã nguồn:** `backend/routes/customerRoutes.js`
 * **Trách nhiệm chính (Core Responsibility):** Khởi tạo và cập nhật hồ sơ khách hàng (`customer_profiles`), thiết lập sổ địa chỉ mặc định theo phường/xã (`ward_id` NOT NULL), lưu trữ tọa độ định vị GPS cá nhân và quản lý danh sách dịch vụ yêu thích (`favorites`).
 * **Dependencies:**
   - PostgreSQL Tables: `customer_profiles`, `users`, `favorites`, `ward`, `province`
@@ -51,7 +51,7 @@
 ---
 
 ### Module: Provider Profile & Operational Service
-* **Đường dẫn mã nguồn:** `server.js` (Dòng 125–167, 414–438, 464–521, 805–843)
+* **Đường dẫn mã nguồn:** `backend/routes/providerRoutes.js`, `backend/db/localStore.js`
 * **Trách nhiệm chính (Core Responsibility):** Quản lý hồ sơ nghiệp vụ đối tác thợ (`provider_profiles`), xác thực định danh CCCD (`id_card_number` UNIQUE), quản lý trạng thái trực tuyến & GPS tức thời (`is_available_online`), thiết lập danh mục chuyên môn (`provider_services`), khu vực phủ sóng (`provider_areas`), cùng lịch biểu định kỳ và lịch nghỉ ngoại lệ (`availability_schedules`, `availability_exceptions`).
 * **Dependencies:**
   - PostgreSQL Tables: `provider_profiles`, `provider_services`, `provider_areas`, `availability_schedules`, `availability_exceptions`, `users`
@@ -69,7 +69,7 @@
 ---
 
 ### Module: Booking Management Service (Order Lifecycle)
-* **Đường dẫn mã nguồn:** `server.js` (Dòng 523–574)
+* **Đường dẫn mã nguồn:** `backend/routes/bookingRoutes.js`, `backend/services/bookingService.js`
 * **Trách nhiệm chính (Core Responsibility):** Khởi tạo đơn đặt lịch dịch vụ mới qua Booking Wizard, kiểm tra toàn vẹn dịch vụ, đối tác thợ và địa bàn hành chính, xác định đơn giá cơ sở và thiết lập bản ghi lịch sử trạng thái ban đầu (`booking_status_history`).
 * **Dependencies:**
   - PostgreSQL Tables: `bookings`, `booking_status_history`, `services`, `provider_profiles`, `customer_profiles`, `ward`
@@ -80,7 +80,7 @@
 ---
 
 ### Module: Transactional RPC & Audit Log Service
-* **Đường dẫn mã nguồn:** `server.js` (Dòng 576–699), `supabase_rpc_functions.sql` (Dòng 19–345)
+* **Đường dẫn mã nguồn:** `backend/routes/bookingRoutes.js`, `backend/services/auditService.js`, `database/supabase_rpc_functions.sql`
 * **Trách nhiệm chính (Core Responsibility):** Thực thi các giao dịch chuyển đổi trạng thái nguyên tử (Atomic State Machine), khóa dòng chống tương tranh (`SELECT FOR UPDATE`), cập nhật phụ phí phát sinh minh bạch, xác nhận hoàn tất thanh toán và điều phối/hoàn tiền dành cho Admin kèm ghi vết kiểm toán tự động vào `booking_status_history`.
 * **Dependencies:**
   - PostgreSQL Stored Procedures: `rpc_transition_booking_status`, `rpc_update_incidental_cost`, `rpc_confirm_booking_payment`, `rpc_admin_adjust_payment_and_refund`
@@ -95,7 +95,7 @@
 ---
 
 ### Module: Reviews & Ratings Evaluation Service
-* **Đường dẫn mã nguồn:** `server.js` (Dòng 151–167, 701–746)
+* **Đường dẫn mã nguồn:** `backend/routes/customerRoutes.js`, `backend/routes/adminRoutes.js`, `backend/db/localStore.js`
 * **Trách nhiệm chính (Core Responsibility):** Thu thập và lưu trữ đánh giá/chấm điểm chất lượng dịch vụ của khách hàng cho đơn hàng đã hoàn tất (`completed`), áp dụng ràng buộc duy nhất một đánh giá trên một đơn hàng (`booking_id UNIQUE`), tự động kích hoạt tính toán lại chỉ số uy tín (`average_rating` & `total_reviews`) của thợ và hỗ trợ kiểm duyệt bài đánh giá.
 * **Dependencies:**
   - PostgreSQL Tables: `reviews`, `bookings`, `provider_profiles`
@@ -108,7 +108,7 @@
 ---
 
 ### Module: Support & Incident Ticketing Service
-* **Đường dẫn mã nguồn:** `server.js` (Dòng 773–802)
+* **Đường dẫn mã nguồn:** `backend/routes/customerRoutes.js`, `backend/routes/adminRoutes.js`
 * **Trách nhiệm chính (Core Responsibility):** Tiếp nhận yêu cầu trợ giúp và báo cáo sự cố phát sinh từ người dùng liên quan đến đơn hàng dịch vụ hoặc sự cố tài khoản, quản lý vòng đời phiếu hỗ trợ (`open`, `in_progress`, `resolved`, `closed`) và phân cấp ưu tiên xử lý.
 * **Dependencies:**
   - PostgreSQL Tables: `support_tickets`, `users`, `bookings`
@@ -119,7 +119,7 @@
 ---
 
 ### Module: Administration, Catalog & Location Master Service
-* **Đường dẫn mã nguồn:** `server.js` (Dòng 846–947)
+* **Đường dẫn mã nguồn:** `backend/routes/adminRoutes.js`, `backend/routes/companyRoutes.js`, `backend/routes/systemRoutes.js`
 * **Trách nhiệm chính (Core Responsibility):** Quản trị danh mục dịch vụ phân cấp (`service_categories`), biểu giá và dịch vụ chi tiết (`services`), thẩm định hồ sơ đối tác thợ (KYC Review), kiểm soát kích hoạt/khóa tài khoản người dùng (`is_active`), và thiết lập cây đơn vị hành chính cấp Tỉnh/Phường (`province`, `ward`).
 * **Dependencies:**
   - PostgreSQL Tables: `service_categories`, `services`, `provider_profiles`, `users`, `province`, `ward`
@@ -261,7 +261,7 @@ sequenceDiagram
 ### 4.1. Error Handling Strategy (Xử lý Ngoại lệ)
 Kiến trúc áp dụng chiến lược xử lý lỗi 3 tầng từ Gateway đến Cơ sở dữ liệu:
 
-1. **Tầng HTTP Gateway & Global Exception Handler (`server.js`):**
+1. **Tầng HTTP Gateway & Global Exception Handler (`backend/app.js`):**
    - Bao bọc toàn bộ chu trình xử lý bằng khối `try ... catch` ở cấp máy chủ HTTP trung tâm.
    - Khi có lỗi bất khả kháng phát sinh trong luồng xử lý hoặc phân tích cú pháp, máy chủ tự động chuyển đổi thành phản hồi JSON thống nhất chuẩn REST:
      ```json
@@ -280,7 +280,7 @@ Kiến trúc áp dụng chiến lược xử lý lỗi 3 tầng từ Gateway đ�
        - Trùng đánh giá tại bảng `reviews` (`booking_id` đã có đánh giá).
      - `500 Internal Server Error`: Lỗi kết nối hệ thống hoặc sự cố cơ sở dữ liệu ngoài dự kiến.
 
-2. **Tầng Database RPC Exception Triggers (`supabase_rpc_functions.sql`):**
+2. **Tầng Database RPC Exception Handling (`database/supabase_rpc_functions.sql`):**
    - Các thủ tục lưu trữ `SECURITY DEFINER` chủ động ngắt giao dịch (Rollback) và phát mã lỗi tường minh thông qua câu lệnh `RAISE EXCEPTION`:
      - `UNAUTHORIZED`: Chưa định danh phiên làm việc.
      - `ACCOUNT_SUSPENDED`: Tài khoản đã bị vô hiệu hóa bởi Quản trị viên.
@@ -290,9 +290,8 @@ Kiến trúc áp dụng chiến lược xử lý lỗi 3 tầng từ Gateway đ�
      - `REASON_REQUIRED`: Bắt buộc phải có giải trình bằng văn bản khi từ chối việc, hủy ca hoặc điều chỉnh tiền.
      - `ALREADY_PAID`: Ngăn chặn thanh toán lặp đối với hóa đơn đã thanh toán.
 
-3. **Tầng Route Protection & Fallback Middleware (`middleware.ts`):**
-   - Chặn các truy cập trái phép ở cấp định tuyến trước khi đến bộ xử lý API.
-   - Tự động điều hướng người dùng bị khóa sang màn hình thông báo `/suspended` thay vì ném lỗi không kiểm soát.
+3. **Tầng Route Protection & Fallback Middleware (`backend/middleware/auth.js`):**
+   - Kiểm tra xác thực và quyền truy cập trước khi xử lý những API có yêu cầu đăng nhập.
 
 ---
 
@@ -300,7 +299,7 @@ Kiến trúc áp dụng chiến lược xử lý lỗi 3 tầng từ Gateway đ�
 Hệ thống kết hợp kiểm tra dữ liệu nhiều lớp (Defense-in-depth):
 
 1. **Phân tích luồng & Giới hạn dung lượng tải trọng (Stream Parsing & Size Limiting):**
-   - Hàm `parseBody()` trong `server.js` kiểm soát trực tiếp luồng dữ liệu thô (`req.on('data')`).
+   - Hàm `parseBody()` trong `backend/utils/http.js` kiểm soát luồng dữ liệu request.
    - Thiết lập giới hạn kích thước nghiêm ngặt tối đa **2MB** (`raw.length > 2 * 1024 * 1024`) để triệt tiêu nguy cơ tấn công từ chối dịch vụ (DoS/Payload Overflow).
    - Bắt lỗi cú pháp JSON và phản hồi ngay lập tức `Invalid JSON body` nếu payload sai định dạng.
 

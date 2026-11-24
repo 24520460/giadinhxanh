@@ -74,13 +74,13 @@ Hệ thống đã nạp sẵn dữ liệu mẫu cho 16 bảng PostgreSQL. Tại 
 Dự án hỗ trợ cả lệnh qua `npm` và `Makefile`:
 
 ```bash
-# 1. Chạy kiểm thử tự động toàn diện (24 Unit & Integration Tests)
+# 1. Chạy kiểm thử tự động toàn diện (API & Integration Tests)
 npm test
 # hoặc: node --test test/api.test.js
 
 # 2. Kiểm tra cú pháp và chất lượng mã nguồn (Linting)
 npm run lint
-# hoặc: node --check server.js db-mock.js app.js test/api.test.js
+# hoặc: node --check server.js backend/app.js shared/db-mock.js public/js/app.js test/api.test.js
 
 # 3. Khôi phục dữ liệu mẫu gốc (Reset Local Database)
 make db-reset
@@ -112,24 +112,30 @@ SUPABASE_SERVICE_ROLE_KEY=your-service-role-secret-key
 ## 📁 Cấu Trúc Thư Mục Dự Án
 
 ```text
-├── server.js               # Node.js HTTP Backend (REST API + Static Server + RPC Logic)
-├── db-mock.js              # Khởi tạo mô hình 16 bảng PostgreSQL & Seed dữ liệu ban đầu
-├── app.js                  # Frontend Controller (Quản lý 34 màn hình, 4 phân hệ)
-├── index.html              # HTML Shell với thiết kế Warm Minimalism
-├── styles.css              # Hệ thống CSS Design Tokens & Layout Responsive
+├── app.js                    # Vercel entrypoint shim
+├── server.js                 # Node.js HTTP server entrypoint
 ├── backend/
-│   └── data/               # Nơi lưu trữ persistent local database (local-db.json)
-├── docs/
-│   ├── ARCHITECTURE.md     # Tài liệu kiến trúc toàn diện
-│   ├── ONBOARDING.md       # Hướng dẫn chi tiết dành cho Developer mới
-│   └── SERVICES.md         # Danh mục dịch vụ và phân loại kỹ thuật
-├── test/
-│   └── api.test.js         # 24 bài kiểm thử tích hợp (Node.js native test runner)
-├── Makefile                # Phím tắt các lệnh tự động hóa dev/ops
-├── docker-compose.yml      # Cấu hình Docker & Mailpit
-├── package.json            # Cấu hình dự án và dependencies
-└── README.md               # Tài liệu hướng dẫn sử dụng nhanh này
+│   ├── app.js                # API dispatcher và static file handler
+│   ├── config/               # Environment và Supabase client
+│   ├── db/                   # Local store và Supabase bootstrap
+│   ├── middleware/           # Authentication/RBAC helpers
+│   ├── routes/               # API handlers theo nghiệp vụ
+│   ├── services/             # Booking, audit và geo logic
+│   ├── utils/                # HTTP và validation helpers
+│   └── data/                 # Local database runtime data
+├── database/                 # SQL schema và RPC definitions
+├── docs/                     # Kiến trúc, onboarding, sản phẩm và thiết kế
+├── public/
+│   ├── assets/               # Ảnh, biểu đồ và vendor assets
+│   ├── js/app.js             # Vanilla JS SPA (screen renderers và UI flows)
+│   ├── index.html            # SPA shell
+│   └── *.css                 # Global styles/design tokens
+├── shared/db-mock.js         # Seed/schema dùng bởi frontend và local backend
+├── test/api.test.js          # API integration tests
+└── tools/                    # Figma exporter và đầu ra tạo sinh
 ```
+
+Frontend hiện là Vanilla JavaScript, chưa sử dụng React/TypeScript hoặc bundler. `public/js/app.js` vẫn là controller lớn; backend đã được tách thành các nhóm module trong `backend/`.
 
 ---
 

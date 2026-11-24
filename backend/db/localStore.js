@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const { ROOT_DIR } = require("../config/env");
-const dbSeedModule = require(path.join(ROOT_DIR, "public", "db-mock.js"));
+const dbSeedModule = require(path.join(ROOT_DIR, "shared", "db-mock.js"));
 
 const DATA_DIR = path.join(ROOT_DIR, "backend", "data");
 const LOCAL_DB_PATH = path.join(DATA_DIR, "local-db.json");

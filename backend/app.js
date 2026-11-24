@@ -47,8 +47,8 @@ function readStaticFile(relPath) {
 
 const staticIndexHtml = readStaticFile("index.html");
 const staticStylesCss = readStaticFile("styles.css");
-const staticAppJs = readStaticFile("app.js");
-const staticDbMock = readStaticFile("db-mock.js");
+const staticAppJs = readStaticFile("js/app.js");
+const staticDbMock = readStaticFile("shared/db-mock.js");
 
 const ROUTE_HANDLERS = [
   handleSystemRoutes,
@@ -121,11 +121,11 @@ async function appHandler(req, res) {
       res.writeHead(200, { "Content-Type": "text/css; charset=utf-8" });
       return res.end(staticStylesCss);
     }
-    if (pathname === "/app.js" && staticAppJs) {
+    if ((pathname === "/js/app.js" || pathname === "/app.js") && staticAppJs) {
       res.writeHead(200, { "Content-Type": "application/javascript; charset=utf-8" });
       return res.end(staticAppJs);
     }
-    if (pathname === "/db-mock.js" && staticDbMock) {
+    if ((pathname === "/shared/db-mock.js" || pathname === "/db-mock.js") && staticDbMock) {
       res.writeHead(200, { "Content-Type": "application/javascript; charset=utf-8" });
       return res.end(staticDbMock);
     }
