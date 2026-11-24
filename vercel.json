@@ -3,7 +3,7 @@
   "cleanUrls": true,
   "functions": {
     "app.js": {
-      "includeFiles": "{public/**/*,backend/**/*}"
+      "includeFiles": "{public/**/*,backend/**/*,shared/**/*}"
     }
   }
 }

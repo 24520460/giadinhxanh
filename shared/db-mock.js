@@ -1,8 +1,7 @@
 // =====================================================================
 // GIA ĐÌNH XANH - PRODUCTION DATABASE STORE & SEED (1-1 POSTGRESQL SCHEMA)
-// Bám sát 100% 16 bảng, 7 ENUMs, 1 View & 4 RPCs trong:
-//   - 4. home_service_booking_supabase.sql
-//   - supabase_rpc_functions.sql
+// Seed/schema reference for the local store and browser; supplemental RPCs:
+//   - database/supabase_rpc_functions.sql
 // Nội dung dữ liệu thực tế đúng phạm vi năng lực dự án Đặt lịch Dịch vụ Gia đình
 // =====================================================================
 

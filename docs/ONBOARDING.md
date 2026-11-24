@@ -47,7 +47,7 @@ Trước khi bắt đầu, hãy đảm bảo máy tính của bạn đã cài đ
 ## 2. Step-by-Step Environment Setup
 
 Dự án hỗ trợ 2 chế độ cơ sở dữ liệu:
-1. **Persistent Local SQL Store (`backend/data/local-db.json`):** Chế độ mặc định sẵn sàng hoạt động ngay (Zero External Dependencies) với 16 bảng dữ liệu PostgreSQL, 1 View `provider_public_profiles`, 4 hàm RPC và triggers đã được seed sẵn qua `db-mock.js`.
+1. **Persistent Local Store (`backend/data/local-db.json`):** Chế độ mặc định lưu dữ liệu JSON cục bộ; cấu trúc và seed ban đầu được cung cấp bởi `shared/db-mock.js`.
 2. **Supabase PostgreSQL:** Kết nối trực tiếp cơ sở dữ liệu Supabase đám mây hoặc self-hosted qua `@supabase/supabase-js`.
 
 Hãy làm theo các bước tuần tự dưới đây:
@@ -143,8 +143,8 @@ Tùy theo chế độ bạn lựa chọn ở Bước 1:
 #### Kịch bản B: Chạy với Supabase PostgreSQL
 Nếu bạn đã điền `NEXT_PUBLIC_SUPABASE_URL` và Keys vào `.env.local`:
 1. Mở giao diện **Supabase Studio -> SQL Editor**.
-2. Thực thi tệp DDL tạo bảng: `4. home_service_booking_supabase.sql` (tạo 16 bảng dữ liệu, triggers, RLS policies và dữ liệu vị trí địa lý).
-3. Thực thi tiếp tệp RPC Workflow: `supabase_rpc_functions.sql` (tạo 4 hàm `rpc_transition_booking_status`, `rpc_provider_update_incidental`, `rpc_customer_confirm_payment`, `rpc_admin_adjust_booking` và thu hồi quyền sửa nhạy cảm trên bảng `bookings`).
+2. Repo hiện không có tệp baseline `4. home_service_booking_supabase.sql`; chỉ có migration bổ sung `database/company_schema_migration.sql`. Cần có schema cơ sở tương thích trên Supabase trước khi áp dụng các script còn lại.
+3. Sau khi schema cơ sở đã có, thực thi `database/supabase_rpc_functions.sql` để cài các hàm RPC và chính sách cập nhật đơn tương ứng.
 
 ---
 
@@ -219,7 +219,7 @@ npm run lint
 # Hoặc qua Makefile:
 make lint
 ```
-*(Lệnh thực tế thực thi: `node --check server.js db-mock.js app.js test/api.test.js`)*
+*(Lệnh thực tế thực thi: `node --check server.js backend/app.js shared/db-mock.js public/js/app.js test/api.test.js`)*
 
 ---
 
@@ -287,7 +287,7 @@ Dưới đây là các sự cố thường gặp nhất trong quá trình thiế
   ```
 - **Nguyên nhân:** Dự án Supabase của bạn mới được tạo và chưa được nạp schema cơ sở dữ liệu.
 - **Cách khắc phục:**
-  - Mở giao diện Supabase Dashboard -> **SQL Editor** và lần lượt chạy tệp `4. home_service_booking_supabase.sql` sau đó là `supabase_rpc_functions.sql`.
+  - Đảm bảo đã áp dụng schema cơ sở tương thích trước; repo hiện chỉ có migration công ty tại `database/company_schema_migration.sql` và các hàm RPC tại `database/supabase_rpc_functions.sql`.
   - Hoặc tạm thời xóa giá trị biến `NEXT_PUBLIC_SUPABASE_URL` trong `.env.local`, máy chủ sẽ tự động chuyển sang vận hành trên **Persistent Local SQL Store** giúp bạn tiếp tục làm việc mà không bị gián đoạn.
 
 ### 5. Lỗi phân quyền ghi tệp Local Store trong Docker / Linux (`EACCES: permission denied`)

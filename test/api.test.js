@@ -3,7 +3,7 @@ const assert = require('node:assert');
 const http = require('node:http');
 const path = require('node:path');
 const fs = require('node:fs');
-const dbMock = require('../public/db-mock.js');
+const dbMock = require('../shared/db-mock.js');
 
 describe('Gia Đình Xanh - Database Mock & Schema Verification', () => {
   test('db-mock exports createInitialStore and initializes 16 required tables', () => {
@@ -632,6 +632,21 @@ describe('Gia Đình Xanh - Full-Stack REST API & RPC Verification', () => {
       const res = await makeRequest('GET', p);
       assert.strictEqual(res.statusCode, 200, `${p} should return 200`);
       assert.ok(typeof res.raw === 'string' && res.raw.includes('<!DOCTYPE html>'), `${p} should serve SPA HTML`);
+    }
+  });
+
+  test('Frontend assets are served from their organized paths and legacy aliases remain available', async () => {
+    const assets = [
+      ['/js/app.js', 'window.GDXApp'],
+      ['/shared/db-mock.js', 'createInitialStore'],
+      ['/app.js', 'window.GDXApp'],
+      ['/db-mock.js', 'createInitialStore']
+    ];
+
+    for (const [assetPath, expectedContent] of assets) {
+      const res = await makeRequest('GET', assetPath);
+      assert.strictEqual(res.statusCode, 200, `${assetPath} should return 200`);
+      assert.ok(res.raw.includes(expectedContent), `${assetPath} should contain its expected source`);
     }
   });
 

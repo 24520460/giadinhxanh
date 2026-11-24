@@ -11,10 +11,10 @@ Dự án được xây dựng theo mô hình **Modular Monolith & Two-Tier Archi
 * **Presentation Layer (Frontend):** Ứng dụng Single Page Application (SPA) tương tác cao, xây dựng trên nền tảng Vanilla JavaScript (ES6+), HTML5 Semantic (`<dialog>`, logical properties) và CSS Custom Properties. Frontend hỗ trợ 2 chế độ vận hành song song trên cùng một mã nguồn:
   * *Chế độ Người dùng (`user mode`):* Tối giản, thân thiện, tuân thủ nguyên tắc Warm Minimalism (dựa trên bộ kỹ năng `taste-skill` và `impeccable`).
   * *Chế độ Nhà phát triển (`dev mode`):* Hiển thị danh mục 34 UI phân theo 4 phân hệ nghiệp vụ, trực quan hóa ánh xạ 1-1 với lược đồ cơ sở dữ liệu và lời gọi hàm RPC.
-* **Application & Gateway Layer (Backend):** Triển khai bằng Node.js thuần (`server.js`) sử dụng thư viện chuẩn `http` mà không phụ thuộc vào các framework bên ngoài (Zero-dependency Web Server). Đóng vai trò vừa là Static File Server cho Client, vừa là REST API Gateway cung cấp 19+ endpoints nghiệp vụ và proxy trung chuyển RPC.
+* **Application & Gateway Layer (Backend):** Node.js dùng HTTP module chuẩn, với entrypoint `server.js` và phần định tuyến/tĩnh trong `backend/app.js`. Backend chia theo config, db, middleware, routes, services và utils; sử dụng `@supabase/supabase-js` khi tích hợp Supabase.
 * **Hybrid Data Layer (Cơ sở dữ liệu lai):**
   * *Primary Cloud Database:* Supabase Managed PostgreSQL 15+ gồm 16 bảng dữ liệu, 7 ENUMs, 1 View bảo mật (`provider_public_profiles`), 4 hàm thủ tục lưu trữ RPC kiểm toán giao dịch (Transaction Security Definer) và hệ thống chính sách Row-Level Security (RLS).
-  * *Persistent Local Fallback Store:* Tệp JSON cục bộ (`backend/data/local-db.json`) được sinh và quản lý bởi mô-đun UMD `db-mock.js`, đóng vai trò là một Database Engine giả lập trong bộ nhớ có khả năng ghi bền vững (Persistence) giúp hệ thống vận hành độc lập ngay cả khi chưa cấu hình khóa API Supabase.
+  * *Persistent Local Fallback Store:* Tệp JSON runtime (`backend/data/local-db.json`) được khởi tạo từ seed/schema dùng chung tại `shared/db-mock.js`.
 
 ### 1.2. Mục tiêu Nghiệp vụ Cốt lõi (Business Objectives)
 Gia Đình Xanh giải quyết bài toán kết nối theo thời gian thực và quản lý vòng đời dịch vụ chăm sóc gia đình tại chỗ (Home Service Booking) tại Việt Nam (hiện hỗ trợ các khu vực thuộc TP. Hồ Chí Minh, Hà Nội, Đà Nẵng):
@@ -31,20 +31,20 @@ Bảng dưới đây tổng hợp đầy đủ ngăn xếp công nghệ được
 
 | Phân loại | Thành phần Kỹ thuật | Phiên bản / Chi tiết Codebase | Ghi chú Kiến trúc |
 | :--- | :--- | :--- | :--- |
-| **Runtime & Language** | Node.js | `>= 22.0.0` (xác định tại `package.json`) | Môi trường thực thi phía Server |
-| | JavaScript | ECMAScript 2022+ / CommonJS (`server.js`, `db-mock.js`) & ES Modules (`app.js`) | Ngôn ngữ phát triển toàn ngăn xếp |
-| | SQL / PL/pgSQL | PostgreSQL 15+ (`supabase_rpc_functions.sql`) | Ngôn ngữ định nghĩa lược đồ và thủ tục lưu trữ |
+| **Runtime & Language** | Node.js | `>= 20.0.0` (xác định tại `package.json`) | Môi trường thực thi phía Server |
+| | JavaScript | CommonJS phía server; browser JavaScript trong `public/js/app.js`; seed CommonJS/UMD tại `shared/db-mock.js` | Chưa dùng React, TypeScript hoặc frontend bundler |
+| | SQL / PL/pgSQL | PostgreSQL (`database/supabase_rpc_functions.sql`) | Hàm RPC; migration hiện có trong `database/` |
 | | HTML5 & CSS3 | Native Web Standards (CSS Variables, Logical Viewports, `:user-invalid`, Native `<dialog>`) | Không dùng Tailwind/Bootstrap; tự xây dựng Design System |
 | **Web Frameworks & Core Libs** | HTTP Server | Node.js Native `http` module (`server.js`) | Không sử dụng Express, Fastify hay Koa |
 | | Database SDK | `@supabase/supabase-js` v2.49.1 (`package.json`) | Client giao tiếp REST & RPC với Supabase |
-| | Frontend State Management | Vanilla Reactive State Object (`GDXApp.state` trong `app.js`) | Quản lý trạng thái Client, đồng bộ qua REST APIs |
-| | Charts & Data Viz | HTML5 Canvas 2D (`assets/charts.js`) | Thư viện biểu đồ thuần vẽ KPI và đường xu hướng |
-| | Typography | Google Fonts: `Plus Jakarta Sans`, `Inter`, `IBM Plex Mono` | Tích hợp trực tiếp tại `index.html` và `styles.css` |
+| | Frontend State Management | Vanilla JavaScript closure/state trong `public/js/app.js` | Quản lý trạng thái Client, đồng bộ qua REST APIs |
+| | Charts & Data Viz | HTML5 Canvas 2D (`public/assets/charts.js`) | Thư viện biểu đồ thuần vẽ KPI và đường xu hướng |
+| | Typography | Google Fonts: `Plus Jakarta Sans`, `Inter`, `IBM Plex Mono` | Tích hợp trực tiếp tại `public/index.html` và CSS |
 | **Database & Storage** | Primary Database | PostgreSQL 15+ (Hosted on Supabase) | 16 bảng quan hệ, 7 kiểu ENUM, 1 View, 4 hàm RPC |
 | | Fallback Store | Local Persistent JSON Store (`backend/data/local-db.json`) | Động cơ lưu trữ file cục bộ tuân thủ 100% schema |
 | | Caching Layer | **Not configured/Found** | Chưa tích hợp Redis/Memcached |
 | | Message Queues | **Not configured/Found** | Giao dịch và cập nhật xử lý đồng bộ trực tiếp |
-| **Infrastructure & CI/CD** | Containerization | **Not configured/Found** | Chưa cấu hình Dockerfile / docker-compose.yml |
+| **Infrastructure & CI/CD** | Containerization | Dockerfile và docker-compose.yml | Chạy local/container |
 | | Orchestration | **Not configured/Found** | Chưa cấu hình Kubernetes |
 | | CI/CD Pipelines | **Not configured/Found** | Chưa có `.github/workflows` hay GitLab CI |
 | | Codebase Tooling | Node.js Watch Mode (`node --watch server.js`), `inspect.mjs` (CDP Visual Audit) | Kiểm thử trực quan và tự động tải lại khi phát triển |
@@ -60,7 +60,7 @@ graph TD
     subgraph ClientLayer["Presentation Layer (Client Browser)"]
         UserUI["Web Client: User Mode (End-User Experience)"]
         DevUI["Web Client: Dev Mode (34 UI Screens & SQL Spec)"]
-        ClientState["Frontend State Engine (app.js / GDXApp.state)"]
+        ClientState["Frontend State Engine (public/js/app.js / GDXApp.state)"]
         UserUI --> ClientState
         DevUI --> ClientState
     end
@@ -90,7 +90,7 @@ graph TD
 ```
 
 ### Chú thích Luồng Giao tiếp & Giao thức:
-1. **Client -> Server (`HTTP/1.1 GET`):** Tải các tài nguyên tĩnh ([index.html](file:///d:/hao/hao/zzz_CHUA_PHAN_LOAI/demo%20giao%20dien-giadinhxanh%202/index.html), [styles.css](file:///d:/hao/hao/zzz_CHUA_PHAN_LOAI/demo%20giao%20dien-giadinhxanh%202/styles.css), [app.js](file:///d:/hao/hao/zzz_CHUA_PHAN_LOAI/demo%20giao%20dien-giadinhxanh%202/app.js), [assets/](file:///d:/hao/hao/zzz_CHUA_PHAN_LOAI/demo%20giao%20dien-giadinhxanh%202/assets)).
+1. **Client -> Server (`HTTP/1.1 GET`):** Tải các tài nguyên tĩnh từ `public/index.html`, `public/js/app.js`, `public/*.css` và `public/assets/`.
 2. **Client -> API Gateway (`JSON over HTTP/1.1 REST`):**
    * Tải cấu hình và dữ liệu bootstrap (`GET /api/status`, `GET /api/bootstrap`).
    * Thực hiện các thao tác chuyển đổi trạng thái đơn hàng (`POST /api/rpc/transition-status`).
@@ -102,42 +102,38 @@ graph TD
 
 ## 4. Repository Directory Structure
 
-Cấu trúc phân cấp thư mục của kho lưu trữ (tối đa độ sâu 3 cấp, lược bỏ các thư mục rác và tạm):
-
 ```text
-demo-giao-dien-giadinhxanh-2/
-├── assets/                               # Tài nguyên đồ họa, ảnh chụp thực tế và biểu đồ
-│   ├── charts.js                         # Thư viện vẽ biểu đồ Canvas 2D độc lập
-│   ├── service-*.jpg                     # Hình ảnh đại diện các dịch vụ (cleaning, cooking,...)
-│   └── provider-*.jpg                    # Ảnh đại diện mẫu cho đối tác thợ
-├── backend/                              # Mô-đun dữ liệu lưu trữ phía máy chủ
-│   └── data/
-│       └── local-db.json                 # Persistent Local Database (lưu trữ 16 bảng dữ liệu dạng JSON)
-├── docs/                                 # Tài liệu kiến trúc và hướng dẫn kỹ thuật
-│   └── ARCHITECTURE.md                   # Tài liệu kiến trúc hệ thống (tệp hiện tại)
-├── .env.example                          # Mẫu khai báo các biến môi trường cấu hình
-├── .env.local                            # Biến môi trường cục bộ (Supabase URL, Anon Key, Service Key)
-├── app.js                                # Mã nguồn Client SPA: Điều hướng, Render 34 UI, State & Event Handlers
-├── db-mock.js                            # Seed data và Logic định nghĩa cấu trúc dữ liệu chuẩn PostgreSQL
-├── DESIGN.md                             # Tài liệu quy chuẩn hệ thống thiết kế Warm Minimalism Design System
-├── index.html                            # Cửa sổ khởi nhập HTML5 duy nhất (Single Page App Shell & Modals)
-├── NEXTJS_APP_ROUTER_SPEC_VA_MIDDLEWARE.md # Đặc tả cấu trúc định tuyến mở rộng cho tương lai Next.js
-├── package.json                          # Khai báo cấu hình dự án, lệnh chạy và phụ thuộc Node.js
-├── package-lock.json                     # Khóa phiên bản chi tiết các gói thư viện
-├── PRODUCT.md                            # Định nghĩa bối cảnh sản phẩm, vai trò và phạm vi nghiệp vụ
-├── server.js                             # Full-stack Server: HTTP Server, Static Host & REST/RPC Gateway
-├── styles.css                            # Toàn bộ CSS quy chuẩn Warm Minimalism, Animations & Layouts
-├── supabase_rpc_functions.sql            # Định nghĩa 4 hàm RPC PL/pgSQL bảo mật giao dịch (Security Definer)
-├── TAI_LIEU_DAC_TA_GIAO_DIEN_34_MAN_HINH.md # Đặc tả chi tiết 34 giao diện (19 Pages + 15 Modals)
-└── tai_lieu_dac_ta_giao_dien_google_docs.html # Tài liệu xuất bản dạng HTML phục vụ chia sẻ tài liệu
+giadinhxanh/
+├── app.js                         # Vercel entrypoint shim
+├── server.js                      # Node.js HTTP server entrypoint
+├── backend/
+│   ├── app.js                     # API dispatcher và static file handler
+│   ├── config/                    # Environment và Supabase client
+│   ├── db/                        # Local store và Supabase bootstrap
+│   ├── middleware/                # Authentication/RBAC helpers
+│   ├── routes/                    # API handlers theo nghiệp vụ
+│   ├── services/                  # Booking, audit và geo logic
+│   ├── utils/                     # HTTP và validation helpers
+│   └── data/                      # Local database runtime data
+├── database/                      # SQL schema và RPC definitions
+├── docs/                          # Architecture, onboarding, product và design
+├── public/
+│   ├── assets/                    # Images, icons, charts và vendored Leaflet
+│   ├── js/app.js                  # Vanilla JavaScript SPA
+│   ├── index.html                 # SPA shell
+│   └── *.css                      # Stylesheets/design tokens
+├── shared/db-mock.js              # Seed/schema dùng bởi frontend và local backend
+├── test/api.test.js               # API integration tests
+└── tools/figma-exporter/          # Figma export scripts và generated output
 ```
 
-### Mô tả Mục đích Kỹ thuật của các Tệp & Thư mục Trọng yếu:
-* **[server.js](file:///d:/hao/hao/zzz_CHUA_PHAN_LOAI/demo%20giao%20dien-giadinhxanh%202/server.js):** Động cơ máy chủ chính (1000 dòng code). Đảm nhiệm đọc biến môi trường nóng, chuyển đổi linh hoạt giữa Supabase và Local Store, định tuyến 19+ REST API endpoints và phân phối tệp tĩnh với MIME type chính xác.
-* **[app.js](file:///d:/hao/hao/zzz_CHUA_PHAN_LOAI/demo%20giao%20dien-giadinhxanh%202/app.js):** Lõi xử lý phía Client (5300+ dòng code). Chứa toàn bộ logic dựng giao diện cho 34 màn hình/hộp thoại, quản lý đồng hồ đếm giờ làm việc (`Live Timer`), bộ tính toán chi phí đặt lịch, ma trận lịch rảnh của thợ và điều khiển chuyển luồng người dùng / dev.
-* **[db-mock.js](file:///d:/hao/hao/zzz_CHUA_PHAN_LOAI/demo%20giao%20dien-giadinhxanh%202/db-mock.js):** Lược đồ dữ liệu chuẩn quan hệ (800+ dòng code). Khởi tạo dữ liệu mẫu với UUID chuẩn, liên kết khóa ngoại (`foreign keys`) chặt chẽ giữa 16 bảng dữ liệu.
-* **[supabase_rpc_functions.sql](file:///d:/hao/hao/zzz_CHUA_PHAN_LOAI/demo%20giao%20dien-giadinhxanh%202/supabase_rpc_functions.sql):** Bộ kịch bản SQL cài đặt trên Supabase nhằm thu hồi quyền sửa trực tiếp bảng `bookings`, ủy quyền xử lý chuyển trạng thái cho 4 hàm RPC transactional: `rpc_transition_booking_status`, `rpc_provider_update_incidental`, `rpc_customer_confirm_payment`, `rpc_admin_adjust_booking`.
-* **[backend/data/local-db.json](file:///d:/hao/hao/zzz_CHUA_PHAN_LOAI/demo%20giao%20dien-giadinhxanh%202/backend/data/local-db.json):** Tệp CSDL JSON bền vững lưu giữ toàn bộ các thay đổi phát sinh trong quá trình chạy thử nghiệm (đơn hàng mới, sửa trạng thái, đánh giá).
+`backend/routes/`, `backend/services/` và các thư mục hỗ trợ đã được chia theo trách nhiệm. Frontend chưa dùng React/TypeScript: các màn hình vẫn nằm trong một controller JavaScript lớn tại `public/js/app.js`; việc tách tiếp theo nên thực hiện dần theo feature và có kiểm thử.
+
+Các điểm kết nối quan trọng:
+* `public/index.html` nạp `/shared/db-mock.js`, `/assets/*`, CSS và `/js/app.js`.
+* `backend/app.js` chuyển API request tới các handler trong `backend/routes/` và phục vụ frontend static.
+* `backend/db/localStore.js` và frontend cùng dùng seed/schema `shared/db-mock.js`; dữ liệu phát sinh local lưu ở `backend/data/local-db.json`.
+* `database/` chứa SQL; `test/api.test.js` kiểm tra API và các luồng tích hợp.
 
 ---
 
@@ -154,10 +150,10 @@ demo-giao-dien-giadinhxanh-2/
 * **Phân quyền truy cập (Role-Based Access Control - RBAC):**
   * Được phân định chặt chẽ bởi ENUM `user_role` (`customer`, `provider`, `admin`).
   * *Ở tầng Cơ sở dữ liệu:* Kiểm soát bằng chính sách Row-Level Security (RLS) và Ma trận máy trạng thái (Role State Machine) trong các hàm RPC `SECURITY DEFINER`. Ví dụ: Khách hàng chỉ được phép hủy đơn ở trạng thái `pending`/`confirmed`; Thợ chỉ được chuyển đơn sang `in_progress` hoặc `completed`; Admin có toàn quyền can thiệp và điều chỉnh.
-  * *Ở tầng Giao diện:* Kiểm soát hiển thị động qua hàm `renderUserTopbar()` và bộ lọc quyền hạn màn hình trong `app.js`.
+  * *Ở tầng Giao diện:* Kiểm soát hiển thị động qua hàm `renderUserTopbar()` và bộ lọc quyền hạn màn hình trong `public/js/app.js`.
 
 ### 5.2. Quản lý Cấu hình & Biến môi trường (Configuration Management)
-* **Bộ nạp cấu hình (Config Loader):** Triển khai tại hàm `loadEnvConfig()` trong `server.js`. Hàm này quét tuần tự các tệp `.env` và `.env.local` ở thư mục gốc để nạp cấu hình vào bộ nhớ mà không cần cài đặt thư viện bên thứ ba như `dotenv`.
+* **Bộ nạp cấu hình (Config Loader):** Triển khai tại `loadEnvConfig()` trong `backend/config/env.js`. Hàm này quét tuần tự các tệp `.env` và `.env.local` ở thư mục gốc để nạp cấu hình vào bộ nhớ mà không cần cài đặt `dotenv`.
 * **Biến môi trường hỗ trợ:**
   * `NEXT_PUBLIC_SUPABASE_URL`: Địa chỉ máy chủ Supabase Project.
   * `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Khóa công khai dùng cho truy vấn Client-side có kiểm soát RLS.
