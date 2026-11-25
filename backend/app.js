@@ -121,9 +121,12 @@ async function appHandler(req, res) {
       res.writeHead(200, { "Content-Type": "text/css; charset=utf-8" });
       return res.end(staticStylesCss);
     }
-    if ((pathname === "/js/app.js" || pathname === "/app.js") && staticAppJs) {
-      res.writeHead(200, { "Content-Type": "application/javascript; charset=utf-8" });
-      return res.end(staticAppJs);
+    if (pathname === "/js/app.js" || pathname === "/app.js") {
+      const appJs = readStaticFile("js/app.js") || staticAppJs;
+      if (appJs) {
+        res.writeHead(200, { "Content-Type": "application/javascript; charset=utf-8" });
+        return res.end(appJs);
+      }
     }
     if ((pathname === "/shared/db-mock.js" || pathname === "/db-mock.js") && staticDbMock) {
       res.writeHead(200, { "Content-Type": "application/javascript; charset=utf-8" });
