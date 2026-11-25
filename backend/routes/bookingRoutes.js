@@ -3,12 +3,23 @@ const {
   isUuid,
   normalizeId,
   validateScheduledTime,
-  validateNonNegativeAmount
+  validateNonNegativeAmount,
+  validateCoordinates
 } = require("../utils/validators");
-const { requireAuth } = require("../middleware/auth");
+const {
+  requireAuth,
+  requireAuthAsync,
+  authenticateWriteOrScopedRequest
+} = require("../middleware/auth");
 const { saveLocalDb } = require("../db/localStore");
 const { dispatchNotification, logAudit } = require("../services/auditService");
-const { autoExpirePendingBookings } = require("../services/bookingService");
+const {
+  autoExpirePendingBookings,
+  inFlightAcceptLocks,
+  normalizeBookingRecord,
+  resolveActorContext,
+  transitionBookingLifecycle
+} = require("../services/bookingService");
 
 async function resolveSupabaseCustomerId(client, rawCustomerId) {
   if (isUuid(String(rawCustomerId))) return String(rawCustomerId).trim();
@@ -30,15 +41,176 @@ async function resolveSupabaseProviderId(client, rawProviderId) {
 }
 
 async function handleBookingRoutes(ctx) {
-  const { req, res, method, pathname, isProd, db, client } = ctx;
+  const { req, res, method, pathname, searchParams, isProd, db, client } = ctx;
+
+  // GET /api/bookings — Lấy danh sách đơn theo quyền từ Bearer Token
+  if (method === "GET" && pathname === "/api/bookings") {
+    const authUser = await requireAuthAsync(req, res, client, ["customer", "provider", "company", "admin"]);
+    if (!authUser) return true;
+
+    const statusFilter = searchParams ? String(searchParams.get("status") || "").trim() : "";
+    const actor = await resolveActorContext(authUser, { useSupabase: Boolean(isProd), db, client });
+
+    if (isProd) {
+      if (!client) {
+        sendJson(res, 503, { ok: false, code: "SERVICE_UNAVAILABLE", error: "Không có kết nối Supabase." });
+        return true;
+      }
+      let query = client.from("bookings").select("*").order("created_at", { ascending: false }).limit(100);
+      if (statusFilter) query = query.eq("status", statusFilter);
+
+      if (authUser.role === "customer") {
+        if (!actor || !actor.customerId) {
+          sendJson(res, 200, { ok: true, bookings: [] });
+          return true;
+        }
+        query = query.eq("customer_id", actor.customerId);
+      } else if (authUser.role === "provider") {
+        if (actor && actor.providerId) {
+          query = query.or(`provider_id.eq.${actor.providerId},and(status.eq.pending,provider_id.is.null)`);
+        } else {
+          query = query.eq("status", "pending").is("provider_id", null);
+        }
+      } else if (authUser.role === "company") {
+        if (!actor || !actor.companyId) {
+          sendJson(res, 200, { ok: true, bookings: [] });
+          return true;
+        }
+        query = query.eq("company_id", actor.companyId);
+      }
+
+      const { data: list, error: listErr } = await query;
+      if (listErr) {
+        sendJson(res, 500, { ok: false, code: "DB_ERROR", error: listErr.message });
+        return true;
+      }
+      sendJson(res, 200, { ok: true, bookings: (list || []).map(normalizeBookingRecord) });
+      return true;
+    }
+
+    let bookings = db.bookings || [];
+    if (statusFilter) {
+      bookings = bookings.filter((b) => b.status === statusFilter);
+    }
+    if (authUser.role === "customer") {
+      bookings = actor && actor.customerId
+        ? bookings.filter((b) => String(b.customer_id) === String(actor.customerId))
+        : [];
+    } else if (authUser.role === "provider") {
+      bookings = bookings.filter(
+        (b) =>
+          (actor && actor.providerId && String(b.provider_id) === String(actor.providerId)) ||
+          (b.status === "pending" && (b.provider_id === null || b.provider_id === undefined))
+      );
+    } else if (authUser.role === "company") {
+      const compProvIds = new Set(
+        (db.provider_profiles || [])
+          .filter((p) => actor && actor.companyId && String(p.company_id) === String(actor.companyId))
+          .map((p) => String(p.provider_id))
+      );
+      bookings = bookings.filter(
+        (b) =>
+          (actor && actor.companyId && String(b.company_id) === String(actor.companyId)) ||
+          (b.provider_id != null && compProvIds.has(String(b.provider_id)))
+      );
+    }
+    sendJson(res, 200, { ok: true, bookings: bookings.map(normalizeBookingRecord) });
+    return true;
+  }
+
+  // GET /api/bookings/:id — Lấy chi tiết đơn theo quyền từ Bearer Token
+  const getDetailMatch = pathname.match(/^\/api\/bookings\/([^/]+)$/);
+  if (method === "GET" && getDetailMatch) {
+    const rawBookingId = getDetailMatch[1];
+    const authUser = await requireAuthAsync(req, res, client, ["customer", "provider", "company", "admin"]);
+    if (!authUser) return true;
+
+    const useSupabase = Boolean(isProd || (client && isUuid(rawBookingId)));
+    if (useSupabase) {
+      if (!client) {
+        sendJson(res, 503, { ok: false, code: "SERVICE_UNAVAILABLE", error: "Không có kết nối Supabase." });
+        return true;
+      }
+      const { data: bk, error: bkErr } = await client
+        .from("bookings")
+        .select("*")
+        .eq("booking_id", rawBookingId)
+        .maybeSingle();
+      if (bkErr || !bk) {
+        sendJson(res, 404, { ok: false, code: "NOT_FOUND", error: "Không tìm thấy đơn hàng." });
+        return true;
+      }
+      const actor = await resolveActorContext(authUser, { useSupabase: true, db, client });
+      if (authUser.role === "customer") {
+        if (!actor || !actor.customerId || String(bk.customer_id) !== String(actor.customerId)) {
+          sendJson(res, 403, { ok: false, code: "FORBIDDEN", error: "Bạn không có quyền xem đơn hàng của người khác." });
+          return true;
+        }
+      } else if (authUser.role === "provider") {
+        const isOpenPool = bk.status === "pending" && (bk.provider_id === null || bk.provider_id === undefined);
+        if (!isOpenPool && (!actor || !actor.providerId || String(bk.provider_id) !== String(actor.providerId))) {
+          sendJson(res, 403, { ok: false, code: "FORBIDDEN", error: "Đơn hàng này không thuộc phân công của bạn." });
+          return true;
+        }
+      } else if (authUser.role === "company") {
+        if (!actor || !actor.companyId || String(bk.company_id) !== String(actor.companyId)) {
+          sendJson(res, 403, { ok: false, code: "FORBIDDEN", error: "Đơn hàng này không thuộc công ty của bạn." });
+          return true;
+        }
+      }
+      const { data: history } = await client
+        .from("booking_status_history")
+        .select("*")
+        .eq("booking_id", rawBookingId)
+        .order("created_at", { ascending: false });
+      sendJson(res, 200, { ok: true, booking: normalizeBookingRecord(bk), history: history || [] });
+      return true;
+    }
+
+    const bk = (db.bookings || []).find((b) => String(b.booking_id) === String(rawBookingId));
+    if (!bk) {
+      sendJson(res, 404, { ok: false, code: "NOT_FOUND", error: "Không tìm thấy đơn hàng." });
+      return true;
+    }
+    const actor = await resolveActorContext(authUser, { useSupabase: false, db, client });
+    if (authUser.role === "customer") {
+      if (!actor || !actor.customerId || String(bk.customer_id) !== String(actor.customerId)) {
+        sendJson(res, 403, { ok: false, code: "FORBIDDEN", error: "Bạn không có quyền xem đơn hàng của người khác." });
+        return true;
+      }
+    } else if (authUser.role === "provider") {
+      const isOpenPool = bk.status === "pending" && (bk.provider_id === null || bk.provider_id === undefined);
+      if (!isOpenPool && (!actor || !actor.providerId || String(bk.provider_id) !== String(actor.providerId))) {
+        sendJson(res, 403, { ok: false, code: "FORBIDDEN", error: "Đơn hàng này không thuộc phân công của bạn." });
+        return true;
+      }
+    } else if (authUser.role === "company") {
+      if (!actor || !actor.companyId || String(bk.company_id) !== String(actor.companyId)) {
+        sendJson(res, 403, { ok: false, code: "FORBIDDEN", error: "Đơn hàng này không thuộc công ty của bạn." });
+        return true;
+      }
+    }
+    const history = (db.booking_status_history || []).filter(
+      (h) => String(h.booking_id) === String(rawBookingId)
+    );
+    sendJson(res, 200, { ok: true, booking: normalizeBookingRecord(bk), history });
+    return true;
+  }
 
   // POST /api/bookings — Tạo đơn đặt lịch mới
   if (method === "POST" && pathname === "/api/bookings") {
+    const authResult = await authenticateWriteOrScopedRequest(req, res, {
+      isProd,
+      client,
+      allowedRoles: ["customer", "admin"]
+    });
+    if (authResult.halted) return true;
+    const authUser = authResult.user;
+
     const body = await parseBody(req);
     const address = String(body.address || "").trim();
     const wardId = String(body.ward_id || "27403").trim();
     const serviceId = normalizeId(body.service_id);
-    const customerId = normalizeId(body.customer_id);
     const rawProviderId = body.provider_id;
     const isBroadcast =
       rawProviderId === null ||
@@ -47,17 +219,9 @@ async function handleBookingRoutes(ctx) {
       String(rawProviderId).trim() === "";
     const providerId = isBroadcast ? null : normalizeId(rawProviderId);
 
-    if (!serviceId || !wardId || !address || !customerId) {
-      sendJson(res, 400, {
-        ok: false,
-        error: "Vui lòng điền đầy đủ dịch vụ, khách hàng, phường/xã và địa chỉ."
-      });
-      return true;
-    }
-
     const schedCheck = validateScheduledTime(body.scheduled_time);
     if (!schedCheck.ok) {
-      sendJson(res, 400, { ok: false, error: schedCheck.error });
+      sendJson(res, 400, { ok: false, code: "INVALID_INPUT", error: schedCheck.error });
       return true;
     }
     const scheduledIso = schedCheck.iso;
@@ -65,12 +229,40 @@ async function handleBookingRoutes(ctx) {
     if (body.total_amount !== undefined && body.total_amount !== null) {
       const amtCheck = validateNonNegativeAmount(body.total_amount, "Tổng tiền");
       if (!amtCheck.ok) {
-        sendJson(res, 400, { ok: false, error: amtCheck.error });
+        sendJson(res, 400, { ok: false, code: "INVALID_INPUT", error: amtCheck.error });
         return true;
       }
     }
 
-    const useSupabase = Boolean(client) && (isProd || isUuid(String(serviceId)) || isUuid(String(customerId)));
+    const coordCheck = validateCoordinates(body.latitude, body.longitude);
+    if (!coordCheck.ok) {
+      sendJson(res, 400, { ok: false, code: "INVALID_INPUT", error: coordCheck.error });
+      return true;
+    }
+
+    const useSupabase = Boolean(client) && (isProd || isUuid(String(serviceId)) || isUuid(String(body.customer_id || "")));
+    let customerId = normalizeId(body.customer_id);
+    if (authUser && authUser.role === "customer") {
+      const actor = await resolveActorContext(authUser, { useSupabase, db, client });
+      if (!actor || !actor.customerId) {
+        sendJson(res, 403, {
+          ok: false,
+          code: "PROFILE_NOT_FOUND",
+          error: "Tài khoản khách hàng chưa có hồ sơ đặt lịch."
+        });
+        return true;
+      }
+      customerId = actor.customerId;
+    }
+
+    if (!serviceId || !wardId || !address || !customerId) {
+      sendJson(res, 400, {
+        ok: false,
+        code: "INVALID_INPUT",
+        error: "Vui lòng điền đầy đủ dịch vụ, khách hàng, phường/xã và địa chỉ."
+      });
+      return true;
+    }
 
     if (useSupabase) {
       let resolvedCustomerId = isUuid(String(customerId)) ? String(customerId).trim() : null;
@@ -138,18 +330,24 @@ async function handleBookingRoutes(ctx) {
         }
       }
 
-      let finalProvId = targetProvId;
-      if (!finalProvId) {
-        const { data: anyProv } = await client.from("provider_profiles").select("provider_id").limit(1).maybeSingle();
-        finalProvId = anyProv ? anyProv.provider_id : "00000000-0000-4000-8000-000000000200";
+      const { data: svcRow } = await client
+        .from("services")
+        .select("service_id, price")
+        .eq("service_id", serviceId)
+        .maybeSingle();
+      if (!svcRow) {
+        sendJson(res, 404, { ok: false, code: "SERVICE_NOT_FOUND", error: "Không tìm thấy dịch vụ được chọn." });
+        return true;
       }
 
+      const finalProvId = targetProvId || null;
+
       let validWardId = wardId;
-      let wardTarget = "ward";
-      let { data: wardList, error: wErr } = await client.from("ward").select("ward_id").eq("ward_id", validWardId).limit(1);
+      let wardTarget = "wards";
+      let { data: wardList, error: wErr } = await client.from("wards").select("ward_id").eq("ward_id", validWardId).limit(1);
       if (wErr) {
-        wardTarget = "wards";
-        const wRes = await client.from("wards").select("ward_id").eq("ward_id", validWardId).limit(1);
+        wardTarget = "ward";
+        const wRes = await client.from("ward").select("ward_id").eq("ward_id", validWardId).limit(1);
         wardList = wRes.data;
       }
       if (!wardList || wardList.length === 0) {
@@ -167,9 +365,9 @@ async function handleBookingRoutes(ctx) {
         status: "pending",
         address,
         ward_id: validWardId,
-        latitude: Number(body.latitude) || 10.728912,
-        longitude: Number(body.longitude) || 106.712405,
-        total_amount: Number(body.total_amount) || 180000,
+        latitude: coordCheck.latitude,
+        longitude: coordCheck.longitude,
+        total_amount: Number(body.total_amount) || Number(svcRow.price) || 180000,
         total_incidental: 0,
         notes: (isBroadcast ? "[BROADCAST_POOL] " : "") + String(body.notes || "Khách đặt lịch qua hệ thống.").trim(),
         payment_status: "unpaid"
@@ -177,30 +375,40 @@ async function handleBookingRoutes(ctx) {
 
       const { data: createdBk, error: bkErr } = await client.from("bookings").insert([newBk]).select().single();
       if (bkErr) {
-        sendJson(res, 500, { ok: false, error: `Lỗi tạo đơn Supabase: ${bkErr.message}` });
+        sendJson(res, 500, { ok: false, code: "DB_ERROR", error: `Lỗi tạo đơn Supabase: ${bkErr.message}` });
         return true;
       }
-
-      if (isBroadcast && createdBk) {
-        createdBk.provider_id = null;
-        createdBk.dispatch_type = "broadcast";
-      }
-
-      await client.from("booking_status_history").insert([
-        {
-          booking_id: createdBk.booking_id,
-          previous_status: null,
-          new_status: "pending",
-          changed_by: isUuid(String(body.changed_by || "")) ? body.changed_by : null,
-          reason: "Khách hàng tạo đơn đặt lịch"
-        }
-      ]);
 
       const { data: cp } = await client
         .from("customer_profiles")
         .select("user_id")
         .eq("customer_id", resolvedCustomerId)
         .maybeSingle();
+
+      const historyActorId =
+        (authUser && isUuid(String(authUser.user_id)) && authUser.user_id) ||
+        (isUuid(String(body.changed_by || "")) && body.changed_by) ||
+        (cp && cp.user_id) ||
+        null;
+
+      let historyRow = null;
+      if (historyActorId) {
+        const { data: histData } = await client
+          .from("booking_status_history")
+          .insert([
+            {
+              booking_id: createdBk.booking_id,
+              previous_status: null,
+              new_status: "pending",
+              changed_by: historyActorId,
+              reason: "Khách hàng tạo đơn đặt lịch"
+            }
+          ])
+          .select()
+          .maybeSingle();
+        historyRow = histData || null;
+      }
+
       if (cp && cp.user_id) {
         await dispatchNotification(null, {
           user_id: cp.user_id,
@@ -214,16 +422,16 @@ async function handleBookingRoutes(ctx) {
       }
 
       await logAudit(null, {
-        actor_id: body.changed_by || resolvedCustomerId,
+        actor_id: historyActorId || resolvedCustomerId,
         action: "CREATE_BOOKING",
         target_entity: "bookings",
         target_id: createdBk.booking_id,
-        details: { service_id: serviceId, provider_id: targetProvId, total_amount: newBk.total_amount },
+        details: { service_id: serviceId, provider_id: finalProvId, total_amount: newBk.total_amount },
         isProd: true,
         client
       });
 
-      sendJson(res, 201, { ok: true, booking: createdBk });
+      sendJson(res, 201, { ok: true, booking: normalizeBookingRecord(createdBk), history: historyRow });
       return true;
     }
 
@@ -286,8 +494,8 @@ async function handleBookingRoutes(ctx) {
       status: "pending",
       address,
       ward_id: wardId,
-      latitude: Number(body.latitude) || 10.728912,
-      longitude: Number(body.longitude) || 106.712405,
+      latitude: coordCheck.latitude,
+      longitude: coordCheck.longitude,
       total_amount: Number(body.total_amount) || (svc ? svc.price : 180000),
       total_incidental: 0,
       notes: (isBroadcast ? "[BROADCAST_POOL] " : "") + String(body.notes || "Khách đặt lịch qua Booking Wizard.").trim(),
@@ -352,169 +560,201 @@ async function handleBookingRoutes(ctx) {
   // POST /api/bookings/:id/accept
   const acceptMatch = pathname.match(/^\/api\/bookings\/([^/]+)\/accept$/);
   if (method === "POST" && acceptMatch) {
+    const authResult = await authenticateWriteOrScopedRequest(req, res, {
+      isProd,
+      client,
+      allowedRoles: ["provider", "admin"]
+    });
+    if (authResult.halted) return true;
+    const authUser = authResult.user;
+
     const rawBookingId = acceptMatch[1];
     const body = await parseBody(req);
-    const providerId = body.provider_id;
-    const actorUserId = body.user_id || body.changed_by;
+    const useSupabase = Boolean(isProd || (client && isUuid(rawBookingId)));
 
-    if (isProd || (client && isUuid(rawBookingId))) {
-      if (!client) {
-        sendJson(res, 503, { ok: false, error: "Không có kết nối Supabase." });
+    let providerId = normalizeId(body.provider_id);
+    let actorUserId = (authUser && authUser.user_id) || body.user_id || body.changed_by || null;
+    if (authUser && authUser.role === "provider") {
+      const actor = await resolveActorContext(authUser, { useSupabase, db, client });
+      if (!actor || !actor.providerId) {
+        sendJson(res, 403, {
+          ok: false,
+          code: "PROFILE_NOT_FOUND",
+          error: "Tài khoản đối tác chưa có hồ sơ hành nghề."
+        });
         return true;
       }
-      const { data: curBk, error: fetchErr } = await client
-        .from("bookings")
-        .select("*")
-        .eq("booking_id", rawBookingId)
-        .single();
-      if (fetchErr || !curBk) {
-        sendJson(res, 404, { ok: false, error: "Không tìm thấy đơn hàng." });
+      providerId = actor.providerId;
+      actorUserId = authUser.user_id;
+    }
+
+    const lockKey = String(rawBookingId);
+    if (inFlightAcceptLocks.has(lockKey)) {
+      sendJson(res, 409, {
+        ok: false,
+        code: "BOOKING_ALREADY_TAKEN",
+        expired: true,
+        error: "Đơn hàng đang được xử lý nhận bởi đối tác khác."
+      });
+      return true;
+    }
+    inFlightAcceptLocks.add(lockKey);
+
+    try {
+      if (useSupabase) {
+        if (!client) {
+          sendJson(res, 503, { ok: false, code: "SERVICE_UNAVAILABLE", error: "Không có kết nối Supabase." });
+          return true;
+        }
+        const { data: curBk, error: fetchErr } = await client
+          .from("bookings")
+          .select("*")
+          .eq("booking_id", rawBookingId)
+          .single();
+        if (fetchErr || !curBk) {
+          sendJson(res, 404, { ok: false, code: "NOT_FOUND", error: "Không tìm thấy đơn hàng." });
+          return true;
+        }
+        if (curBk.status !== "pending") {
+          sendJson(res, 409, {
+            ok: false,
+            code: "BOOKING_ALREADY_TAKEN",
+            expired: true,
+            error: "Rất tiếc! Đơn này vừa được một đối tác khác nhận trước hoặc đã hết hạn."
+          });
+          return true;
+        }
+        let resolvedProvId = providerId;
+        if (!isUuid(String(resolvedProvId)) && !isProd) {
+          resolvedProvId = await resolveSupabaseProviderId(client, resolvedProvId);
+        }
+        if (!isUuid(String(resolvedProvId))) {
+          sendJson(res, 400, { ok: false, code: "INVALID_INPUT", error: "Thiếu mã đối tác thợ (provider_id) hợp lệ." });
+          return true;
+        }
+        if (curBk.provider_id && String(curBk.provider_id) !== String(resolvedProvId)) {
+          sendJson(res, 409, {
+            ok: false,
+            code: "BOOKING_ALREADY_TAKEN",
+            expired: true,
+            error: "Đơn hàng đã được chỉ định hoặc nhận bởi đối tác khác."
+          });
+          return true;
+        }
+
+        const { data: updatedBk, error: updErr } = await client
+          .from("bookings")
+          .update({
+            status: "confirmed",
+            provider_id: resolvedProvId,
+            updated_at: new Date().toISOString()
+          })
+          .eq("booking_id", rawBookingId)
+          .eq("status", "pending")
+          .or(`provider_id.is.null,provider_id.eq.${resolvedProvId}`)
+          .select()
+          .maybeSingle();
+        if (updErr || !updatedBk) {
+          sendJson(res, 409, {
+            ok: false,
+            code: "BOOKING_ALREADY_TAKEN",
+            expired: true,
+            error: "Đơn hàng đã có người nhận trước hoặc không còn khả dụng."
+          });
+          return true;
+        }
+
+        let historyRow = null;
+        if (isUuid(String(actorUserId || ""))) {
+          const { data: histData } = await client
+            .from("booking_status_history")
+            .insert([
+              {
+                booking_id: rawBookingId,
+                previous_status: "pending",
+                new_status: "confirmed",
+                changed_by: actorUserId,
+                reason: "Đối tác đã nhận việc từ Hòm thư việc làm"
+              }
+            ])
+            .select()
+            .maybeSingle();
+          historyRow = histData || null;
+        }
+        sendJson(res, 200, { ok: true, booking: normalizeBookingRecord(updatedBk), history: historyRow });
         return true;
       }
-      if (curBk.status !== "pending") {
+
+      const bk = db.bookings.find((b) => String(b.booking_id) === String(rawBookingId));
+      if (!bk) {
+        sendJson(res, 404, { ok: false, code: "NOT_FOUND", error: "Không tìm thấy đơn hàng." });
+        return true;
+      }
+      if (bk.status !== "pending") {
         sendJson(res, 409, {
           ok: false,
+          code: "BOOKING_ALREADY_TAKEN",
           expired: true,
           error: "Rất tiếc! Đơn này vừa được một đối tác khác nhận trước hoặc đã hết hạn."
         });
         return true;
       }
-      let resolvedProvId = providerId;
-      if (!isUuid(String(providerId)) && !isProd) {
-        resolvedProvId = await resolveSupabaseProviderId(client, providerId);
+      if (providerId == null || providerId === "") {
+        sendJson(res, 400, { ok: false, code: "INVALID_INPUT", error: "Thiếu mã đối tác thợ (provider_id)." });
+        return true;
       }
-      const { data: updatedBk, error: updErr } = await client
-        .from("bookings")
-        .update({
-          status: "confirmed",
-          provider_id: resolvedProvId,
-          updated_at: new Date().toISOString()
-        })
-        .eq("booking_id", rawBookingId)
-        .eq("status", "pending")
-        .select()
-        .single();
-      if (updErr || !updatedBk) {
+      if (bk.provider_id != null && String(bk.provider_id) !== String(providerId)) {
         sendJson(res, 409, {
           ok: false,
+          code: "BOOKING_ALREADY_TAKEN",
           expired: true,
-          error: "Đơn hàng đã có người nhận trước hoặc không còn khả dụng."
+          error: "Đơn hàng đã được chỉ định cho đối tác khác."
         });
         return true;
       }
-      await client.from("booking_status_history").insert([
-        {
-          booking_id: rawBookingId,
-          previous_status: "pending",
-          new_status: "confirmed",
-          changed_by: isUuid(String(actorUserId || "")) ? actorUserId : null,
-          reason: "Đối tác đã nhận việc từ Hòm thư việc làm"
-        }
-      ]);
-      sendJson(res, 200, { ok: true, booking: updatedBk });
-      return true;
-    }
 
-    const bookingId = Number(rawBookingId);
-    const bk = db.bookings.find((b) => b.booking_id === bookingId);
-    if (!bk) {
-      sendJson(res, 404, { ok: false, error: "Không tìm thấy đơn hàng." });
-      return true;
-    }
-    if (bk.status !== "pending") {
-      sendJson(res, 409, {
-        ok: false,
-        expired: true,
-        error: "Rất tiếc! Đơn này vừa được một đối tác khác nhận trước hoặc đã hết hạn."
-      });
-      return true;
-    }
+      const oldStatus = bk.status;
+      bk.status = "confirmed";
+      bk.provider_id = providerId;
+      bk.dispatch_type = "direct";
+      bk.updated_at = new Date().toISOString();
 
-    const oldStatus = bk.status;
-    bk.status = "confirmed";
-    bk.provider_id = Number(providerId);
-    bk.dispatch_type = "direct";
-    bk.updated_at = new Date().toISOString();
-
-    const nextHistoryId = Math.max(5000, ...db.booking_status_history.map((h) => h.history_id || 0)) + 1;
-    const pp = (db.provider_profiles || []).find((p) => p.provider_id === Number(providerId));
-    const resolvedActor = isUuid(String(actorUserId || ""))
-      ? actorUserId
-      : (pp && pp.user_id) || "b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b21";
-    const historyRow = {
-      history_id: nextHistoryId,
-      booking_id: bookingId,
-      previous_status: oldStatus,
-      new_status: "confirmed",
-      changed_by: resolvedActor,
-      reason: "Đối tác đã nhận việc từ Hòm thư việc làm",
-      created_at: new Date().toISOString()
-    };
-    db.booking_status_history.unshift(historyRow);
-    saveLocalDb(db);
-    sendJson(res, 200, { ok: true, booking: bk, history: historyRow });
-    return true;
+      const nextHistoryId = Math.max(5000, ...db.booking_status_history.map((h) => h.history_id || 0)) + 1;
+      const pp = (db.provider_profiles || []).find((p) => String(p.provider_id) === String(providerId));
+      const resolvedActor = isUuid(String(actorUserId || ""))
+        ? actorUserId
+        : (pp && pp.user_id) || "b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b21";
+      const historyRow = {
+        history_id: nextHistoryId,
+        booking_id: bk.booking_id,
+        previous_status: oldStatus,
+        new_status: "confirmed",
+        changed_by: resolvedActor,
+        reason: "Đối tác đã nhận việc từ Hòm thư việc làm",
+        created_at: new Date().toISOString()
+      };
+      db.booking_status_history.unshift(historyRow);
+      saveLocalDb(db);
+      sendJson(res, 200, { ok: true, booking: normalizeBookingRecord(bk), history: historyRow });
+      return true;
+    } finally {
+      inFlightAcceptLocks.delete(lockKey);
+    }
   }
 
   // POST /api/rpc/transition-status
   if (method === "POST" && pathname === "/api/rpc/transition-status") {
     const body = await parseBody(req);
     const bookingId = normalizeId(body.booking_id);
-    const newStatus = String(body.new_status || "");
-    const reason = String(body.reason || "Cập nhật trạng thái qua RPC").trim();
-    const actorUserId = body.changed_by || null;
-
-    if (isProd || (client && isUuid(String(bookingId)))) {
-      if (!client) {
-        sendJson(res, 503, { ok: false, error: "Không có kết nối Supabase." });
-        return true;
-      }
-      const { data: bk, error: bkErr } = await client
-        .from("bookings")
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq("booking_id", bookingId)
-        .select()
-        .single();
-      if (bkErr) {
-        sendJson(res, 500, { ok: false, error: bkErr.message });
-        return true;
-      }
-      await client.from("booking_status_history").insert([
-        {
-          booking_id: bookingId,
-          new_status: newStatus,
-          changed_by: isUuid(String(actorUserId || "")) ? actorUserId : null,
-          reason
-        }
-      ]);
-      sendJson(res, 200, { ok: true, booking: bk });
-      return true;
-    }
-
-    const bk = db.bookings.find((b) => String(b.booking_id) === String(bookingId));
-    if (!bk) {
-      sendJson(res, 404, { ok: false, error: "Không tìm thấy đơn hàng." });
-      return true;
-    }
-
-    const oldStatus = bk.status;
-    bk.status = newStatus;
-    bk.updated_at = new Date().toISOString();
-
-    const nextHistoryId = Math.max(5000, ...db.booking_status_history.map((h) => h.history_id || 0)) + 1;
-    const historyRow = {
-      history_id: nextHistoryId,
-      booking_id: bookingId,
-      previous_status: oldStatus,
-      new_status: newStatus,
-      changed_by: actorUserId || "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
-      reason,
-      created_at: new Date().toISOString()
-    };
-    db.booking_status_history.unshift(historyRow);
-    saveLocalDb(db);
-    sendJson(res, 200, { ok: true, booking: bk, history: historyRow });
-    return true;
+    const newStatus = String(body.new_status || "").trim();
+    return await transitionBookingLifecycle(ctx, {
+      bookingId,
+      newStatus,
+      defaultReason: "Cập nhật trạng thái qua RPC",
+      bodyReason: body.reason,
+      allowedRoles: ["customer", "provider", "admin"],
+      fallbackActorId: body.changed_by || null
+    });
   }
 
   // POST /api/rpc/update-incidental — Yêu cầu xác thực Provider/Admin và chỉ chấp nhận số >= 0
@@ -648,6 +888,31 @@ async function handleBookingRoutes(ctx) {
           .select()
           .single();
         if (!remErr && remoteBk) {
+          try {
+            let actorId = isUuid(String(body.changed_by || "")) ? body.changed_by : null;
+            if (!actorId && remoteBk.customer_id) {
+              const { data: cp } = await client
+                .from("customer_profiles")
+                .select("user_id")
+                .eq("customer_id", remoteBk.customer_id)
+                .maybeSingle();
+              actorId = cp ? cp.user_id : null;
+            }
+            if (actorId) {
+              await client.from("booking_status_history").insert([
+                {
+                  booking_id: bookingId,
+                  previous_status: remoteBk.status,
+                  new_status: remoteBk.status,
+                  changed_by: actorId,
+                  reason: `[THANH TOÁN THÀNH CÔNG] Đã thanh toán qua ${
+                    methodType === "VIETQR_BANK_TRANSFER" ? "VietQR Ngân hàng (Vietcombank)" : "Tiền mặt"
+                  } (Mã GD: ${txId})`,
+                  created_at: nowIso
+                }
+              ]);
+            }
+          } catch (_) {}
           sendJson(res, 200, {
             ok: true,
             booking: remoteBk,
@@ -764,54 +1029,14 @@ async function handleBookingRoutes(ctx) {
   if (method === "POST" && bkCancelMatch) {
     const bookingId = normalizeId(bkCancelMatch[1]);
     const body = await parseBody(req);
-    const reason = String(body.reason || "Khách hàng yêu cầu hủy đơn").trim();
-    const actorId = body.user_id || body.changed_by || null;
-
-    if (isProd || (client && isUuid(String(bookingId)))) {
-      const { data: bk, error } = await client
-        .from("bookings")
-        .update({ status: "cancelled", updated_at: new Date().toISOString() })
-        .eq("booking_id", bookingId)
-        .select()
-        .single();
-      if (error) {
-        sendJson(res, 500, { ok: false, error: error.message });
-        return true;
-      }
-      await client.from("booking_status_history").insert([
-        {
-          booking_id: bookingId,
-          previous_status: bk ? bk.status : null,
-          new_status: "cancelled",
-          changed_by: isUuid(String(actorId || "")) ? actorId : null,
-          reason
-        }
-      ]);
-      sendJson(res, 200, { ok: true, booking: bk });
-      return true;
-    }
-
-    const bk = (db.bookings || []).find((b) => String(b.booking_id) === String(bookingId));
-    if (!bk) {
-      sendJson(res, 404, { ok: false, error: "Không tìm thấy đơn hàng." });
-      return true;
-    }
-    const oldStatus = bk.status;
-    bk.status = "cancelled";
-    bk.updated_at = new Date().toISOString();
-    const nextHistoryId = Math.max(5000, ...db.booking_status_history.map((h) => h.history_id || 0)) + 1;
-    db.booking_status_history.unshift({
-      history_id: nextHistoryId,
-      booking_id: bookingId,
-      previous_status: oldStatus,
-      new_status: "cancelled",
-      changed_by: actorId || "customer",
-      reason,
-      created_at: new Date().toISOString()
+    return await transitionBookingLifecycle(ctx, {
+      bookingId,
+      newStatus: "cancelled",
+      defaultReason: "Khách hàng yêu cầu hủy đơn",
+      bodyReason: body.reason,
+      allowedRoles: ["customer", "provider", "admin"],
+      fallbackActorId: body.user_id || body.changed_by || null
     });
-    saveLocalDb(db);
-    sendJson(res, 200, { ok: true, booking: bk });
-    return true;
   }
 
   // POST /api/bookings/:id/start
@@ -819,53 +1044,14 @@ async function handleBookingRoutes(ctx) {
   if (method === "POST" && bkStartMatch) {
     const bookingId = normalizeId(bkStartMatch[1]);
     const body = await parseBody(req);
-    const actorId = body.user_id || body.changed_by || null;
-
-    if (isProd || (client && isUuid(String(bookingId)))) {
-      const { data: bk, error } = await client
-        .from("bookings")
-        .update({ status: "in_progress", updated_at: new Date().toISOString() })
-        .eq("booking_id", bookingId)
-        .select()
-        .single();
-      if (error) {
-        sendJson(res, 500, { ok: false, error: error.message });
-        return true;
-      }
-      await client.from("booking_status_history").insert([
-        {
-          booking_id: bookingId,
-          previous_status: "confirmed",
-          new_status: "in_progress",
-          changed_by: isUuid(String(actorId || "")) ? actorId : null,
-          reason: "Thợ đã có mặt và bắt đầu công việc"
-        }
-      ]);
-      sendJson(res, 200, { ok: true, booking: bk });
-      return true;
-    }
-
-    const bk = (db.bookings || []).find((b) => String(b.booking_id) === String(bookingId));
-    if (!bk) {
-      sendJson(res, 404, { ok: false, error: "Không tìm thấy đơn hàng." });
-      return true;
-    }
-    const oldStatus = bk.status;
-    bk.status = "in_progress";
-    bk.updated_at = new Date().toISOString();
-    const nextHistoryId = Math.max(5000, ...db.booking_status_history.map((h) => h.history_id || 0)) + 1;
-    db.booking_status_history.unshift({
-      history_id: nextHistoryId,
-      booking_id: bookingId,
-      previous_status: oldStatus,
-      new_status: "in_progress",
-      changed_by: actorId || "provider",
-      reason: "Thợ đã có mặt và bắt đầu công việc",
-      created_at: new Date().toISOString()
+    return await transitionBookingLifecycle(ctx, {
+      bookingId,
+      newStatus: "in_progress",
+      defaultReason: "Thợ đã có mặt và bắt đầu công việc",
+      bodyReason: body.reason,
+      allowedRoles: ["provider", "admin"],
+      fallbackActorId: body.user_id || body.changed_by || null
     });
-    saveLocalDb(db);
-    sendJson(res, 200, { ok: true, booking: bk });
-    return true;
   }
 
   // POST /api/bookings/:id/complete
@@ -873,70 +1059,19 @@ async function handleBookingRoutes(ctx) {
   if (method === "POST" && bkCompleteMatch) {
     const bookingId = normalizeId(bkCompleteMatch[1]);
     const body = await parseBody(req);
-    const actorId = body.user_id || body.changed_by || null;
-
-    if (isProd || (client && isUuid(String(bookingId)))) {
-      const { data: bk, error } = await client
-        .from("bookings")
-        .update({ status: "completed", updated_at: new Date().toISOString() })
-        .eq("booking_id", bookingId)
-        .select()
-        .single();
-      if (error) {
-        sendJson(res, 500, { ok: false, error: error.message });
-        return true;
-      }
-      await client.from("booking_status_history").insert([
-        {
-          booking_id: bookingId,
-          previous_status: "in_progress",
-          new_status: "completed",
-          changed_by: isUuid(String(actorId || "")) ? actorId : null,
-          reason: "Thợ hoàn thành công việc"
-        }
-      ]);
-      sendJson(res, 200, { ok: true, booking: bk });
-      return true;
-    }
-
-    const bk = (db.bookings || []).find((b) => String(b.booking_id) === String(bookingId));
-    if (!bk) {
-      sendJson(res, 404, { ok: false, error: "Không tìm thấy đơn hàng." });
-      return true;
-    }
-    const oldStatus = bk.status;
-    bk.status = "completed";
-    bk.updated_at = new Date().toISOString();
-    const nextHistoryId = Math.max(5000, ...db.booking_status_history.map((h) => h.history_id || 0)) + 1;
-    db.booking_status_history.unshift({
-      history_id: nextHistoryId,
-      booking_id: bookingId,
-      previous_status: oldStatus,
-      new_status: "completed",
-      changed_by: actorId || "provider",
-      reason: "Thợ hoàn thành công việc",
-      created_at: new Date().toISOString()
+    return await transitionBookingLifecycle(ctx, {
+      bookingId,
+      newStatus: "completed",
+      defaultReason: "Thợ hoàn thành công việc",
+      bodyReason: body.reason,
+      allowedRoles: ["provider", "admin"],
+      fallbackActorId: body.user_id || body.changed_by || null
     });
-
-    const cp = (db.customer_profiles || []).find((c) => String(c.customer_id) === String(bk.customer_id));
-    if (cp && cp.user_id) {
-      dispatchNotification(db, {
-        user_id: cp.user_id,
-        title: "Đơn hàng đã hoàn thành!",
-        body: `Đơn #${bookingId} đã được hoàn tất. Hãy dành 30 giây để đánh giá chất lượng thợ nhé!`,
-        type: "booking_completed",
-        link: `/bookings/${bookingId}/tracking`,
-        isProd: false
-      });
-    }
-    saveLocalDb(db);
-    sendJson(res, 200, { ok: true, booking: bk });
-    return true;
   }
 
-  // POST /api/bookings/:id/incidental
+  // POST/PATCH /api/bookings/:id/incidental
   const bkIncMatch = pathname.match(/^\/api\/bookings\/([^/]+)\/incidental$/);
-  if (method === "POST" && bkIncMatch) {
+  if ((method === "POST" || method === "PATCH") && bkIncMatch) {
     const authUser = requireAuth(req, res, ["provider", "admin"]);
     if (!authUser) return true;
 
@@ -944,16 +1079,23 @@ async function handleBookingRoutes(ctx) {
     const body = await parseBody(req);
     const incCheck = validateNonNegativeAmount(body.total_incidental ?? body.incidental ?? 0, "Chi phí phát sinh");
     if (!incCheck.ok) {
-      sendJson(res, 400, { ok: false, error: incCheck.error });
+      sendJson(res, 400, { ok: false, code: "INVALID_INPUT", error: incCheck.error });
       return true;
     }
     const incidental = incCheck.value;
-    const notes = String(body.notes || "").trim();
+    const notes = String(body.notes || body.incidental_Specify || "").trim();
 
     const bk = (db.bookings || []).find((b) => String(b.booking_id) === String(bookingId));
     if (!bk) {
-      sendJson(res, 404, { ok: false, error: "Không tìm thấy đơn hàng." });
+      sendJson(res, 404, { ok: false, code: "NOT_FOUND", error: "Không tìm thấy đơn hàng." });
       return true;
+    }
+    if (authUser.role === "provider") {
+      const actor = await resolveActorContext(authUser, { useSupabase: false, db, client });
+      if (!actor || !actor.providerId || String(bk.provider_id) !== String(actor.providerId)) {
+        sendJson(res, 403, { ok: false, code: "FORBIDDEN", error: "Đơn hàng này không thuộc phân công của bạn." });
+        return true;
+      }
     }
     const basePrice = Math.max(0, bk.total_amount - (bk.total_incidental || 0));
     bk.total_incidental = incidental;
@@ -963,7 +1105,7 @@ async function handleBookingRoutes(ctx) {
     }
     bk.updated_at = new Date().toISOString();
     saveLocalDb(db);
-    sendJson(res, 200, { ok: true, booking: bk });
+    sendJson(res, 200, { ok: true, booking: normalizeBookingRecord(bk) });
     return true;
   }
 
