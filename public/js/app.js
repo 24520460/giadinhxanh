@@ -65,7 +65,7 @@ window.GDXApp = (() => {
       serviceId: 'all'
     },
     adminDispatchFilter: 'all',
-    selectedServiceId: 301,
+    selectedServiceId: null,
     selectedProviderId: 201,
     wizardProviderMode: 'broadcast', // 'broadcast' (rải đơn cho tất cả thợ khả dụng) | 'direct' (tự chọn thợ)
     wizardCategory: '1', // '1' (Home Cleaning) | '2' (Home Cooking)
@@ -80,7 +80,7 @@ window.GDXApp = (() => {
     reviewDraftRating: 5,
     onboardingAvatar: '/assets/provider-mai.jpg',
     wizardDraft: {
-      service_id: 301,
+      service_id: null,
       scheduled_time: '2026-10-25T08:30',
       provinceId: null,
       ward_id: null,
@@ -105,6 +105,7 @@ window.GDXApp = (() => {
       message: 'Đang kết nối tới Backend API...',
       tableCounts: {}
     },
+    customerServiceLoadStatus: 'loading',
     customerServiceLoadError: null
   };
 
@@ -337,6 +338,7 @@ window.GDXApp = (() => {
   }
 
   async function syncWithBackend() {
+    state.customerServiceLoadStatus = 'loading';
     const [statusRes, bootRes] = await Promise.all([
       apiRequest('/api/status'),
       apiRequest('/api/bootstrap')
@@ -372,6 +374,7 @@ window.GDXApp = (() => {
     state.customerServiceLoadError = hasServiceData
       ? null
       : (bootRes && bootRes.error) || 'Không thể tải danh sách dịch vụ từ máy chủ.';
+    state.customerServiceLoadStatus = hasServiceData ? 'loaded' : 'error';
 
     if (hasServiceData) {
       const db = window.GDX_DB;
@@ -481,16 +484,19 @@ window.GDXApp = (() => {
       } catch (_) {}
 
       syncActiveIdentityWithDb();
-      go(state.currentScreen, state.currentRouteParams || {}, { skipHistory: true });
       fetchNotifications();
-    } else if (window.GDX_DB) {
+    } else {
       window.GDX_DB.services = [];
     }
+    go(state.currentScreen, state.currentRouteParams || {}, { skipHistory: true });
   }
 
   async function refreshCustomerServices() {
-    await syncWithBackend();
+    state.customerServiceLoadStatus = 'loading';
+    state.customerServiceLoadError = null;
+    window.GDX_DB.services = [];
     go(state.currentScreen, state.currentRouteParams || {});
+    await syncWithBackend();
     if (state.customerServiceLoadError) {
       showToast(state.customerServiceLoadError);
     }
@@ -3336,13 +3342,12 @@ window.GDXApp = (() => {
   // 1.1: Trang chủ & Khám phá dịch vụ (Warm Minimalism — Reference Layout)
   function renderScreen_1_1(container) {
     const db = window.GDX_DB;
-    const activeServices = (db.services || []).filter((s) => {
+    const activeServices = state.customerServiceLoadStatus === 'loaded' ? (db.services || []).filter((s) => {
       if (!s.is_active) return false;
       const t = (s.title || '').toLowerCase();
       if (t.includes('repair') || t.includes('sửa') || t.includes('appliance')) return false;
       return true;
-    });
-    const categories = db.service_categories;
+    }) : [];
     const publicProviders = db.provider_public_profiles;
     const wards = db.ward;
     const favCount = db.favorites.filter((f) => f.customer_id === state.activeCustomerId).length;
@@ -3382,12 +3387,6 @@ window.GDXApp = (() => {
           ).toFixed(2)
         : '4.92';
 
-    const serviceDescriptions = {
-      301: 'Lau dọn phòng khách, phòng ngủ, lau chùi bàn ghế, hút bụi sàn nhà, vệ sinh nhà tắm và thu gom rác sinh hoạt.',
-      302: 'Làm sạch sâu toàn diện từ trần đến sàn, khử khuẩn bề mặt, lau kính mặt trong và xử lý vết ố nhà bếp, phòng tắm.',
-      303: 'Sơ chế thực phẩm tươi sạch, nấu 3–4 món ăn nóng hổi theo khẩu vị gia đình (canh, món mặn, món xào) và dọn rửa sạch bếp.',
-      304: 'Lên thực đơn dinh dưỡng theo yêu cầu, nấu các món ăn chu đáo cho gia đình hoặc tiệc ấm cúng, trình bày đẹp mắt và vệ sinh bếp.'
-    };
     const omniTimes = [
       { label: 'Sáng mai (08:00 – 12:00)', value: getLocalDateTimeOffset(1, 8, 0) },
       { label: 'Chiều mai (13:30 – 17:30)', value: getLocalDateTimeOffset(1, 13, 30) },
@@ -3450,8 +3449,10 @@ window.GDXApp = (() => {
                     </svg>
                     Dịch vụ cần đặt
                   </label>
-                  <select id="omniServiceSelect" name="service_id" class="omni-input">
-                    ${activeServices
+                  <select id="omniServiceSelect" name="service_id" class="omni-input" ${activeServices.length === 0 ? 'disabled' : ''}>
+                    ${activeServices.length === 0
+                      ? `<option value="">${state.customerServiceLoadStatus === 'loading' ? 'Đang tải dịch vụ...' : state.customerServiceLoadStatus === 'error' ? 'Không tải được dịch vụ' : 'Chưa có dịch vụ khả dụng'}</option>`
+                      : activeServices
                       .map(
                         (s) =>
                           `<option value="${s.service_id}">${s.title} (${formatMoney(s.price)}${s.pricing_type === 'hourly' ? '/giờ' : '/lần'})</option>`
@@ -3487,7 +3488,7 @@ window.GDXApp = (() => {
                 </div>
 
                 <div class="omni-action">
-                  <button type="submit" class="primary-btn search-submit-btn">
+                  <button type="submit" class="primary-btn search-submit-btn" ${activeServices.length === 0 ? 'disabled' : ''}>
                     Tìm &amp; Đặt lịch
                   </button>
                 </div>
@@ -3518,7 +3519,7 @@ window.GDXApp = (() => {
                 <h2 class="wizard-prompt-title">Tự cấu hình thời lượng &amp; chọn thợ</h2>
                 <p class="wizard-prompt-desc">Tùy chỉnh số giờ phục vụ, kiểm tra lịch rảnh thực tế của từng đối tác thợ trong khu vực và nhận báo giá tự động.</p>
               </div>
-              <button type="button" class="wizard-cta-btn" onclick="GDXApp.go('1.2', {serviceId: ${activeServices[0] ? inlineIdentifier(activeServices[0].service_id) : 301}})">
+              <button type="button" class="wizard-cta-btn" ${activeServices.length === 0 ? 'disabled' : ''} onclick="GDXApp.go('1.2', {serviceId: ${activeServices[0] ? inlineIdentifier(activeServices[0].service_id) : 'null'}})">
                 Tự cấu hình &amp; Báo giá ngay
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                   <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -3600,17 +3601,19 @@ window.GDXApp = (() => {
 
           <div class="services-grid">
             ${
-              state.customerServiceLoadError
-                ? `<div class="panel" style="grid-column:1 / -1; text-align:center; padding:36px;" role="alert">
-                    <div style="font-family:var(--font-heading); font-weight:700; font-size:1.125rem; margin-bottom:6px;">Không thể tải dịch vụ</div>
-                    <p class="field-hint" style="margin-bottom:16px;">Không thể kết nối để tải danh sách dịch vụ. Vui lòng thử lại.</p>
+              state.customerServiceLoadStatus === 'loading'
+                ? `<div class="customer-api-state" style="grid-column:1 / -1;" role="status">Đang tải danh sách dịch vụ...</div>`
+                : state.customerServiceLoadStatus === 'error'
+                ? `<div class="customer-api-state is-error" style="grid-column:1 / -1;" role="alert">
+                    <div class="customer-api-state-title">Không thể tải dịch vụ</div>
+                    <p>Không thể kết nối để tải danh sách dịch vụ. Vui lòng thử lại.</p>
                     <button type="button" class="ghost-btn btn-sm" onclick="GDXApp.refreshCustomerServices()">Thử tải lại</button>
                   </div>`
                 : filteredServices.length === 0
                 ? `<div class="panel" style="grid-column:1 / -1; text-align:center; padding:36px;">
-                    <div style="font-family:var(--font-heading); font-weight:700; font-size:1.125rem; margin-bottom:6px;">Không tìm thấy gói dịch vụ phù hợp</div>
-                    <p class="field-hint" style="margin-bottom:16px;">Hãy thử xóa từ khóa tìm kiếm hoặc chọn lại danh mục "Tất cả".</p>
-                    <button type="button" class="ghost-btn btn-sm" onclick="GDXApp.resetCatalogFilters()">Xem tất cả dịch vụ</button>
+                    <div style="font-family:var(--font-heading); font-weight:700; font-size:1.125rem; margin-bottom:6px;">${activeServices.length ? 'Không tìm thấy gói dịch vụ phù hợp' : 'Hiện chưa có dịch vụ khả dụng'}</div>
+                    <p class="field-hint" style="margin-bottom:16px;">${activeServices.length ? 'Hãy thử xóa từ khóa tìm kiếm hoặc chọn lại danh mục "Tất cả".' : 'Danh mục sẽ được cập nhật khi có dịch vụ mới.'}</p>
+                    ${activeServices.length ? '<button type="button" class="ghost-btn btn-sm" onclick="GDXApp.resetCatalogFilters()">Xem tất cả dịch vụ</button>' : ''}
                   </div>`
                 : filteredServices
                     .map((s) => {
@@ -3621,10 +3624,7 @@ window.GDXApp = (() => {
                         const p = publicProviders.find((pub) => String(pub.provider_id) === String(ps.provider_id));
                         return String(ps.service_id) === String(s.service_id) && Boolean(p);
                       }).length;
-                      const desc =
-                        s.description ||
-                        serviceDescriptions[s.service_id] ||
-                        'Gói dịch vụ chăm sóc gia đình tiêu chuẩn với đội ngũ thợ đã xác minh hồ sơ tại TP.HCM.';
+                      const desc = s.description || 'Dịch vụ chăm sóc gia đình với đội ngũ đối tác đã xác minh.';
 
                       return `
                       <article class="service-card">
@@ -3664,7 +3664,7 @@ window.GDXApp = (() => {
               <h3 class="callout-title">Cần tùy chỉnh thời lượng hoặc chọn thợ quen?</h3>
               <p class="callout-desc">Sử dụng trình cấu hình để chọn khung giờ hẹn, kiểm tra khoảng cách của thợ và nhận báo giá chi tiết.</p>
             </div>
-            <button type="button" class="wizard-cta-btn" onclick="GDXApp.go('1.2', {serviceId: ${activeServices[0] ? inlineIdentifier(activeServices[0].service_id) : 301}})">
+            <button type="button" class="wizard-cta-btn" ${activeServices.length === 0 ? 'disabled' : ''} onclick="GDXApp.go('1.2', {serviceId: ${activeServices[0] ? inlineIdentifier(activeServices[0].service_id) : 'null'}})">
               Mở trình cấu hình chi tiết &rarr;
             </button>
           </div>
@@ -3781,6 +3781,7 @@ window.GDXApp = (() => {
                     const skillNames = (db.services || [])
                       .filter((s) => skillIds.includes(s.service_id))
                       .map((s) => s.title);
+                    const bookingService = activeServices.find((s) => skillIds.some((id) => String(id) === String(s.service_id)));
                     const areaWards = (db.provider_areas || [])
                       .filter((pa) => pa.provider_id === p.provider_id)
                       .map((pa) => {
@@ -3820,9 +3821,7 @@ window.GDXApp = (() => {
                           <button type="button" class="ghost-btn btn-sm" onclick="GDXApp.openModal('1.7', {providerId: ${p.provider_id}})">
                             Xem lịch rảnh
                           </button>
-                          <button type="button" class="primary-btn btn-sm" onclick="GDXApp.go('1.2', {serviceId: ${skillIds[0] || 101}, providerId: ${p.provider_id}})">
-                            Đặt lịch
-                          </button>
+                          ${bookingService ? `<button type="button" class="primary-btn btn-sm" onclick="GDXApp.go('1.2', {serviceId: ${inlineIdentifier(bookingService.service_id)}, providerId: ${inlineIdentifier(p.provider_id)}})">Đặt lịch</button>` : ''}
                         </div>
                       </div>
                     </article>`;
@@ -3899,7 +3898,7 @@ window.GDXApp = (() => {
                 <span>Khách hàng tại Khu đô thị Phú Mỹ Hưng, Quận 7, TP.HCM</span>
               </div>
               <div style="display:flex; gap:12px; flex-wrap:wrap;">
-                <button type="button" class="primary-btn" onclick="GDXApp.go('1.2', {serviceId: 301})">
+                <button type="button" class="primary-btn" ${activeServices.length === 0 ? 'disabled' : ''} onclick="GDXApp.go('1.2', {serviceId: ${activeServices[0] ? inlineIdentifier(activeServices[0].service_id) : 'null'}})">
                   Đặt lịch chăm sóc tổ ấm ngay &rarr;
                 </button>
                 <button type="button" class="ghost-btn" onclick="GDXApp.go('1.4')">
@@ -3955,10 +3954,9 @@ window.GDXApp = (() => {
             <div class="footer-links-col">
               <h3 class="footer-heading">Dịch vụ Gia đình</h3>
               <ul class="footer-nav">
-                <li><button type="button" onclick="GDXApp.go('1.2', {serviceId: 301})">Dọn dẹp nhà cửa theo giờ</button></li>
-                <li><button type="button" onclick="GDXApp.go('1.2', {serviceId: 102})">Tổng vệ sinh căn hộ</button></li>
-                <li><button type="button" onclick="GDXApp.go('1.2', {serviceId: 103})">Vệ sinh &amp; Bơm gas máy lạnh</button></li>
-                <li><button type="button" onclick="GDXApp.go('1.2', {serviceId: 105})">Nấu bữa cơm gia đình</button></li>
+                ${activeServices.length
+                  ? activeServices.map((s) => `<li><button type="button" onclick="GDXApp.go('1.2', {serviceId: ${inlineIdentifier(s.service_id)}})">${s.title}</button></li>`).join('')
+                  : `<li><span class="field-hint">${state.customerServiceLoadStatus === 'loading' ? 'Đang tải dịch vụ...' : 'Chưa có dịch vụ khả dụng'}</span></li>`}
               </ul>
             </div>
 
@@ -4131,25 +4129,35 @@ window.GDXApp = (() => {
       return true;
     });
 
-    if (state.customerServiceLoadError || activeServices.length === 0) {
-      const message = state.customerServiceLoadError
-        ? 'Không thể kết nối để tải danh sách dịch vụ. Vui lòng thử lại.'
-        : 'Hiện chưa có dịch vụ nào khả dụng.';
+    if (state.customerServiceLoadStatus !== 'loaded' || activeServices.length === 0) {
+      const isLoading = state.customerServiceLoadStatus === 'loading';
+      const isError = state.customerServiceLoadStatus === 'error';
+      const message = isLoading
+        ? 'Đang tải danh sách dịch vụ...'
+        : isError
+          ? 'Không thể kết nối để tải danh sách dịch vụ. Vui lòng thử lại.'
+          : 'Hiện chưa có dịch vụ nào khả dụng.';
       container.innerHTML = `
         <div class="v3-wiz-page">
-          <div class="panel" style="max-width:680px; margin:40px auto; text-align:center; padding:32px;" role="alert">
-            <h1 class="screen-title">Chưa thể đặt lịch</h1>
+          <div class="panel" style="max-width:680px; margin:40px auto; text-align:center; padding:32px;" role="${isLoading ? 'status' : 'alert'}">
+            <h1 class="screen-title">${isLoading ? 'Đang tải dịch vụ' : 'Chưa thể đặt lịch'}</h1>
             <p class="field-hint" style="margin:12px 0 20px;">${message}</p>
             <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
               <button type="button" class="ghost-btn btn-sm" onclick="GDXApp.go('1.1')">Quay lại danh sách dịch vụ</button>
-              ${state.customerServiceLoadError ? '<button type="button" class="primary-btn btn-sm" onclick="GDXApp.refreshCustomerServices()">Thử tải lại</button>' : ''}
+              ${isError ? '<button type="button" class="primary-btn btn-sm" onclick="GDXApp.refreshCustomerServices()">Thử tải lại</button>' : ''}
             </div>
           </div>
         </div>`;
       return;
     }
 
-    const svc = activeServices.find((s) => String(s.service_id) === String(state.selectedServiceId)) || activeServices[0];
+    const selectedService = activeServices.find((s) => String(s.service_id) === String(state.selectedServiceId));
+    const svc = selectedService || activeServices[0];
+    if (params.serviceId || !selectedService) {
+      state.wizardCategory = isCookingService(svc) ? '2' : '1';
+    }
+    state.selectedServiceId = svc.service_id;
+    state.wizardDraft.service_id = svc.service_id;
 
     if (!state.wizardCategory) {
       state.wizardCategory = isCookingService(svc) ? '2' : '1';
@@ -4257,7 +4265,8 @@ window.GDXApp = (() => {
               </div>
 
               <div class="v3-wiz-svc-grid">
-                ${(categoryServices.length > 0 ? categoryServices : activeServices.slice(0, 3))
+                ${categoryServices.length > 0
+                  ? categoryServices
                   .map((s) => {
                     const isSel = String(s.service_id) === String(svc.service_id);
                     const unit = s.pricing_type === 'hourly' ? '/h' : '';
@@ -4268,7 +4277,8 @@ window.GDXApp = (() => {
                       <div class="v3-wiz-svc-price num">${formatMoney(s.price).replace(' đ', 'đ')}${unit}</div>
                     </button>`;
                   })
-                  .join('')}
+                  .join('')
+                  : '<div class="panel-subtle" style="grid-column:1 / -1; text-align:center; padding:20px;">Chưa có gói dịch vụ trong danh mục này.</div>'}
               </div>
 
               ${
@@ -4461,6 +4471,7 @@ window.GDXApp = (() => {
             <button type="button" class="v3-wiz-submit-btn" onclick="GDXApp.submitNewBooking()">
               Hoàn tất &amp; Đặt lịch hẹn &rarr;
             </button>
+            <p id="bookingSubmitStatus" class="booking-submit-status" role="status" aria-live="polite"></p>
           </aside>
         </div>
       </div>
@@ -4519,6 +4530,13 @@ window.GDXApp = (() => {
     state.wizardProviderMode = 'direct';
     state.selectedProviderId = providerId;
     go('1.2');
+  }
+
+  function updateBookingSubmitStatus(message, status) {
+    const statusEl = document.getElementById('bookingSubmitStatus');
+    if (!statusEl) return;
+    statusEl.textContent = message;
+    statusEl.dataset.status = status;
   }
 
   async function submitNewBooking() {
@@ -4616,8 +4634,10 @@ window.GDXApp = (() => {
 
     const submitBtn = document.querySelector('.v3-wiz-submit-btn');
     const originalButtonText = submitBtn ? submitBtn.innerHTML : '';
+    updateBookingSubmitStatus('Đang gửi yêu cầu đặt lịch...', 'loading');
     if (submitBtn) {
       submitBtn.disabled = true;
+      submitBtn.setAttribute('aria-busy', 'true');
       submitBtn.textContent = 'Đang gửi yêu cầu...';
     }
 
@@ -4628,15 +4648,20 @@ window.GDXApp = (() => {
         body: JSON.stringify(newBooking)
       });
       if (!res || res.ok !== true || !res.booking || res.booking.booking_id == null) {
-        showToast((res && res.error) || 'Máy chủ chưa xác nhận tạo đơn. Vui lòng thử lại.');
+        const message = (res && res.error) || 'Máy chủ chưa xác nhận tạo đơn. Vui lòng thử lại.';
+        updateBookingSubmitStatus(message, 'error');
+        showToast(message);
         return;
       }
     } catch (err) {
-      showToast(err.message || 'Không thể kết nối máy chủ để tạo đơn.');
+      const message = err.message || 'Không thể kết nối máy chủ để tạo đơn.';
+      updateBookingSubmitStatus(message, 'error');
+      showToast(message);
       return;
     } finally {
       if (submitBtn) {
         submitBtn.disabled = false;
+        submitBtn.removeAttribute('aria-busy');
         submitBtn.innerHTML = originalButtonText;
       }
     }
