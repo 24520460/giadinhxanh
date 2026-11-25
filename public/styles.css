@@ -4261,4 +4261,51 @@ table.schedule-table thead th {
   color: var(--color-primary);
 }
 
+.customer-api-state {
+  padding: 28px;
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.customer-api-state.is-error {
+  color: var(--pill-negative-ink);
+}
+
+.customer-api-state-title {
+  margin-bottom: 6px;
+  color: var(--color-secondary);
+  font-family: var(--font-heading);
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.customer-api-state p {
+  margin-bottom: 16px;
+}
+
+.booking-submit-status:empty {
+  display: none;
+}
+
+.booking-submit-status {
+  margin-top: 12px;
+  color: var(--color-muted);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.booking-submit-status[data-status="error"] {
+  color: var(--pill-negative-ink);
+}
+
+.v3-wiz-submit-btn:disabled,
+.wizard-cta-btn:disabled,
+.search-submit-btn:disabled,
+.omni-input:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 
