@@ -5602,7 +5602,6 @@ if (typeof window === "undefined") {
                     <span class="booking-address-street">${escapeHtml(defaultAddressValue || "Chưa có địa chỉ mặc định")}</span>
                     <span class="booking-address-location">${escapeHtml([currentBookingWard && currentBookingWard.name, provinces.find((p) => String(p.provinceId) === String(currentBookingProvId))?.name].filter(Boolean).join(", "))}</span>
                   </div>
-                  <p class="booking-address-hint">Địa chỉ mặc định được lấy từ hồ sơ. Bạn có thể chọn địa chỉ khác đã lưu hoặc dùng GPS riêng cho đơn này.</p>
                   ${
                     defaultAddressValue
                       ? `<button type="button" class="booking-address-gps" onclick="GDXApp.locateUserGPS('wizLat', 'wizLng', null, 'wizAddress', 'wizProvSelect', 'wizWardSelect')">&#128205; Chọn vị trí GPS cho đơn này</button>`
@@ -5640,21 +5639,21 @@ if (typeof window === "undefined") {
               <input type="hidden" id="wizLng" value="${savedBookingAddress ? savedBookingAddress.longitude : cust && cust.longitude ? cust.longitude : 106.70211}">
 
               <div class="v3-profile-field">
-                <label for="wizNotes">Ghi chú cho thợ (tùy chọn)</label>
-                <input type="text" id="wizNotes" class="v3-profile-input" value="Nhà có trẻ nhỏ, vui lòng gọi điện trước 10 phút khi đến sảnh căn hộ." placeholder="Ví dụ: Mang theo thang chữ A, gọi chuông cửa...">
+                <label for="wizNotes">Ghi chú cho nhân viên (tùy chọn)</label>
+                <input type="text" id="wizNotes" class="v3-profile-input" value="Hãy ghi điều bạn muốn nói với nhân viên." placeholder="Ví dụ: Mang theo thang chữ A, gọi chuông cửa...">
               </div>
             </div>
 
-            <!-- 3. Chọn Thợ đề xuất / Tự chọn thợ cụ thể -->
+            <!-- 3. Chọn Nhân viên đề xuất / Tự chọn nhân viên cụ thể -->
             <div class="v3-wiz-section">
               <div class="v3-wiz-sec-head">
-                <h2 class="v3-wiz-sec-title">3. Chọn Thợ đề xuất gần bạn</h2>
+                <h2 class="v3-wiz-sec-title">3. Chọn Nhân viên đề xuất gần bạn</h2>
                 <div class="v3-seg-tabs" style="padding:3px;">
                   <button type="button" class="v3-seg-tab ${state.wizardProviderMode !== "direct" ? "is-active" : ""}" style="padding:5px 12px; font-size:12.5px;" onclick="GDXApp.setWizardProviderMode('broadcast')">
                     &#9889; Rải đơn nhanh
                   </button>
                   <button type="button" class="v3-seg-tab ${state.wizardProviderMode === "direct" ? "is-active" : ""}" style="padding:5px 12px; font-size:12.5px;" onclick="GDXApp.setWizardProviderMode('direct')">
-                    &#128100; Tự chọn thợ (${baseEligibleProviders.length})
+                    &#128100; Tự chọn nhân viên (${baseEligibleProviders.length})
                   </button>
                 </div>
               </div>
