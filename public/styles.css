@@ -4239,11 +4239,84 @@ table.schedule-table thead th {
 }
 
 /* Quick Address Selector in Wizard */
+.booking-address-panel {
+  display: grid;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  background: #f8fbf9;
+}
+.booking-address-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.booking-address-heading > div {
+  display: grid;
+  gap: 4px;
+}
+.booking-address-eyebrow,
+.booking-address-saved-label {
+  color: var(--color-muted);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.booking-address-summary {
+  display: grid;
+  gap: 4px;
+  overflow-wrap: anywhere;
+}
+.booking-address-street {
+  color: var(--color-text, #1f2430);
+  font-weight: 650;
+}
+.booking-address-location,
+.booking-address-hint {
+  color: var(--color-muted);
+  font-size: 0.8125rem;
+}
+.booking-address-hint {
+  margin: 0;
+}
+.booking-address-gps {
+  justify-self: start;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-primary);
+  font: inherit;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+.booking-address-missing {
+  color: #9a3412;
+  font-size: 0.875rem;
+}
+.booking-address-missing button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-primary);
+  font: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.booking-address-hidden {
+  display: none !important;
+}
 .wizard-address-chips {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
   margin-bottom: 12px;
+}
+.booking-address-saved-label {
+  flex-basis: 100%;
 }
 .wizard-addr-chip {
   padding: 6px 12px;
