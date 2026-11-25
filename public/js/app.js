@@ -17,1537 +17,2306 @@ if (typeof window === "undefined") {
   // Defensive fallback for Node-based hosting; the main API entrypoint is server.js.
   module.exports = require("../../server.js");
 } else {
-
-window.GDXApp = (() => {
-  const urlParams = new URLSearchParams(window.location.search);
-  const initialModeParam = urlParams.get('mode') || urlParams.get('env');
-  const isDevFromUrl = initialModeParam === 'dev' || urlParams.get('dev') === '1';
-  const isProdFromUrl = initialModeParam === 'production';
-  const initialViewMode = isDevFromUrl ? 'dev' : 'production';
-  if (typeof document !== 'undefined' && document.body) {
-    document.body.setAttribute('data-dev-enabled', isDevFromUrl ? 'true' : 'false');
-    document.body.setAttribute('data-view-mode', initialViewMode);
-  }
-
-  const state = {
-    viewMode: initialViewMode, // 'user' | 'dev' | 'production'
-    isProduction: isProdFromUrl,
-    currentPortal: 1, // 0: Auth, 1: Customer, 2: Provider, 3: Admin, 4: Company
-    currentScreen: '1.1',
-    currentUser: null,
-    authToken: (() => {
-      try { return localStorage.getItem('gdx_auth_token'); } catch (_) { return null; }
-    })(),
-    activeModal: null,
-    activeBookingId: 1042,
-    activeProviderId: (!isDevFromUrl || isProdFromUrl) ? null : 201,
-    activeCustomerId: (!isDevFromUrl || isProdFromUrl) ? null : 101,
-    activeCompanyId: (!isDevFromUrl || isProdFromUrl) ? null : 501,
-    activeUserId: (!isDevFromUrl || isProdFromUrl) ? null : 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-    userRole: (!isDevFromUrl || isProdFromUrl) ? 'anon' : 'customer',
-    timerInterval: null,
-    timerSeconds: 1 * 3600 + 45 * 60 + 22,
-    isTimerRunning: true,
-    // Filters for interactive screens
-    catalogFilter: {
-      categoryId: 'all',
-      pricingType: 'all',
-      query: '',
-      searchQuery: ''
-    },
-    directProviderSearch: '',
-    directProviderCompanyId: 'all',
-    companyStaffFilter: '',
-    supportTicketImageDraft: null,
-    bookingListFilter: 'all',
-    jobBoardFilter: {
-      wardId: 'all',
-      serviceId: 'all'
-    },
-    adminDispatchFilter: 'all',
-    selectedServiceId: null,
-    selectedProviderId: 201,
-    wizardProviderMode: 'broadcast', // 'broadcast' (rải đơn cho tất cả thợ khả dụng) | 'direct' (tự chọn thợ)
-    wizardCategory: '1', // '1' (Home Cleaning) | '2' (Home Cooking)
-    inboxTab: 'available', // 'available' (Hộp thư đến) | 'expired' (Đơn đã hết hạn)
-    expiredJobIds: [],
-    dismissedJobIds: [],
-    selectedBookingId: 1042,
-    bookingHours: 3,
-    liveTimerSeconds: 1 * 3600 + 45 * 60 + 22,
-    liveTimerInterval: null,
-    reviewRating: 5,
-    reviewDraftRating: 5,
-    onboardingAvatar: '/assets/provider-mai.jpg',
-    wizardDraft: {
-      service_id: null,
-      scheduled_time: '2026-10-25T08:30',
-      provinceId: null,
-      ward_id: null,
-      address: '',
-      latitude: null,
-      longitude: null,
-      provider_id: 201,
-      notes: 'Nhà có trẻ nhỏ, vui lòng gọi điện trước 10 phút khi đến sảnh căn hộ.',
-      hours: 3,
-    },
-    backend: {
-      mode: 'local',
-      supabaseConfigured: false,
-      message: 'Đang sử dụng dữ liệu cục bộ chuẩn PostgreSQL (local-db.json)'
-    },
-    backendStatus: {
-      mode: 'local_sql_store',
-      hasSupabaseUrl: false,
-      hasAnonKey: false,
-      hasServiceRoleKey: false,
-      supabaseReachable: false,
-      message: 'Đang kết nối tới Backend API...',
-      tableCounts: {}
-    },
-    customerServiceLoadStatus: 'loading',
-    customerServiceLoadError: null
-  };
-
-  // --- SVG ICON LIBRARY (Impeccable Craft Floor: Zero Emoji, Uniform Stroke) ---
-  const Icons = {
-    star(filled = true) {
-      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="${filled ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
-    },
-    starRow(rating = 5) {
-      const r = Math.round(Number(rating) || 0);
-      let out = '<span class="star-row" aria-hidden="true">';
-      for (let i = 1; i <= 5; i++) {
-        out += Icons.star(i <= r);
-      }
-      out += '</span>';
-      return out;
-    },
-    heart(filled = false) {
-      return `<svg width="16" height="16" viewBox="0 0 24 24" fill="${filled ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`;
-    },
-    clock() {
-      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
-    },
-    pin() {
-      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`;
-    },
-    check() {
-      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>`;
-    },
-    shield() {
-      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
-    },
-    user() {
-      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
-    },
-    calendar() {
-      return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
-    },
-    lock() {
-      return `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
-    },
-    eye() {
-      return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
-    },
-    eyeOff() {
-      return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+  window.GDXApp = (() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialModeParam = urlParams.get("mode") || urlParams.get("env");
+    const isDevFromUrl =
+      initialModeParam === "dev" || urlParams.get("dev") === "1";
+    const isProdFromUrl = initialModeParam === "production";
+    const initialViewMode = isDevFromUrl ? "dev" : "production";
+    if (typeof document !== "undefined" && document.body) {
+      document.body.setAttribute(
+        "data-dev-enabled",
+        isDevFromUrl ? "true" : "false",
+      );
+      document.body.setAttribute("data-view-mode", initialViewMode);
     }
-  };
 
-  // --- DISTANCE HELPER (Haversine formula from DB lat/lng columns) ---
-  function calcDistanceKm(lat1, lon1, lat2, lon2) {
-    if (!lat1 || !lon1 || !lat2 || !lon2) return '1.8';
-    const R = 6371;
-    const dLat = ((lat2 - lat1) * Math.PI) / 180;
-    const dLon = ((lon2 - lon1) * Math.PI) / 180;
-    const a =
-      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-      Math.cos((lat1 * Math.PI) / 180) *
-        Math.cos((lat2 * Math.PI) / 180) *
-        Math.sin(dLon / 2) *
-        Math.sin(dLon / 2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return Math.max(0.4, R * c).toFixed(1);
-  }
-
-  // --- MODERN WEB GUIDANCE: TOP-LAYER EXIT & DEFERRED VALIDATION ---
-  let supportsDisplayTransition;
-  function canTransitionDisplay() {
-    if (supportsDisplayTransition !== undefined) return supportsDisplayTransition;
-    if (!window.CSS?.supports?.('transition-behavior', 'allow-discrete') || !document.body) {
-      return false;
-    }
-    const probe = document.createElement('div');
-    probe.style.cssText = 'transition: display 1s allow-discrete !important; display: block;';
-    document.body.appendChild(probe);
-    getComputedStyle(probe).display;
-    probe.style.display = 'none';
-    supportsDisplayTransition = getComputedStyle(probe).display === 'block';
-    probe.remove();
-    return supportsDisplayTransition;
-  }
-
-  function supportsTopLayerExit() {
-    return window.CSS?.supports?.('overlay', 'auto') && canTransitionDisplay();
-  }
-
-  async function closeTopLayer(element) {
-    if (!element) return;
-    if (!supportsTopLayerExit()) {
-      element.setAttribute('data-closing', '');
-      const animations = element.getAnimations ? element.getAnimations({ subtree: true }) : [];
-      if (animations.length > 0) {
-        await Promise.race([
-          Promise.allSettled(animations.map((a) => a.finished)),
-          new Promise((r) => setTimeout(r, 400)),
-        ]);
-      }
-      if (!element.hasAttribute('data-closing')) return;
-      element.removeAttribute('data-closing');
-    }
-    if (typeof element.close === 'function' && element.open) {
-      element.close();
-    } else {
-      element.removeAttribute('open');
-    }
-  }
-
-  const UserInvalidFallback = (() => {
-    const dirtyState = new WeakMap();
-    const updateState = (input) => {
-      if (!input.checkValidity) return;
-      const isValid = input.checkValidity();
-      input.classList.toggle('user-invalid-fallback', !isValid);
-      input.classList.toggle('user-valid-fallback', isValid);
-      if (!isValid) {
-        input.setAttribute('aria-invalid', 'true');
-      } else {
-        input.removeAttribute('aria-invalid');
-      }
-    };
-    const handleEvent = (event) => {
-      const input = event.target;
-      if (!input || !input.checkValidity) return;
-      if (event.type === 'input' || event.type === 'change') {
-        const st = dirtyState.get(input) || { hasInteracted: false, hasBlurred: false };
-        st.hasInteracted = true;
-        dirtyState.set(input, st);
-        if (st.hasBlurred) updateState(input);
-      } else if (event.type === 'blur') {
-        const st = dirtyState.get(input) || { hasInteracted: false, hasBlurred: false };
-        st.hasBlurred = true;
-        dirtyState.set(input, st);
-        if (st.hasInteracted) updateState(input);
-      }
-    };
-    const init = (root = document) => {
-      const syncAria = (el) => {
-        if (!el || typeof el.matches !== 'function' || !el.checkValidity) return;
+    const state = {
+      viewMode: initialViewMode, // 'user' | 'dev' | 'production'
+      isProduction: isProdFromUrl,
+      currentPortal: 1, // 0: Auth, 1: Customer, 2: Provider, 3: Admin, 4: Company
+      currentScreen: "1.1",
+      currentUser: null,
+      authToken: (() => {
         try {
-          if (CSS.supports('selector(:user-invalid)')) {
-            el.setAttribute('aria-invalid', el.matches(':user-invalid') ? 'true' : 'false');
+          return localStorage.getItem("gdx_auth_token");
+        } catch (_) {
+          return null;
+        }
+      })(),
+      activeModal: null,
+      activeBookingId: 1042,
+      activeProviderId: !isDevFromUrl || isProdFromUrl ? null : 201,
+      activeCustomerId: !isDevFromUrl || isProdFromUrl ? null : 101,
+      activeCompanyId: !isDevFromUrl || isProdFromUrl ? null : 501,
+      activeUserId:
+        !isDevFromUrl || isProdFromUrl
+          ? null
+          : "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
+      userRole: !isDevFromUrl || isProdFromUrl ? "anon" : "customer",
+      timerInterval: null,
+      timerSeconds: 1 * 3600 + 45 * 60 + 22,
+      isTimerRunning: true,
+      // Filters for interactive screens
+      catalogFilter: {
+        categoryId: "all",
+        pricingType: "all",
+        query: "",
+        searchQuery: "",
+      },
+      directProviderSearch: "",
+      directProviderCompanyId: "all",
+      companyStaffFilter: "",
+      supportTicketImageDraft: null,
+      bookingListFilter: "all",
+      jobBoardFilter: {
+        wardId: "all",
+        serviceId: "all",
+      },
+      adminDispatchFilter: "all",
+      selectedServiceId: null,
+      selectedProviderId: 201,
+      wizardProviderMode: "broadcast", // 'broadcast' (rải đơn cho tất cả thợ khả dụng) | 'direct' (tự chọn thợ)
+      wizardCategory: "1", // '1' (Home Cleaning) | '2' (Home Cooking)
+      inboxTab: "available", // 'available' (Hộp thư đến) | 'expired' (Đơn đã hết hạn)
+      expiredJobIds: [],
+      dismissedJobIds: [],
+      selectedBookingId: 1042,
+      bookingHours: 3,
+      liveTimerSeconds: 1 * 3600 + 45 * 60 + 22,
+      liveTimerInterval: null,
+      reviewRating: 5,
+      reviewDraftRating: 5,
+      onboardingAvatar: "/assets/provider-mai.jpg",
+      wizardDraft: {
+        service_id: null,
+        scheduled_time: "2026-10-25T08:30",
+        provinceId: null,
+        ward_id: null,
+        address: "",
+        latitude: null,
+        longitude: null,
+        provider_id: 201,
+        notes: "Hãy điền thông tin mà bạn muốn nhân viên dọn dẹp biết.",
+        hours: 3,
+      },
+      bookingAddressSelection: null,
+      backend: {
+        mode: "local",
+        supabaseConfigured: false,
+        message: "Đang sử dụng dữ liệu cục bộ chuẩn PostgreSQL (local-db.json)",
+      },
+      backendStatus: {
+        mode: "local_sql_store",
+        hasSupabaseUrl: false,
+        hasAnonKey: false,
+        hasServiceRoleKey: false,
+        supabaseReachable: false,
+        message: "Đang kết nối tới Backend API...",
+        tableCounts: {},
+      },
+      customerServiceLoadStatus: "loading",
+      customerServiceLoadError: null,
+    };
+
+    // --- SVG ICON LIBRARY (Impeccable Craft Floor: Zero Emoji, Uniform Stroke) ---
+    const Icons = {
+      star(filled = true) {
+        return `<svg width="15" height="15" viewBox="0 0 24 24" fill="${filled ? "currentColor" : "none"}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
+      },
+      starRow(rating = 5) {
+        const r = Math.round(Number(rating) || 0);
+        let out = '<span class="star-row" aria-hidden="true">';
+        for (let i = 1; i <= 5; i++) {
+          out += Icons.star(i <= r);
+        }
+        out += "</span>";
+        return out;
+      },
+      heart(filled = false) {
+        return `<svg width="16" height="16" viewBox="0 0 24 24" fill="${filled ? "currentColor" : "none"}" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>`;
+      },
+      clock() {
+        return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>`;
+      },
+      pin() {
+        return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>`;
+      },
+      check() {
+        return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>`;
+      },
+      shield() {
+        return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>`;
+      },
+      user() {
+        return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+      },
+      calendar() {
+        return `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+      },
+      lock() {
+        return `<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+      },
+      eye() {
+        return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+      },
+      eyeOff() {
+        return `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+      },
+    };
+
+    // --- DISTANCE HELPER (Haversine formula from DB lat/lng columns) ---
+    function calcDistanceKm(lat1, lon1, lat2, lon2) {
+      if (!lat1 || !lon1 || !lat2 || !lon2) return "1.8";
+      const R = 6371;
+      const dLat = ((lat2 - lat1) * Math.PI) / 180;
+      const dLon = ((lon2 - lon1) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((lat1 * Math.PI) / 180) *
+          Math.cos((lat2 * Math.PI) / 180) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return Math.max(0.4, R * c).toFixed(1);
+    }
+
+    // --- MODERN WEB GUIDANCE: TOP-LAYER EXIT & DEFERRED VALIDATION ---
+    let supportsDisplayTransition;
+    function canTransitionDisplay() {
+      if (supportsDisplayTransition !== undefined)
+        return supportsDisplayTransition;
+      if (
+        !window.CSS?.supports?.("transition-behavior", "allow-discrete") ||
+        !document.body
+      ) {
+        return false;
+      }
+      const probe = document.createElement("div");
+      probe.style.cssText =
+        "transition: display 1s allow-discrete !important; display: block;";
+      document.body.appendChild(probe);
+      getComputedStyle(probe).display;
+      probe.style.display = "none";
+      supportsDisplayTransition = getComputedStyle(probe).display === "block";
+      probe.remove();
+      return supportsDisplayTransition;
+    }
+
+    function supportsTopLayerExit() {
+      return (
+        window.CSS?.supports?.("overlay", "auto") && canTransitionDisplay()
+      );
+    }
+
+    async function closeTopLayer(element) {
+      if (!element) return;
+      if (!supportsTopLayerExit()) {
+        element.setAttribute("data-closing", "");
+        const animations = element.getAnimations
+          ? element.getAnimations({ subtree: true })
+          : [];
+        if (animations.length > 0) {
+          await Promise.race([
+            Promise.allSettled(animations.map((a) => a.finished)),
+            new Promise((r) => setTimeout(r, 400)),
+          ]);
+        }
+        if (!element.hasAttribute("data-closing")) return;
+        element.removeAttribute("data-closing");
+      }
+      if (typeof element.close === "function" && element.open) {
+        element.close();
+      } else {
+        element.removeAttribute("open");
+      }
+    }
+
+    const UserInvalidFallback = (() => {
+      const dirtyState = new WeakMap();
+      const updateState = (input) => {
+        if (!input.checkValidity) return;
+        const isValid = input.checkValidity();
+        input.classList.toggle("user-invalid-fallback", !isValid);
+        input.classList.toggle("user-valid-fallback", isValid);
+        if (!isValid) {
+          input.setAttribute("aria-invalid", "true");
+        } else {
+          input.removeAttribute("aria-invalid");
+        }
+      };
+      const handleEvent = (event) => {
+        const input = event.target;
+        if (!input || !input.checkValidity) return;
+        if (event.type === "input" || event.type === "change") {
+          const st = dirtyState.get(input) || {
+            hasInteracted: false,
+            hasBlurred: false,
+          };
+          st.hasInteracted = true;
+          dirtyState.set(input, st);
+          if (st.hasBlurred) updateState(input);
+        } else if (event.type === "blur") {
+          const st = dirtyState.get(input) || {
+            hasInteracted: false,
+            hasBlurred: false,
+          };
+          st.hasBlurred = true;
+          dirtyState.set(input, st);
+          if (st.hasInteracted) updateState(input);
+        }
+      };
+      const init = (root = document) => {
+        const syncAria = (el) => {
+          if (!el || typeof el.matches !== "function" || !el.checkValidity)
+            return;
+          try {
+            if (CSS.supports("selector(:user-invalid)")) {
+              el.setAttribute(
+                "aria-invalid",
+                el.matches(":user-invalid") ? "true" : "false",
+              );
+            }
+          } catch (_) {}
+        };
+        root.addEventListener("blur", (e) => syncAria(e.target), true);
+        root.addEventListener("input", (e) => {
+          if (
+            e.target &&
+            e.target.hasAttribute &&
+            e.target.hasAttribute("aria-invalid")
+          )
+            syncAria(e.target);
+        });
+        if (window.CSS?.supports?.("selector(:user-invalid)")) return;
+        root.addEventListener("blur", handleEvent, true);
+        root.addEventListener("input", handleEvent);
+        root.addEventListener("change", handleEvent);
+      };
+      return { init };
+    })();
+
+    // --- BACKEND API & SUPABASE (.env.local) CLIENT HELPER ---
+    async function apiRequest(endpoint, options = {}) {
+      try {
+        const sep = endpoint.includes("?") ? "&" : "?";
+        const modeParam = state.isProduction ? `${sep}mode=production` : "";
+        const headers = {
+          "Content-Type": "application/json",
+          ...(state.isProduction ? { "x-gdx-mode": "production" } : {}),
+          ...(state.authToken
+            ? { Authorization: `Bearer ${state.authToken}` }
+            : {}),
+          ...options.headers,
+        };
+        const res = await fetch(endpoint + modeParam, {
+          headers,
+          ...options,
+        });
+        return await res.json();
+      } catch (err) {
+        return { ok: false, error: err.message };
+      }
+    }
+
+    function syncActiveIdentityWithDb() {
+      if (state.isProduction || state.currentUser) return;
+      const db = window.GDX_DB;
+      if (!db) return;
+
+      if (Array.isArray(db.services) && db.services.length > 0) {
+        const hasSel = db.services.some(
+          (s) => String(s.service_id) === String(state.selectedServiceId),
+        );
+        if (!hasSel) {
+          state.selectedServiceId = db.services[0].service_id;
+        }
+      }
+
+      if (
+        Array.isArray(db.customer_profiles) &&
+        db.customer_profiles.length > 0
+      ) {
+        const matchCp = db.customer_profiles.find(
+          (c) => String(c.customer_id) === String(state.activeCustomerId),
+        );
+        if (!matchCp) {
+          state.activeCustomerId = db.customer_profiles[0].customer_id;
+          if (state.currentPortal === 1 && db.customer_profiles[0].user_id) {
+            state.activeUserId = db.customer_profiles[0].user_id;
+          }
+        }
+      }
+
+      if (
+        Array.isArray(db.provider_profiles) &&
+        db.provider_profiles.length > 0
+      ) {
+        const matchPp = db.provider_profiles.find(
+          (p) => String(p.provider_id) === String(state.activeProviderId),
+        );
+        if (!matchPp) {
+          state.activeProviderId = db.provider_profiles[0].provider_id;
+          if (state.currentPortal === 2 && db.provider_profiles[0].user_id) {
+            state.activeUserId = db.provider_profiles[0].user_id;
+          }
+        }
+      }
+
+      if (
+        Array.isArray(db.company_profiles) &&
+        db.company_profiles.length > 0
+      ) {
+        const matchComp = db.company_profiles.find(
+          (c) => String(c.company_id) === String(state.activeCompanyId),
+        );
+        if (!matchComp) {
+          state.activeCompanyId = db.company_profiles[0].company_id;
+          if (state.currentPortal === 4 && db.company_profiles[0].user_id) {
+            state.activeUserId = db.company_profiles[0].user_id;
+          }
+        }
+      }
+    }
+
+    async function refreshDemoToken(role) {
+      if (state.isProduction || state.currentUser) return;
+      const res = await apiRequest("/api/auth/demo-session", {
+        method: "POST",
+        body: JSON.stringify({ role }),
+      });
+      if (res && res.ok && res.token) {
+        state.authToken = res.token;
+      }
+    }
+
+    async function syncWithBackend() {
+      state.customerServiceLoadStatus = "loading";
+      const [statusRes, bootRes] = await Promise.all([
+        apiRequest("/api/status"),
+        apiRequest("/api/bootstrap"),
+      ]);
+
+      if (statusRes && statusRes.ok) {
+        state.backendStatus = statusRes;
+        if (statusRes.isProduction) {
+          state.isProduction = true;
+          if (state.viewMode !== "dev") {
+            state.viewMode = "production";
+          }
+        }
+        const dot = document.getElementById("backendConnDot");
+        const label = document.getElementById("backendConnLabel");
+        if (dot && label) {
+          dot.className = "status-dot is-online";
+          if (state.isProduction) {
+            label.textContent = statusRes.supabaseReachable
+              ? "Production · Supabase Live"
+              : "Production · Cold Start";
+          } else {
+            label.textContent = statusRes.supabaseReachable
+              ? "Supabase · Connected"
+              : "API · .env.local";
+          }
+        }
+      }
+
+      const hasServiceData = Boolean(
+        bootRes &&
+        bootRes.ok &&
+        bootRes.db &&
+        Array.isArray(bootRes.db.services),
+      );
+      state.customerServiceLoadError = hasServiceData
+        ? null
+        : (bootRes && bootRes.error) ||
+          "Không thể tải danh sách dịch vụ từ máy chủ.";
+      state.customerServiceLoadStatus = hasServiceData ? "loaded" : "error";
+
+      if (hasServiceData) {
+        const db = window.GDX_DB;
+        const remote = bootRes.db;
+
+        if (state.isProduction) {
+          // Zero Mock Data: Dọn sạch mọi dữ liệu mẫu giả định
+          const mockTables = [
+            "users",
+            "customer_profiles",
+            "company_profiles",
+            "provider_profiles",
+            "provider_services",
+            "provider_areas",
+            "availability_schedules",
+            "availability_exceptions",
+            "bookings",
+            "booking_status_history",
+            "reviews",
+            "favorites",
+            "support_tickets",
+          ];
+          mockTables.forEach((t) => {
+            db[t] = [];
+          });
+          db.provider_public_profiles = [];
+        }
+
+        const tables = [
+          "province",
+          "provinces",
+          "ward",
+          "wards",
+          "users",
+          "customer_profiles",
+          "company_profiles",
+          "provider_profiles",
+          "service_categories",
+          "services",
+          "provider_services",
+          "provider_areas",
+          "availability_schedules",
+          "availability_exceptions",
+          "bookings",
+          "booking_status_history",
+          "reviews",
+          "favorites",
+          "support_tickets",
+          "customer_addresses",
+          "ticket_messages",
+          "notifications",
+          "audit_logs",
+          "ai_conversations",
+          "ai_messages",
+        ];
+        tables.forEach((t) => {
+          if (Array.isArray(remote[t])) {
+            if (t === "service_categories") {
+              db[t] = remote[t]
+                .filter((c) => {
+                  const n = (c.category_name || c.name || "").toLowerCase();
+                  const slug = (c.slug || "").toLowerCase();
+                  return (
+                    !n.includes("repair") &&
+                    !n.includes("sửa") &&
+                    !slug.includes("repair") &&
+                    !n.includes("archived")
+                  );
+                })
+                .map((c) => ({ ...c, name: c.category_name || c.name }));
+            } else if (t === "services") {
+              db[t] = remote[t]
+                .filter((s) => {
+                  const title = (s.title || "").toLowerCase();
+                  return (
+                    !title.includes("repair") &&
+                    !title.includes("sửa") &&
+                    !title.includes("appliance")
+                  );
+                })
+                .map((s) => {
+                  const title = (s.title || "").toLowerCase();
+                  let img = s.image_url;
+                  if (!img) {
+                    if (title.includes("nấu") || title.includes("cơm"))
+                      img = "/assets/cooking-family-meal.jpg";
+                    else if (
+                      title.includes("đầu bếp") ||
+                      title.includes("tiệc")
+                    )
+                      img = "/assets/cooking-chef-prep.jpg";
+                    else if (
+                      title.includes("deep") ||
+                      title.includes("sâu") ||
+                      title.includes("tổng vệ sinh")
+                    )
+                      img = "/assets/cleaning-deep.jpg";
+                    else img = "/assets/cleaning-livingroom.jpg";
+                  }
+                  return { ...s, image_url: img };
+                });
+            } else if (t === "bookings") {
+              db[t] = remote[t].map((b) => {
+                if (
+                  b.notes &&
+                  b.notes.includes("[BROADCAST_POOL]") &&
+                  b.status === "pending"
+                ) {
+                  return {
+                    ...b,
+                    provider_id: null,
+                    dispatch_type: "broadcast",
+                  };
+                }
+                return b;
+              });
+            } else {
+              db[t] = remote[t];
+            }
+          }
+        });
+
+        // Đồng bộ alias 2 chiều giữa province / provinces và ward / wards
+        if (Array.isArray(remote.provinces) && remote.provinces.length > 0) {
+          db.province = remote.provinces;
+          db.provinces = remote.provinces;
+        } else if (
+          Array.isArray(remote.province) &&
+          remote.province.length > 0
+        ) {
+          db.provinces = remote.province;
+        }
+        if (Array.isArray(remote.wards) && remote.wards.length > 0) {
+          db.ward = remote.wards;
+          db.wards = remote.wards;
+        } else if (Array.isArray(remote.ward) && remote.ward.length > 0) {
+          db.wards = remote.ward;
+        }
+
+        if (Array.isArray(remote.provider_public_profiles)) {
+          db.provider_public_profiles = remote.provider_public_profiles;
+        }
+
+        // Khôi phục phiên đăng nhập thực tế từ localStorage nếu có
+        try {
+          const savedUserRaw = localStorage.getItem("gdx_auth_user");
+          const savedToken = localStorage.getItem("gdx_auth_token");
+          if (savedToken) state.authToken = savedToken;
+          if (savedUserRaw) {
+            const savedUser = JSON.parse(savedUserRaw);
+            const found = (db.users || []).find(
+              (u) => u.user_id === savedUser.user_id,
+            );
+            state.currentUser = found || savedUser;
+            state.activeUserId = (found || savedUser).user_id;
+            state.userRole = (found || savedUser).role;
+            const cp = (db.customer_profiles || []).find(
+              (c) => String(c.user_id) === String(state.activeUserId),
+            );
+            if (cp) {
+              state.activeCustomerId = cp.customer_id;
+              state.wizardDraft.ward_id = cp.ward_id;
+              state.wizardDraft.address = cp.default_address;
+              state.wizardDraft.latitude = cp.latitude;
+              state.wizardDraft.longitude = cp.longitude;
+            }
+            const pp = (db.provider_profiles || []).find(
+              (p) => String(p.user_id) === String(state.activeUserId),
+            );
+            if (pp) state.activeProviderId = pp.provider_id;
+            const comp = (db.company_profiles || []).find(
+              (c) => String(c.user_id) === String(state.activeUserId),
+            );
+            if (comp) state.activeCompanyId = comp.company_id;
           }
         } catch (_) {}
-      };
-      root.addEventListener('blur', (e) => syncAria(e.target), true);
-      root.addEventListener('input', (e) => {
-        if (e.target && e.target.hasAttribute && e.target.hasAttribute('aria-invalid')) syncAria(e.target);
+
+        syncActiveIdentityWithDb();
+        fetchNotifications();
+      } else {
+        window.GDX_DB.services = [];
+      }
+      go(state.currentScreen, state.currentRouteParams || {}, {
+        skipHistory: true,
       });
-      if (window.CSS?.supports?.('selector(:user-invalid)')) return;
-      root.addEventListener('blur', handleEvent, true);
-      root.addEventListener('input', handleEvent);
-      root.addEventListener('change', handleEvent);
+    }
+
+    async function refreshCustomerServices() {
+      state.customerServiceLoadStatus = "loading";
+      state.customerServiceLoadError = null;
+      window.GDX_DB.services = [];
+      go(state.currentScreen, state.currentRouteParams || {});
+      await syncWithBackend();
+      if (state.customerServiceLoadError) {
+        showToast(state.customerServiceLoadError);
+      }
+    }
+
+    function formatMoney(amount) {
+      return (
+        new Intl.NumberFormat("vi-VN").format(Math.round(Number(amount) || 0)) +
+        " đ"
+      );
+    }
+
+    function shortCode(rawId) {
+      const s = String(rawId || "");
+      return s.length > 8 ? `GDX-${s.slice(-4).toUpperCase()}` : s;
+    }
+
+    function formatCccd(rawCccd) {
+      const s = String(rawCccd || "").trim();
+      if (!s) return "—";
+      if (/^TEST-ID-/i.test(s) || s.length > 12) {
+        return `079••••${s.slice(-4)}`;
+      }
+      return s.length >= 8 ? `${s.slice(0, 3)}••••${s.slice(-4)}` : s;
+    }
+
+    function formatDateTime(isoString) {
+      if (!isoString) return "—";
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) return isoString;
+      return d.toLocaleString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      });
+    }
+
+    function formatTimeOnly(isoString) {
+      if (!isoString) return "";
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) return "";
+      return d.toLocaleTimeString("vi-VN", {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    }
+
+    function escapeQuotes(str) {
+      return String(str || "")
+        .replace(/'/g, "\\'")
+        .replace(/"/g, "&quot;");
+    }
+
+    function escapeHtml(value) {
+      return String(value || "").replace(
+        /[&<>"']/g,
+        (char) =>
+          ({
+            "&": "&amp;",
+            "<": "&lt;",
+            ">": "&gt;",
+            '"': "&quot;",
+            "'": "&#39;",
+          })[char],
+      );
+    }
+
+    function inlineIdentifier(value) {
+      return typeof value === "number"
+        ? String(value)
+        : `'${escapeQuotes(value)}'`;
+    }
+
+    function formatStatusLabel(st) {
+      const map = {
+        pending: "Chờ xác nhận",
+        confirmed: "Đã nhận việc",
+        in_progress: "Đang thực hiện",
+        completed: "Hoàn thành",
+        cancelled: "Đã hủy",
+        auto_cancelled: "Tự động hủy (24h)",
+        rejected: "Từ chối",
+        unpaid: "Chưa thanh toán",
+        paid: "Đã thanh toán",
+        refunded: "Đã hoàn tiền",
+        open: "Đang mở",
+        resolved: "Đã giải quyết",
+        closed: "Đã đóng",
+        verified: "Đã xác minh",
+        low: "Thấp",
+        medium: "Bình thường",
+        high: "Khẩn cấp",
+        urgent: "Nghiêm trọng",
+      };
+      return state.viewMode === "user"
+        ? map[st] || st
+        : `${map[st] || st} (${st})`;
+    }
+
+    // --- SUPABASE RPC EXECUTION ---
+    const RPC = {
+      transitionBookingStatus(bookingId, newStatus, reason) {
+        const db = window.GDX_DB;
+        const b = db.bookings.find(
+          (item) => item.booking_id === Number(bookingId),
+        );
+        if (!b)
+          return {
+            success: false,
+            message: `Không tìm thấy đơn hàng #${bookingId}`,
+          };
+        const prevStatus = b.status;
+        b.status = newStatus;
+        b.updated_at = new Date().toISOString();
+
+        db.booking_status_history.unshift({
+          history_id: Date.now(),
+          booking_id: b.booking_id,
+          previous_status: prevStatus,
+          new_status: newStatus,
+          changed_by: state.activeUserId,
+          reason: reason || "Chuyển trạng thái theo quy trình tác nghiệp",
+          created_at: new Date().toISOString(),
+        });
+
+        apiRequest("/api/rpc/transition-status", {
+          method: "POST",
+          body: JSON.stringify({
+            booking_id: b.booking_id,
+            new_status: newStatus,
+            reason: reason || "Chuyển trạng thái theo quy trình tác nghiệp",
+            changed_by: state.activeUserId,
+          }),
+        });
+
+        return { success: true, booking: b, prevStatus, newStatus };
+      },
+
+      updateIncidentalCost(bookingId, incidentalCost, note) {
+        const db = window.GDX_DB;
+        const b = db.bookings.find(
+          (item) => item.booking_id === Number(bookingId),
+        );
+        if (!b)
+          return {
+            success: false,
+            message: `Không tìm thấy đơn hàng #${bookingId}`,
+          };
+
+        const cost = Number(incidentalCost) || 0;
+        const basePrice = Math.max(0, b.total_amount - b.total_incidental);
+        const newTotal = basePrice + cost;
+
+        b.total_incidental = cost;
+        b.total_amount = newTotal;
+        b.updated_at = new Date().toISOString();
+        if (note) {
+          b.notes =
+            (b.notes ? b.notes + "\n" : "") +
+            `[Phát sinh: ${formatMoney(cost)}] ${note}`;
+        }
+
+        db.booking_status_history.unshift({
+          history_id: Date.now(),
+          booking_id: b.booking_id,
+          previous_status: b.status,
+          new_status: b.status,
+          changed_by: state.activeUserId,
+          reason: `Cập nhật chi phí phát sinh: ${formatMoney(cost)} -> Tổng mới: ${formatMoney(newTotal)}. Lý do: ${note || "Vật tư bổ sung"}`,
+          created_at: new Date().toISOString(),
+        });
+
+        apiRequest("/api/rpc/update-incidental", {
+          method: "POST",
+          body: JSON.stringify({
+            booking_id: b.booking_id,
+            total_incidental: cost,
+            notes: note,
+            changed_by: state.activeUserId,
+          }),
+        });
+
+        return {
+          success: true,
+          total_incidental: cost,
+          total_amount: newTotal,
+        };
+      },
+
+      confirmPayment(bookingId, method = "DIRECT_CONFIRM") {
+        const db = window.GDX_DB;
+        const b = db.bookings.find(
+          (item) => item.booking_id === Number(bookingId),
+        );
+        if (!b)
+          return {
+            success: false,
+            message: `Không tìm thấy đơn hàng #${bookingId}`,
+          };
+
+        b.payment_status = "paid";
+        b.updated_at = new Date().toISOString();
+
+        db.booking_status_history.unshift({
+          history_id: Date.now(),
+          booking_id: b.booking_id,
+          previous_status: b.status,
+          new_status: b.status,
+          changed_by: state.activeUserId,
+          reason: `Khách hàng xác nhận đã thanh toán ${formatMoney(b.total_amount)} (${method})`,
+          created_at: new Date().toISOString(),
+        });
+
+        apiRequest("/api/rpc/confirm-payment", {
+          method: "POST",
+          body: JSON.stringify({
+            booking_id: b.booking_id,
+            changed_by: state.activeUserId,
+          }),
+        });
+
+        return { success: true, booking: b };
+      },
+
+      adminAdjustPaymentAndRefund(
+        bookingId,
+        incidental,
+        total,
+        paymentStatus,
+        bookingStatus,
+        reason,
+        newProviderId,
+      ) {
+        const db = window.GDX_DB;
+        const b = db.bookings.find(
+          (item) => item.booking_id === Number(bookingId),
+        );
+        if (!b)
+          return {
+            success: false,
+            message: `Không tìm thấy đơn hàng #${bookingId}`,
+          };
+
+        const prevStatus = b.status;
+        const prevPay = b.payment_status;
+
+        if (incidental !== undefined && incidental !== "")
+          b.total_incidental = Number(incidental);
+        if (total !== undefined && total !== "") b.total_amount = Number(total);
+        if (paymentStatus) b.payment_status = paymentStatus;
+        if (bookingStatus) b.status = bookingStatus;
+        if (newProviderId) b.provider_id = Number(newProviderId);
+        b.updated_at = new Date().toISOString();
+
+        db.booking_status_history.unshift({
+          history_id: Date.now(),
+          booking_id: b.booking_id,
+          previous_status: prevStatus,
+          new_status: b.status,
+          changed_by: state.activeUserId,
+          reason: `[ADMIN ADJUSTMENT] TT Thanh toán: ${prevPay} -> ${b.payment_status} | Tổng tiền: ${formatMoney(b.total_amount)} | Lý do: ${reason}`,
+          created_at: new Date().toISOString(),
+        });
+
+        apiRequest("/api/rpc/admin-adjust", {
+          method: "POST",
+          body: JSON.stringify({
+            booking_id: b.booking_id,
+            total_incidental: b.total_incidental,
+            total_amount: b.total_amount,
+            payment_status: b.payment_status,
+            status: b.status,
+            provider_id: b.provider_id,
+            reason,
+          }),
+        });
+
+        return { success: true, booking: b };
+      },
     };
-    return { init };
-  })();
 
-  // --- BACKEND API & SUPABASE (.env.local) CLIENT HELPER ---
-  async function apiRequest(endpoint, options = {}) {
-    try {
-      const sep = endpoint.includes('?') ? '&' : '?';
-      const modeParam = state.isProduction ? `${sep}mode=production` : '';
-      const headers = {
-        'Content-Type': 'application/json',
-        ...(state.isProduction ? { 'x-gdx-mode': 'production' } : {}),
-        ...(state.authToken ? { Authorization: `Bearer ${state.authToken}` } : {}),
-        ...options.headers
-      };
-      const res = await fetch(endpoint + modeParam, {
-        headers,
-        ...options,
-      });
-      return await res.json();
-    } catch (err) {
-      return { ok: false, error: err.message };
-    }
-  }
+    // --- SCREEN METADATA CATALOG (All 34 UI Elements) ---
+    const SCREENS = {
+      0.1: {
+        id: "0.1",
+        portal: 0,
+        title: "0.1. Đăng nhập / Đăng ký / Khôi phục mật khẩu",
+        type: "page",
+        table: "auth.users, users",
+      },
+      0.2: {
+        id: "0.2",
+        portal: 0,
+        title: "0.2. Thiết lập hồ sơ Khách hàng (Customer Onboarding)",
+        type: "page",
+        table: "users, customer_profiles, ward",
+      },
+      0.3: {
+        id: "0.3",
+        portal: 0,
+        title: "0.3. Đăng ký Đối tác Công ty (Company Onboarding)",
+        type: "page",
+        table: "company_profiles, users, ward",
+      },
+      0.4: {
+        id: "0.4",
+        portal: 0,
+        title: "0.4. Trạng thái Xác minh Công ty (Chờ duyệt / Từ chối)",
+        type: "page",
+        table: "company_profiles (verification_status)",
+      },
+      0.5: {
+        id: "0.5",
+        portal: 0,
+        title: "0.5. Thông báo Tài khoản bị khóa (Account Suspended)",
+        type: "page",
+        table: "users (is_active = FALSE)",
+      },
 
-  function syncActiveIdentityWithDb() {
-    if (state.isProduction || state.currentUser) return;
-    const db = window.GDX_DB;
-    if (!db) return;
+      1.1: {
+        id: "1.1",
+        portal: 1,
+        title: "1.1. Trang chủ & Khám phá dịch vụ",
+        type: "page",
+        table: "service_categories, services, favorites",
+      },
+      1.2: {
+        id: "1.2",
+        portal: 1,
+        title: "1.2. Cấu hình dịch vụ trước khi đặt (Booking Wizard)",
+        type: "page",
+        table: "services, provider_public_profiles, bookings",
+      },
+      1.3: {
+        id: "1.3",
+        portal: 1,
+        title: "1.3. Theo dõi đơn hàng trực tiếp (Live Tracking)",
+        type: "page",
+        table: "bookings, booking_status_history, provider_public_profiles",
+      },
+      1.4: {
+        id: "1.4",
+        portal: 1,
+        title: "1.4. Quản lý lịch hẹn dịch vụ",
+        type: "page",
+        table: "bookings, services, reviews",
+      },
+      1.5: {
+        id: "1.5",
+        portal: 1,
+        title: "1.5. Hồ sơ cá nhân & Sổ địa chỉ",
+        type: "page",
+        table: "users, customer_profiles, ward",
+      },
+      1.6: {
+        id: "1.6",
+        portal: 1,
+        title: "1.6. Danh sách Dịch vụ yêu thích",
+        type: "page",
+        table: "favorites, services",
+      },
+      1.7: {
+        id: "1.7",
+        portal: 1,
+        title: "1.7. Hồ sơ công khai của Thợ",
+        type: "modal",
+        table: "provider_public_profiles, reviews, provider_services",
+      },
+      1.8: {
+        id: "1.8",
+        portal: 1,
+        title: "1.8. Cổng Thanh toán QR Chuyển khoản (VietQR)",
+        type: "page",
+        table: "bookings (total_amount, payment_status)",
+      },
+      1.9: {
+        id: "1.9",
+        portal: 1,
+        title: "1.9. Đánh giá & Chấm điểm Thợ",
+        type: "modal",
+        table: "reviews, bookings",
+      },
+      "1.10": {
+        id: "1.10",
+        portal: 1,
+        title: "1.10. Xác nhận Hủy lịch hẹn",
+        type: "modal",
+        table: "bookings, booking_status_history",
+      },
+      1.11: {
+        id: "1.11",
+        portal: 1,
+        title: "1.11. Trung tâm Hỗ trợ & Gửi khiếu nại",
+        type: "drawer",
+        table: "support_tickets, bookings",
+      },
 
-    if (Array.isArray(db.services) && db.services.length > 0) {
-      const hasSel = db.services.some((s) => String(s.service_id) === String(state.selectedServiceId));
-      if (!hasSel) {
-        state.selectedServiceId = db.services[0].service_id;
+      2.1: {
+        id: "2.1",
+        portal: 2,
+        title: "2.1. Sàn nhận việc làm (Job Board)",
+        type: "page",
+        table: "bookings (pending), services, ward",
+      },
+      2.2: {
+        id: "2.2",
+        portal: 2,
+        title: "2.2. Ca làm việc hiện tại (Live Timer)",
+        type: "page",
+        table: "bookings, services, booking_status_history",
+      },
+      2.3: {
+        id: "2.3",
+        portal: 2,
+        title: "2.3. Ví Thu Nhập & Lịch Ca",
+        type: "page",
+        table: "bookings, availability_schedules, reviews",
+      },
+      2.4: {
+        id: "2.4",
+        portal: 2,
+        title: "2.4. Cấu hình Năng lực & Khu vực hoạt động",
+        type: "page",
+        table: "provider_profiles, provider_services, provider_areas",
+      },
+      2.5: {
+        id: "2.5",
+        portal: 2,
+        title: "2.5. Thanh trạng thái Nhận việc & GPS",
+        type: "component",
+        table: "provider_profiles (is_available_online, GPS)",
+      },
+      2.6: {
+        id: "2.6",
+        portal: 2,
+        title: "2.6. Thiết lập Lịch cố định & Xin nghỉ phép",
+        type: "modal",
+        table: "availability_schedules, availability_exceptions",
+      },
+      2.7: {
+        id: "2.7",
+        portal: 2,
+        title: "2.7. Kê khai Chi phí phát sinh (Incidental Cost)",
+        type: "modal",
+        table: "bookings (total_incidental, notes)",
+      },
+      2.8: {
+        id: "2.8",
+        portal: 2,
+        title: "2.8. Nghiệm thu & Hoàn thành Ca làm",
+        type: "modal",
+        table: "bookings, booking_status_history",
+      },
+      2.9: {
+        id: "2.9",
+        portal: 2,
+        title: "2.9. Báo cáo Sự cố / Hỗ trợ Đối tác",
+        type: "drawer",
+        table: "support_tickets, bookings",
+      },
+
+      3.1: {
+        id: "3.1",
+        portal: 3,
+        title: "3.1. Dashboard Tổng quan & Điều phối",
+        type: "page",
+        table: "bookings, provider_profiles, users, support_tickets",
+      },
+      3.2: {
+        id: "3.2",
+        portal: 3,
+        title: "3.2. Danh mục Gốc & Giám sát Dịch vụ Công ty",
+        type: "page",
+        table: "service_categories, services, company_profiles",
+      },
+      3.3: {
+        id: "3.3",
+        portal: 3,
+        title: "3.3. Xét duyệt Hồ sơ Công ty Đối tác (KYC)",
+        type: "page",
+        table: "company_profiles, users",
+      },
+      3.4: {
+        id: "3.4",
+        portal: 3,
+        title: "3.4. Quản lý Tài khoản & Giải quyết Khiếu nại",
+        type: "page",
+        table: "users, company_profiles, support_tickets",
+      },
+      3.5: {
+        id: "3.5",
+        portal: 3,
+        title: "3.5. Tra cứu Chi tiết Đơn & Lịch sử Kiểm toán (Audit Log)",
+        type: "drawer",
+        table: "bookings, booking_status_history, users",
+      },
+      3.6: {
+        id: "3.6",
+        portal: 3,
+        title: "3.6. Xử lý Hoàn tiền & Điều chỉnh Thanh toán",
+        type: "modal",
+        table: "bookings, booking_status_history",
+      },
+      3.7: {
+        id: "3.7",
+        portal: 3,
+        title: "3.7. Xử lý & Cập nhật Phiếu hỗ trợ (Ticket Detail)",
+        type: "drawer",
+        table: "support_tickets, users, bookings",
+      },
+      3.8: {
+        id: "3.8",
+        portal: 3,
+        title: "3.8. Thêm / Chỉnh sửa Danh mục Dịch vụ Gốc",
+        type: "modal",
+        table: "service_categories",
+      },
+      3.9: {
+        id: "3.9",
+        portal: 3,
+        title: "3.9. Quản lý Địa giới hành chính (Tỉnh/Thành & Phường/Xã)",
+        type: "modal",
+        table: "province, ward",
+      },
+
+      4.1: {
+        id: "4.1",
+        portal: 4,
+        title: "4.1. Tổng quan Công ty & Đơn hàng",
+        type: "page",
+        table: "company_profiles, bookings, provider_profiles",
+      },
+      4.2: {
+        id: "4.2",
+        portal: 4,
+        title: "4.2. Quản lý Nhân viên Thợ & Phân công",
+        type: "page",
+        table: "users, provider_profiles, provider_services",
+      },
+      4.3: {
+        id: "4.3",
+        portal: 4,
+        title: "4.3. Quản lý Dịch vụ & Bảng giá Công ty",
+        type: "page",
+        table: "services, service_categories, company_profiles",
+      },
+      4.4: {
+        id: "4.4",
+        portal: 4,
+        title: "4.4. Thêm / Cập nhật Hồ sơ Thợ Công ty",
+        type: "modal",
+        table: "users, provider_profiles, provider_services",
+      },
+      4.5: {
+        id: "4.5",
+        portal: 4,
+        title: "4.5. Thêm / Chỉnh sửa Dịch vụ Công ty",
+        type: "modal",
+        table: "services, service_categories",
+      },
+    };
+
+    const SCREEN_ROUTES = {
+      0.1: "/auth/login",
+      0.2: "/onboarding/customer",
+      0.3: "/onboarding/company",
+      0.4: "/company/status",
+      0.5: "/account/suspended",
+      1.1: "/home",
+      1.2: "/bookings/new",
+      1.3: "/bookings/tracking",
+      1.4: "/bookings",
+      1.5: "/profile",
+      1.6: "/favorites",
+      1.8: "/bookings/payment",
+      2.1: "/provider/jobs",
+      2.2: "/provider/shift",
+      2.3: "/provider/earnings",
+      2.4: "/provider/settings",
+      3.1: "/admin/dashboard",
+      3.2: "/admin/services",
+      3.3: "/admin/kyc",
+      3.4: "/admin/support",
+      4.1: "/company/dashboard",
+      4.2: "/company/staff",
+      4.3: "/company/services",
+    };
+
+    function getPathForScreen(screenId, params = {}) {
+      if (screenId === "0.1") {
+        if (params && params.view === "register") return "/auth/register";
+        if (params && params.view === "forgot") return "/auth/forgot-password";
+        if (!params?.view && state.authView === "register")
+          return "/auth/register";
+        if (!params?.view && state.authView === "forgot")
+          return "/auth/forgot-password";
+        return "/auth/login";
       }
+      if (screenId === "1.3" && params && params.bookingId != null) {
+        return `/bookings/${encodeURIComponent(params.bookingId)}/tracking`;
+      }
+      if (screenId === "1.8" && params && params.bookingId != null) {
+        return `/bookings/${encodeURIComponent(params.bookingId)}/payment`;
+      }
+      if (screenId === "2.2" && params && params.bookingId != null) {
+        return `/provider/shift/${encodeURIComponent(params.bookingId)}`;
+      }
+      return SCREEN_ROUTES[screenId] || "/home";
     }
 
-    if (Array.isArray(db.customer_profiles) && db.customer_profiles.length > 0) {
-      const matchCp = db.customer_profiles.find((c) => String(c.customer_id) === String(state.activeCustomerId));
-      if (!matchCp) {
-        state.activeCustomerId = db.customer_profiles[0].customer_id;
-        if (state.currentPortal === 1 && db.customer_profiles[0].user_id) {
-          state.activeUserId = db.customer_profiles[0].user_id;
+    function resolveRouteFromLocation() {
+      const pathname =
+        (window.location.pathname || "/").replace(/\/+$/, "") || "/";
+      const hash = (window.location.hash || "").replace(/^#/, "");
+
+      // Hỗ trợ legacy hash (#1.2)
+      if (hash && SCREENS[hash]) {
+        return {
+          screenId: hash,
+          params: {},
+          normalizedPath: getPathForScreen(hash),
+        };
+      }
+
+      if (
+        pathname === "/" ||
+        pathname === "/index.html" ||
+        pathname === "/home" ||
+        pathname === "/services"
+      ) {
+        return { screenId: "1.1", params: {}, normalizedPath: "/home" };
+      }
+      if (pathname === "/auth" || pathname === "/auth/login") {
+        return {
+          screenId: "0.1",
+          params: { view: "login" },
+          normalizedPath: "/auth/login",
+        };
+      }
+      if (pathname === "/auth/register") {
+        return {
+          screenId: "0.1",
+          params: { view: "register" },
+          normalizedPath: "/auth/register",
+        };
+      }
+      if (pathname === "/auth/forgot-password") {
+        return {
+          screenId: "0.1",
+          params: { view: "forgot" },
+          normalizedPath: "/auth/forgot-password",
+        };
+      }
+      if (pathname === "/booking/new" || pathname === "/bookings/new") {
+        return { screenId: "1.2", params: {}, normalizedPath: "/bookings/new" };
+      }
+
+      let m = pathname.match(/^\/bookings\/([^/]+)\/tracking$/);
+      if (m) {
+        const bid = isNaN(Number(m[1])) ? m[1] : Number(m[1]);
+        return {
+          screenId: "1.3",
+          params: { bookingId: bid },
+          normalizedPath: pathname,
+        };
+      }
+      m = pathname.match(/^\/bookings\/([^/]+)\/payment$/);
+      if (m) {
+        const bid = isNaN(Number(m[1])) ? m[1] : Number(m[1]);
+        return {
+          screenId: "1.8",
+          params: { bookingId: bid },
+          normalizedPath: pathname,
+        };
+      }
+      m = pathname.match(/^\/provider\/shift\/([^/]+)$/);
+      if (m) {
+        const bid = isNaN(Number(m[1])) ? m[1] : Number(m[1]);
+        return {
+          screenId: "2.2",
+          params: { bookingId: bid },
+          normalizedPath: pathname,
+        };
+      }
+
+      for (const [sid, routePath] of Object.entries(SCREEN_ROUTES)) {
+        if (pathname === routePath) {
+          return { screenId: sid, params: {}, normalizedPath: routePath };
         }
       }
+      if (pathname === "/admin") {
+        return {
+          screenId: "3.1",
+          params: {},
+          normalizedPath: "/admin/dashboard",
+        };
+      }
+      if (pathname === "/company") {
+        return {
+          screenId: "4.1",
+          params: {},
+          normalizedPath: "/company/dashboard",
+        };
+      }
+      if (pathname === "/provider") {
+        return {
+          screenId: "2.1",
+          params: {},
+          normalizedPath: "/provider/jobs",
+        };
+      }
+
+      return { screenId: "1.1", params: {}, normalizedPath: "/home" };
     }
 
-    if (Array.isArray(db.provider_profiles) && db.provider_profiles.length > 0) {
-      const matchPp = db.provider_profiles.find((p) => String(p.provider_id) === String(state.activeProviderId));
-      if (!matchPp) {
-        state.activeProviderId = db.provider_profiles[0].provider_id;
-        if (state.currentPortal === 2 && db.provider_profiles[0].user_id) {
-          state.activeUserId = db.provider_profiles[0].user_id;
-        }
+    function pushScreenUrl(screenId, params = {}, replace = false) {
+      if (!window.history || typeof window.history.pushState !== "function")
+        return;
+      const basePath = getPathForScreen(screenId, params);
+      const curQuery = new URLSearchParams(window.location.search);
+      const preserved = new URLSearchParams();
+      const mode = curQuery.get("mode") || curQuery.get("env");
+      if (mode === "dev" || mode === "production") {
+        preserved.set("mode", mode);
       }
-    }
-
-    if (Array.isArray(db.company_profiles) && db.company_profiles.length > 0) {
-      const matchComp = db.company_profiles.find((c) => String(c.company_id) === String(state.activeCompanyId));
-      if (!matchComp) {
-        state.activeCompanyId = db.company_profiles[0].company_id;
-        if (state.currentPortal === 4 && db.company_profiles[0].user_id) {
-          state.activeUserId = db.company_profiles[0].user_id;
-        }
-      }
-    }
-  }
-
-  async function refreshDemoToken(role) {
-    if (state.isProduction || state.currentUser) return;
-    const res = await apiRequest('/api/auth/demo-session', {
-      method: 'POST',
-      body: JSON.stringify({ role })
-    });
-    if (res && res.ok && res.token) {
-      state.authToken = res.token;
-    }
-  }
-
-  async function syncWithBackend() {
-    state.customerServiceLoadStatus = 'loading';
-    const [statusRes, bootRes] = await Promise.all([
-      apiRequest('/api/status'),
-      apiRequest('/api/bootstrap')
-    ]);
-
-    if (statusRes && statusRes.ok) {
-      state.backendStatus = statusRes;
-      if (statusRes.isProduction) {
-        state.isProduction = true;
-        if (state.viewMode !== 'dev') {
-          state.viewMode = 'production';
-        }
-      }
-      const dot = document.getElementById('backendConnDot');
-      const label = document.getElementById('backendConnLabel');
-      if (dot && label) {
-        dot.className = 'status-dot is-online';
-        if (state.isProduction) {
-          label.textContent = statusRes.supabaseReachable
-            ? 'Production · Supabase Live'
-            : 'Production · Cold Start';
-        } else {
-          label.textContent = statusRes.supabaseReachable
-            ? 'Supabase · Connected'
-            : 'API · .env.local';
-        }
-      }
-    }
-
-    const hasServiceData = Boolean(
-      bootRes && bootRes.ok && bootRes.db && Array.isArray(bootRes.db.services)
-    );
-    state.customerServiceLoadError = hasServiceData
-      ? null
-      : (bootRes && bootRes.error) || 'Không thể tải danh sách dịch vụ từ máy chủ.';
-    state.customerServiceLoadStatus = hasServiceData ? 'loaded' : 'error';
-
-    if (hasServiceData) {
-      const db = window.GDX_DB;
-      const remote = bootRes.db;
-
-      if (state.isProduction) {
-        // Zero Mock Data: Dọn sạch mọi dữ liệu mẫu giả định
-        const mockTables = [
-          'users', 'customer_profiles', 'company_profiles', 'provider_profiles', 'provider_services', 'provider_areas',
-          'availability_schedules', 'availability_exceptions', 'bookings', 'booking_status_history',
-          'reviews', 'favorites', 'support_tickets'
-        ];
-        mockTables.forEach((t) => { db[t] = []; });
-        db.provider_public_profiles = [];
-      }
-
-      const tables = [
-        'province', 'provinces', 'ward', 'wards', 'users', 'customer_profiles', 'company_profiles', 'provider_profiles',
-        'service_categories', 'services', 'provider_services', 'provider_areas',
-        'availability_schedules', 'availability_exceptions', 'bookings',
-        'booking_status_history', 'reviews', 'favorites', 'support_tickets',
-        'customer_addresses', 'ticket_messages', 'notifications', 'audit_logs',
-        'ai_conversations', 'ai_messages'
-      ];
-      tables.forEach((t) => {
-        if (Array.isArray(remote[t])) {
-          if (t === 'service_categories') {
-            db[t] = remote[t]
-              .filter((c) => {
-                const n = (c.category_name || c.name || '').toLowerCase();
-                const slug = (c.slug || '').toLowerCase();
-                return !n.includes('repair') && !n.includes('sửa') && !slug.includes('repair') && !n.includes('archived');
-              })
-              .map((c) => ({ ...c, name: c.category_name || c.name }));
-          } else if (t === 'services') {
-            db[t] = remote[t]
-              .filter((s) => {
-                const title = (s.title || '').toLowerCase();
-                return !title.includes('repair') && !title.includes('sửa') && !title.includes('appliance');
-              })
-              .map((s) => {
-                const title = (s.title || '').toLowerCase();
-                let img = s.image_url;
-                if (!img) {
-                  if (title.includes('nấu') || title.includes('cơm')) img = '/assets/cooking-family-meal.jpg';
-                  else if (title.includes('đầu bếp') || title.includes('tiệc')) img = '/assets/cooking-chef-prep.jpg';
-                  else if (title.includes('deep') || title.includes('sâu') || title.includes('tổng vệ sinh')) img = '/assets/cleaning-deep.jpg';
-                  else img = '/assets/cleaning-livingroom.jpg';
-                }
-                return { ...s, image_url: img };
-              });
-          } else if (t === 'bookings') {
-            db[t] = remote[t].map((b) => {
-              if (b.notes && b.notes.includes('[BROADCAST_POOL]') && b.status === 'pending') {
-                return { ...b, provider_id: null, dispatch_type: 'broadcast' };
-              }
-              return b;
-            });
-          } else {
-            db[t] = remote[t];
-          }
-        }
-      });
-
-      // Đồng bộ alias 2 chiều giữa province / provinces và ward / wards
-      if (Array.isArray(remote.provinces) && remote.provinces.length > 0) {
-        db.province = remote.provinces;
-        db.provinces = remote.provinces;
-      } else if (Array.isArray(remote.province) && remote.province.length > 0) {
-        db.provinces = remote.province;
-      }
-      if (Array.isArray(remote.wards) && remote.wards.length > 0) {
-        db.ward = remote.wards;
-        db.wards = remote.wards;
-      } else if (Array.isArray(remote.ward) && remote.ward.length > 0) {
-        db.wards = remote.ward;
-      }
-
-      if (Array.isArray(remote.provider_public_profiles)) {
-        db.provider_public_profiles = remote.provider_public_profiles;
-      }
-
-      // Khôi phục phiên đăng nhập thực tế từ localStorage nếu có
+      const qs = preserved.toString();
+      const targetUrl = qs ? `${basePath}?${qs}` : basePath;
+      if (window.location.pathname + window.location.search === targetUrl)
+        return;
       try {
-        const savedUserRaw = localStorage.getItem('gdx_auth_user');
-        const savedToken = localStorage.getItem('gdx_auth_token');
-        if (savedToken) state.authToken = savedToken;
-        if (savedUserRaw) {
-          const savedUser = JSON.parse(savedUserRaw);
-          const found = (db.users || []).find((u) => u.user_id === savedUser.user_id);
-          state.currentUser = found || savedUser;
-          state.activeUserId = (found || savedUser).user_id;
-          state.userRole = (found || savedUser).role;
-          const cp = (db.customer_profiles || []).find((c) => String(c.user_id) === String(state.activeUserId));
-          if (cp) {
-            state.activeCustomerId = cp.customer_id;
-            state.wizardDraft.ward_id = cp.ward_id;
-            state.wizardDraft.address = cp.default_address;
-            state.wizardDraft.latitude = cp.latitude;
-            state.wizardDraft.longitude = cp.longitude;
-          }
-          const pp = (db.provider_profiles || []).find((p) => String(p.user_id) === String(state.activeUserId));
-          if (pp) state.activeProviderId = pp.provider_id;
-          const comp = (db.company_profiles || []).find((c) => String(c.user_id) === String(state.activeUserId));
-          if (comp) state.activeCompanyId = comp.company_id;
+        if (replace) {
+          window.history.replaceState({ screenId, params }, "", targetUrl);
+        } else {
+          window.history.pushState({ screenId, params }, "", targetUrl);
         }
       } catch (_) {}
-
-      syncActiveIdentityWithDb();
-      fetchNotifications();
-    } else {
-      window.GDX_DB.services = [];
     }
-    go(state.currentScreen, state.currentRouteParams || {}, { skipHistory: true });
-  }
 
-  async function refreshCustomerServices() {
-    state.customerServiceLoadStatus = 'loading';
-    state.customerServiceLoadError = null;
-    window.GDX_DB.services = [];
-    go(state.currentScreen, state.currentRouteParams || {});
-    await syncWithBackend();
-    if (state.customerServiceLoadError) {
-      showToast(state.customerServiceLoadError);
-    }
-  }
-
-  function formatMoney(amount) {
-    return new Intl.NumberFormat('vi-VN').format(Math.round(Number(amount) || 0)) + ' đ';
-  }
-
-  function shortCode(rawId) {
-    const s = String(rawId || '');
-    return s.length > 8 ? `GDX-${s.slice(-4).toUpperCase()}` : s;
-  }
-
-  function formatCccd(rawCccd) {
-    const s = String(rawCccd || '').trim();
-    if (!s) return '—';
-    if (/^TEST-ID-/i.test(s) || s.length > 12) {
-      return `079••••${s.slice(-4)}`;
-    }
-    return s.length >= 8 ? `${s.slice(0, 3)}••••${s.slice(-4)}` : s;
-  }
-
-  function formatDateTime(isoString) {
-    if (!isoString) return '—';
-    const d = new Date(isoString);
-    if (isNaN(d.getTime())) return isoString;
-    return d.toLocaleString('vi-VN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-    });
-  }
-
-  function formatTimeOnly(isoString) {
-    if (!isoString) return '';
-    const d = new Date(isoString);
-    if (isNaN(d.getTime())) return '';
-    return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-  }
-
-  function escapeQuotes(str) {
-    return String(str || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
-  }
-
-  function inlineIdentifier(value) {
-    return typeof value === 'number' ? String(value) : `'${escapeQuotes(value)}'`;
-  }
-
-  function formatStatusLabel(st) {
-    const map = {
-      pending: 'Chờ xác nhận',
-      confirmed: 'Đã nhận việc',
-      in_progress: 'Đang thực hiện',
-      completed: 'Hoàn thành',
-      cancelled: 'Đã hủy',
-      auto_cancelled: 'Tự động hủy (24h)',
-      rejected: 'Từ chối',
-      unpaid: 'Chưa thanh toán',
-      paid: 'Đã thanh toán',
-      refunded: 'Đã hoàn tiền',
-      open: 'Đang mở',
-      resolved: 'Đã giải quyết',
-      closed: 'Đã đóng',
-      verified: 'Đã xác minh',
-      low: 'Thấp',
-      medium: 'Bình thường',
-      high: 'Khẩn cấp',
-      urgent: 'Nghiêm trọng'
-    };
-    return state.viewMode === 'user' ? (map[st] || st) : `${map[st] || st} (${st})`;
-  }
-
-  // --- SUPABASE RPC EXECUTION ---
-  const RPC = {
-    transitionBookingStatus(bookingId, newStatus, reason) {
-      const db = window.GDX_DB;
-      const b = db.bookings.find((item) => item.booking_id === Number(bookingId));
-      if (!b) return { success: false, message: `Không tìm thấy đơn hàng #${bookingId}` };
-      const prevStatus = b.status;
-      b.status = newStatus;
-      b.updated_at = new Date().toISOString();
-
-      db.booking_status_history.unshift({
-        history_id: Date.now(),
-        booking_id: b.booking_id,
-        previous_status: prevStatus,
-        new_status: newStatus,
-        changed_by: state.activeUserId,
-        reason: reason || 'Chuyển trạng thái theo quy trình tác nghiệp',
-        created_at: new Date().toISOString(),
-      });
-
-      apiRequest('/api/rpc/transition-status', {
-        method: 'POST',
-        body: JSON.stringify({
-          booking_id: b.booking_id,
-          new_status: newStatus,
-          reason: reason || 'Chuyển trạng thái theo quy trình tác nghiệp',
-          changed_by: state.activeUserId
-        })
-      });
-
-      return { success: true, booking: b, prevStatus, newStatus };
-    },
-
-    updateIncidentalCost(bookingId, incidentalCost, note) {
-      const db = window.GDX_DB;
-      const b = db.bookings.find((item) => item.booking_id === Number(bookingId));
-      if (!b) return { success: false, message: `Không tìm thấy đơn hàng #${bookingId}` };
-
-      const cost = Number(incidentalCost) || 0;
-      const basePrice = Math.max(0, b.total_amount - b.total_incidental);
-      const newTotal = basePrice + cost;
-
-      b.total_incidental = cost;
-      b.total_amount = newTotal;
-      b.updated_at = new Date().toISOString();
-      if (note) {
-        b.notes = (b.notes ? b.notes + '\n' : '') + `[Phát sinh: ${formatMoney(cost)}] ${note}`;
+    let toastTimer = null;
+    function showToast(message) {
+      const el = document.getElementById("toastBanner");
+      if (!el) return;
+      if (toastTimer) {
+        clearTimeout(toastTimer);
+        toastTimer = null;
       }
-
-      db.booking_status_history.unshift({
-        history_id: Date.now(),
-        booking_id: b.booking_id,
-        previous_status: b.status,
-        new_status: b.status,
-        changed_by: state.activeUserId,
-        reason: `Cập nhật chi phí phát sinh: ${formatMoney(cost)} -> Tổng mới: ${formatMoney(newTotal)}. Lý do: ${note || 'Vật tư bổ sung'}`,
-        created_at: new Date().toISOString(),
-      });
-
-      apiRequest('/api/rpc/update-incidental', {
-        method: 'POST',
-        body: JSON.stringify({
-          booking_id: b.booking_id,
-          total_incidental: cost,
-          notes: note,
-          changed_by: state.activeUserId
-        })
-      });
-
-      return { success: true, total_incidental: cost, total_amount: newTotal };
-    },
-
-    confirmPayment(bookingId, method = 'DIRECT_CONFIRM') {
-      const db = window.GDX_DB;
-      const b = db.bookings.find((item) => item.booking_id === Number(bookingId));
-      if (!b) return { success: false, message: `Không tìm thấy đơn hàng #${bookingId}` };
-
-      b.payment_status = 'paid';
-      b.updated_at = new Date().toISOString();
-
-      db.booking_status_history.unshift({
-        history_id: Date.now(),
-        booking_id: b.booking_id,
-        previous_status: b.status,
-        new_status: b.status,
-        changed_by: state.activeUserId,
-        reason: `Khách hàng xác nhận đã thanh toán ${formatMoney(b.total_amount)} (${method})`,
-        created_at: new Date().toISOString(),
-      });
-
-      apiRequest('/api/rpc/confirm-payment', {
-        method: 'POST',
-        body: JSON.stringify({
-          booking_id: b.booking_id,
-          changed_by: state.activeUserId
-        })
-      });
-
-      return { success: true, booking: b };
-    },
-
-    adminAdjustPaymentAndRefund(bookingId, incidental, total, paymentStatus, bookingStatus, reason, newProviderId) {
-      const db = window.GDX_DB;
-      const b = db.bookings.find((item) => item.booking_id === Number(bookingId));
-      if (!b) return { success: false, message: `Không tìm thấy đơn hàng #${bookingId}` };
-
-      const prevStatus = b.status;
-      const prevPay = b.payment_status;
-
-      if (incidental !== undefined && incidental !== '') b.total_incidental = Number(incidental);
-      if (total !== undefined && total !== '') b.total_amount = Number(total);
-      if (paymentStatus) b.payment_status = paymentStatus;
-      if (bookingStatus) b.status = bookingStatus;
-      if (newProviderId) b.provider_id = Number(newProviderId);
-      b.updated_at = new Date().toISOString();
-
-      db.booking_status_history.unshift({
-        history_id: Date.now(),
-        booking_id: b.booking_id,
-        previous_status: prevStatus,
-        new_status: b.status,
-        changed_by: state.activeUserId,
-        reason: `[ADMIN ADJUSTMENT] TT Thanh toán: ${prevPay} -> ${b.payment_status} | Tổng tiền: ${formatMoney(b.total_amount)} | Lý do: ${reason}`,
-        created_at: new Date().toISOString(),
-      });
-
-      apiRequest('/api/rpc/admin-adjust', {
-        method: 'POST',
-        body: JSON.stringify({
-          booking_id: b.booking_id,
-          total_incidental: b.total_incidental,
-          total_amount: b.total_amount,
-          payment_status: b.payment_status,
-          status: b.status,
-          provider_id: b.provider_id,
-          reason
-        })
-      });
-
-      return { success: true, booking: b };
-    },
-  };
-
-  // --- SCREEN METADATA CATALOG (All 34 UI Elements) ---
-  const SCREENS = {
-    '0.1': { id: '0.1', portal: 0, title: '0.1. Đăng nhập / Đăng ký / Khôi phục mật khẩu', type: 'page', table: 'auth.users, users' },
-    '0.2': { id: '0.2', portal: 0, title: '0.2. Thiết lập hồ sơ Khách hàng (Customer Onboarding)', type: 'page', table: 'users, customer_profiles, ward' },
-    '0.3': { id: '0.3', portal: 0, title: '0.3. Đăng ký Đối tác Công ty (Company Onboarding)', type: 'page', table: 'company_profiles, users, ward' },
-    '0.4': { id: '0.4', portal: 0, title: '0.4. Trạng thái Xác minh Công ty (Chờ duyệt / Từ chối)', type: 'page', table: 'company_profiles (verification_status)' },
-    '0.5': { id: '0.5', portal: 0, title: '0.5. Thông báo Tài khoản bị khóa (Account Suspended)', type: 'page', table: 'users (is_active = FALSE)' },
-
-    '1.1': { id: '1.1', portal: 1, title: '1.1. Trang chủ & Khám phá dịch vụ', type: 'page', table: 'service_categories, services, favorites' },
-    '1.2': { id: '1.2', portal: 1, title: '1.2. Cấu hình dịch vụ trước khi đặt (Booking Wizard)', type: 'page', table: 'services, provider_public_profiles, bookings' },
-    '1.3': { id: '1.3', portal: 1, title: '1.3. Theo dõi đơn hàng trực tiếp (Live Tracking)', type: 'page', table: 'bookings, booking_status_history, provider_public_profiles' },
-    '1.4': { id: '1.4', portal: 1, title: '1.4. Quản lý lịch hẹn dịch vụ', type: 'page', table: 'bookings, services, reviews' },
-    '1.5': { id: '1.5', portal: 1, title: '1.5. Hồ sơ cá nhân & Sổ địa chỉ', type: 'page', table: 'users, customer_profiles, ward' },
-    '1.6': { id: '1.6', portal: 1, title: '1.6. Danh sách Dịch vụ yêu thích', type: 'page', table: 'favorites, services' },
-    '1.7': { id: '1.7', portal: 1, title: '1.7. Hồ sơ công khai của Thợ', type: 'modal', table: 'provider_public_profiles, reviews, provider_services' },
-    '1.8': { id: '1.8', portal: 1, title: '1.8. Cổng Thanh toán QR Chuyển khoản (VietQR)', type: 'page', table: 'bookings (total_amount, payment_status)' },
-    '1.9': { id: '1.9', portal: 1, title: '1.9. Đánh giá & Chấm điểm Thợ', type: 'modal', table: 'reviews, bookings' },
-    '1.10': { id: '1.10', portal: 1, title: '1.10. Xác nhận Hủy lịch hẹn', type: 'modal', table: 'bookings, booking_status_history' },
-    '1.11': { id: '1.11', portal: 1, title: '1.11. Trung tâm Hỗ trợ & Gửi khiếu nại', type: 'drawer', table: 'support_tickets, bookings' },
-
-    '2.1': { id: '2.1', portal: 2, title: '2.1. Sàn nhận việc làm (Job Board)', type: 'page', table: 'bookings (pending), services, ward' },
-    '2.2': { id: '2.2', portal: 2, title: '2.2. Ca làm việc hiện tại (Live Timer)', type: 'page', table: 'bookings, services, booking_status_history' },
-    '2.3': { id: '2.3', portal: 2, title: '2.3. Ví Thu Nhập & Lịch Ca', type: 'page', table: 'bookings, availability_schedules, reviews' },
-    '2.4': { id: '2.4', portal: 2, title: '2.4. Cấu hình Năng lực & Khu vực hoạt động', type: 'page', table: 'provider_profiles, provider_services, provider_areas' },
-    '2.5': { id: '2.5', portal: 2, title: '2.5. Thanh trạng thái Nhận việc & GPS', type: 'component', table: 'provider_profiles (is_available_online, GPS)' },
-    '2.6': { id: '2.6', portal: 2, title: '2.6. Thiết lập Lịch cố định & Xin nghỉ phép', type: 'modal', table: 'availability_schedules, availability_exceptions' },
-    '2.7': { id: '2.7', portal: 2, title: '2.7. Kê khai Chi phí phát sinh (Incidental Cost)', type: 'modal', table: 'bookings (total_incidental, notes)' },
-    '2.8': { id: '2.8', portal: 2, title: '2.8. Nghiệm thu & Hoàn thành Ca làm', type: 'modal', table: 'bookings, booking_status_history' },
-    '2.9': { id: '2.9', portal: 2, title: '2.9. Báo cáo Sự cố / Hỗ trợ Đối tác', type: 'drawer', table: 'support_tickets, bookings' },
-
-    '3.1': { id: '3.1', portal: 3, title: '3.1. Dashboard Tổng quan & Điều phối', type: 'page', table: 'bookings, provider_profiles, users, support_tickets' },
-    '3.2': { id: '3.2', portal: 3, title: '3.2. Danh mục Gốc & Giám sát Dịch vụ Công ty', type: 'page', table: 'service_categories, services, company_profiles' },
-    '3.3': { id: '3.3', portal: 3, title: '3.3. Xét duyệt Hồ sơ Công ty Đối tác (KYC)', type: 'page', table: 'company_profiles, users' },
-    '3.4': { id: '3.4', portal: 3, title: '3.4. Quản lý Tài khoản & Giải quyết Khiếu nại', type: 'page', table: 'users, company_profiles, support_tickets' },
-    '3.5': { id: '3.5', portal: 3, title: '3.5. Tra cứu Chi tiết Đơn & Lịch sử Kiểm toán (Audit Log)', type: 'drawer', table: 'bookings, booking_status_history, users' },
-    '3.6': { id: '3.6', portal: 3, title: '3.6. Xử lý Hoàn tiền & Điều chỉnh Thanh toán', type: 'modal', table: 'bookings, booking_status_history' },
-    '3.7': { id: '3.7', portal: 3, title: '3.7. Xử lý & Cập nhật Phiếu hỗ trợ (Ticket Detail)', type: 'drawer', table: 'support_tickets, users, bookings' },
-    '3.8': { id: '3.8', portal: 3, title: '3.8. Thêm / Chỉnh sửa Danh mục Dịch vụ Gốc', type: 'modal', table: 'service_categories' },
-    '3.9': { id: '3.9', portal: 3, title: '3.9. Quản lý Địa giới hành chính (Tỉnh/Thành & Phường/Xã)', type: 'modal', table: 'province, ward' },
-
-    '4.1': { id: '4.1', portal: 4, title: '4.1. Tổng quan Công ty & Đơn hàng', type: 'page', table: 'company_profiles, bookings, provider_profiles' },
-    '4.2': { id: '4.2', portal: 4, title: '4.2. Quản lý Nhân viên Thợ & Phân công', type: 'page', table: 'users, provider_profiles, provider_services' },
-    '4.3': { id: '4.3', portal: 4, title: '4.3. Quản lý Dịch vụ & Bảng giá Công ty', type: 'page', table: 'services, service_categories, company_profiles' },
-    '4.4': { id: '4.4', portal: 4, title: '4.4. Thêm / Cập nhật Hồ sơ Thợ Công ty', type: 'modal', table: 'users, provider_profiles, provider_services' },
-    '4.5': { id: '4.5', portal: 4, title: '4.5. Thêm / Chỉnh sửa Dịch vụ Công ty', type: 'modal', table: 'services, service_categories' },
-  };
-
-  const SCREEN_ROUTES = {
-    '0.1': '/auth/login',
-    '0.2': '/onboarding/customer',
-    '0.3': '/onboarding/company',
-    '0.4': '/company/status',
-    '0.5': '/account/suspended',
-    '1.1': '/home',
-    '1.2': '/bookings/new',
-    '1.3': '/bookings/tracking',
-    '1.4': '/bookings',
-    '1.5': '/profile',
-    '1.6': '/favorites',
-    '1.8': '/bookings/payment',
-    '2.1': '/provider/jobs',
-    '2.2': '/provider/shift',
-    '2.3': '/provider/earnings',
-    '2.4': '/provider/settings',
-    '3.1': '/admin/dashboard',
-    '3.2': '/admin/services',
-    '3.3': '/admin/kyc',
-    '3.4': '/admin/support',
-    '4.1': '/company/dashboard',
-    '4.2': '/company/staff',
-    '4.3': '/company/services'
-  };
-
-  function getPathForScreen(screenId, params = {}) {
-    if (screenId === '0.1') {
-      if (params && params.view === 'register') return '/auth/register';
-      if (params && params.view === 'forgot') return '/auth/forgot-password';
-      if (!params?.view && state.authView === 'register') return '/auth/register';
-      if (!params?.view && state.authView === 'forgot') return '/auth/forgot-password';
-      return '/auth/login';
-    }
-    if (screenId === '1.3' && params && params.bookingId != null) {
-      return `/bookings/${encodeURIComponent(params.bookingId)}/tracking`;
-    }
-    if (screenId === '1.8' && params && params.bookingId != null) {
-      return `/bookings/${encodeURIComponent(params.bookingId)}/payment`;
-    }
-    if (screenId === '2.2' && params && params.bookingId != null) {
-      return `/provider/shift/${encodeURIComponent(params.bookingId)}`;
-    }
-    return SCREEN_ROUTES[screenId] || '/home';
-  }
-
-  function resolveRouteFromLocation() {
-    const pathname = (window.location.pathname || '/').replace(/\/+$/, '') || '/';
-    const hash = (window.location.hash || '').replace(/^#/, '');
-
-    // Hỗ trợ legacy hash (#1.2)
-    if (hash && SCREENS[hash]) {
-      return { screenId: hash, params: {}, normalizedPath: getPathForScreen(hash) };
+      el.textContent = message;
+      el.hidden = false;
+      toastTimer = setTimeout(() => {
+        el.hidden = true;
+        toastTimer = null;
+      }, 3600);
     }
 
-    if (pathname === '/' || pathname === '/index.html' || pathname === '/home' || pathname === '/services') {
-      return { screenId: '1.1', params: {}, normalizedPath: '/home' };
-    }
-    if (pathname === '/auth' || pathname === '/auth/login') {
-      return { screenId: '0.1', params: { view: 'login' }, normalizedPath: '/auth/login' };
-    }
-    if (pathname === '/auth/register') {
-      return { screenId: '0.1', params: { view: 'register' }, normalizedPath: '/auth/register' };
-    }
-    if (pathname === '/auth/forgot-password') {
-      return { screenId: '0.1', params: { view: 'forgot' }, normalizedPath: '/auth/forgot-password' };
-    }
-    if (pathname === '/booking/new' || pathname === '/bookings/new') {
-      return { screenId: '1.2', params: {}, normalizedPath: '/bookings/new' };
-    }
-
-    let m = pathname.match(/^\/bookings\/([^/]+)\/tracking$/);
-    if (m) {
-      const bid = isNaN(Number(m[1])) ? m[1] : Number(m[1]);
-      return { screenId: '1.3', params: { bookingId: bid }, normalizedPath: pathname };
-    }
-    m = pathname.match(/^\/bookings\/([^/]+)\/payment$/);
-    if (m) {
-      const bid = isNaN(Number(m[1])) ? m[1] : Number(m[1]);
-      return { screenId: '1.8', params: { bookingId: bid }, normalizedPath: pathname };
-    }
-    m = pathname.match(/^\/provider\/shift\/([^/]+)$/);
-    if (m) {
-      const bid = isNaN(Number(m[1])) ? m[1] : Number(m[1]);
-      return { screenId: '2.2', params: { bookingId: bid }, normalizedPath: pathname };
-    }
-
-    for (const [sid, routePath] of Object.entries(SCREEN_ROUTES)) {
-      if (pathname === routePath) {
-        return { screenId: sid, params: {}, normalizedPath: routePath };
-      }
-    }
-    if (pathname === '/admin') {
-      return { screenId: '3.1', params: {}, normalizedPath: '/admin/dashboard' };
-    }
-    if (pathname === '/company') {
-      return { screenId: '4.1', params: {}, normalizedPath: '/company/dashboard' };
-    }
-    if (pathname === '/provider') {
-      return { screenId: '2.1', params: {}, normalizedPath: '/provider/jobs' };
-    }
-
-    return { screenId: '1.1', params: {}, normalizedPath: '/home' };
-  }
-
-  function pushScreenUrl(screenId, params = {}, replace = false) {
-    if (!window.history || typeof window.history.pushState !== 'function') return;
-    const basePath = getPathForScreen(screenId, params);
-    const curQuery = new URLSearchParams(window.location.search);
-    const preserved = new URLSearchParams();
-    const mode = curQuery.get('mode') || curQuery.get('env');
-    if (mode === 'dev' || mode === 'production') {
-      preserved.set('mode', mode);
-    }
-    const qs = preserved.toString();
-    const targetUrl = qs ? `${basePath}?${qs}` : basePath;
-    if (window.location.pathname + window.location.search === targetUrl) return;
-    try {
-      if (replace) {
-        window.history.replaceState({ screenId, params }, '', targetUrl);
-      } else {
-        window.history.pushState({ screenId, params }, '', targetUrl);
-      }
-    } catch (_) {}
-  }
-
-  let toastTimer = null;
-  function showToast(message) {
-    const el = document.getElementById('toastBanner');
-    if (!el) return;
-    if (toastTimer) {
-      clearTimeout(toastTimer);
-      toastTimer = null;
-    }
-    el.textContent = message;
-    el.hidden = false;
-    toastTimer = setTimeout(() => {
-      el.hidden = true;
-      toastTimer = null;
-    }, 3600);
-  }
-
-  // =====================================================================
-  // IN-APP NOTIFICATIONS MODULE (FR-NOTIF-001)
-  // =====================================================================
-  async function fetchNotifications() {
-    if (!state.activeUserId) return;
-    const res = await apiRequest(`/api/notifications?user_id=${state.activeUserId}`);
-    if (res && res.ok && Array.isArray(res.notifications)) {
-      state.notifications = res.notifications;
-      const unread = state.notifications.filter((n) => !n.is_read).length;
-      state.unreadNotifCount = unread;
-      const badge = document.getElementById('notifBadgeCount');
-      if (badge) {
-        if (unread > 0) {
-          badge.textContent = unread > 9 ? '9+' : String(unread);
-          badge.style.display = 'inline-flex';
-        } else {
-          badge.style.display = 'none';
+    // =====================================================================
+    // IN-APP NOTIFICATIONS MODULE (FR-NOTIF-001)
+    // =====================================================================
+    async function fetchNotifications() {
+      if (!state.activeUserId) return;
+      const res = await apiRequest(
+        `/api/notifications?user_id=${state.activeUserId}`,
+      );
+      if (res && res.ok && Array.isArray(res.notifications)) {
+        state.notifications = res.notifications;
+        const unread = state.notifications.filter((n) => !n.is_read).length;
+        state.unreadNotifCount = unread;
+        const badge = document.getElementById("notifBadgeCount");
+        if (badge) {
+          if (unread > 0) {
+            badge.textContent = unread > 9 ? "9+" : String(unread);
+            badge.style.display = "inline-flex";
+          } else {
+            badge.style.display = "none";
+          }
         }
       }
     }
-  }
 
-  function toggleNotificationsDrawer(forceState) {
-    const drawer = document.getElementById('notificationsDrawer');
-    if (!drawer) return;
-    const isCurrentlyOpen = !drawer.hidden && drawer.style.display !== 'none' && !drawer.classList.contains('is-hidden');
-    const shouldOpen = typeof forceState === 'boolean' ? forceState : !isCurrentlyOpen;
+    function toggleNotificationsDrawer(forceState) {
+      const drawer = document.getElementById("notificationsDrawer");
+      if (!drawer) return;
+      const isCurrentlyOpen =
+        !drawer.hidden &&
+        drawer.style.display !== "none" &&
+        !drawer.classList.contains("is-hidden");
+      const shouldOpen =
+        typeof forceState === "boolean" ? forceState : !isCurrentlyOpen;
 
-    if (shouldOpen) {
-      renderNotificationsList();
-      drawer.hidden = false;
-      drawer.style.display = 'flex';
-      drawer.classList.remove('is-hidden');
-    } else {
-      drawer.hidden = true;
-      drawer.style.display = 'none';
-      drawer.classList.add('is-hidden');
+      if (shouldOpen) {
+        renderNotificationsList();
+        drawer.hidden = false;
+        drawer.style.display = "flex";
+        drawer.classList.remove("is-hidden");
+      } else {
+        drawer.hidden = true;
+        drawer.style.display = "none";
+        drawer.classList.add("is-hidden");
+      }
     }
-  }
 
-  function closeNotificationsDrawer() {
-    toggleNotificationsDrawer(false);
-  }
+    function closeNotificationsDrawer() {
+      toggleNotificationsDrawer(false);
+    }
 
-  function renderNotificationsList() {
-    const listEl = document.getElementById('notificationsList');
-    if (!listEl) return;
-    const notifs = state.notifications || [];
-    if (notifs.length === 0) {
-      listEl.innerHTML = `
+    function renderNotificationsList() {
+      const listEl = document.getElementById("notificationsList");
+      if (!listEl) return;
+      const notifs = state.notifications || [];
+      if (notifs.length === 0) {
+        listEl.innerHTML = `
         <div class="notif-empty">
           <div style="font-size:24px; margin-bottom:6px;">📭</div>
           <div>Bạn chưa có thông báo mới nào</div>
         </div>
       `;
-      return;
-    }
+        return;
+      }
 
-    listEl.innerHTML = notifs.map((n) => {
-      let icon = '🔔';
-      if (n.type === 'booking_created' || n.type === 'booking_confirmed') icon = '📅';
-      else if (n.type === 'booking_completed') icon = '⭐';
-      else if (n.type === 'booking_cancelled') icon = '❌';
-      else if (n.type === 'ticket_reply') icon = '💬';
-      else if (n.type === 'kyc_update') icon = '🛡️';
+      listEl.innerHTML = notifs
+        .map((n) => {
+          let icon = "🔔";
+          if (n.type === "booking_created" || n.type === "booking_confirmed")
+            icon = "📅";
+          else if (n.type === "booking_completed") icon = "⭐";
+          else if (n.type === "booking_cancelled") icon = "❌";
+          else if (n.type === "ticket_reply") icon = "💬";
+          else if (n.type === "kyc_update") icon = "🛡️";
 
-      return `
-        <div class="notif-item ${n.is_read ? '' : 'is-unread'}" onclick="GDXApp.handleNotificationClick('${n.notification_id}', '${n.link || ''}')">
+          return `
+        <div class="notif-item ${n.is_read ? "" : "is-unread"}" onclick="GDXApp.handleNotificationClick('${n.notification_id}', '${n.link || ""}')">
           <div class="notif-icon-wrap">${icon}</div>
           <div class="notif-content">
             <div class="notif-title">${n.title}</div>
             <div class="notif-body">${n.body}</div>
             <div class="notif-time">${formatDateTime(n.created_at)}</div>
           </div>
-          ${!n.is_read ? `<span class="status-dot is-online" style="width:8px; height:8px; margin-top:6px; flex-shrink:0;"></span>` : ''}
+          ${!n.is_read ? `<span class="status-dot is-online" style="width:8px; height:8px; margin-top:6px; flex-shrink:0;"></span>` : ""}
         </div>
       `;
-    }).join('');
-  }
-
-  async function handleNotificationClick(notifId, link) {
-    await markNotificationRead(notifId);
-    const drawer = document.getElementById('notificationsDrawer');
-    if (drawer) drawer.hidden = true;
-    if (link && link.startsWith('#')) {
-      const screenId = link.slice(1);
-      go(screenId);
+        })
+        .join("");
     }
-  }
 
-  async function markNotificationRead(notifId) {
-    const n = (state.notifications || []).find((x) => String(x.notification_id) === String(notifId));
-    if (n) n.is_read = true;
-    await apiRequest(`/api/notifications/${notifId}/read`, { method: 'POST' });
-    fetchNotifications();
-    renderNotificationsList();
-  }
-
-  async function markAllNotificationsRead() {
-    (state.notifications || []).forEach((n) => { n.is_read = true; });
-    await apiRequest('/api/notifications/read-all', {
-      method: 'POST',
-      body: JSON.stringify({ user_id: state.activeUserId })
-    });
-    fetchNotifications();
-    renderNotificationsList();
-    showToast('Đã đánh dấu tất cả thông báo là đã đọc');
-  }
-
-  // =====================================================================
-  // AI ASSISTANT CHATBOT MODULE (FR-AI-001 -> FR-AI-005)
-  // =====================================================================
-  function toggleAiDrawer(forceState) {
-    const drawer = document.getElementById('aiChatDrawer');
-    if (!drawer) return;
-    const isCurrentlyOpen = !drawer.hidden && drawer.style.display !== 'none' && !drawer.classList.contains('is-hidden');
-    const shouldOpen = typeof forceState === 'boolean' ? forceState : !isCurrentlyOpen;
-
-    if (shouldOpen) {
-      drawer.hidden = false;
-      drawer.style.display = 'flex';
-      drawer.classList.remove('is-hidden');
-      if (!state.aiMessages || state.aiMessages.length === 0) {
-        initAiChat();
+    async function handleNotificationClick(notifId, link) {
+      await markNotificationRead(notifId);
+      const drawer = document.getElementById("notificationsDrawer");
+      if (drawer) drawer.hidden = true;
+      if (link && link.startsWith("#")) {
+        const screenId = link.slice(1);
+        go(screenId);
       }
-      setTimeout(() => {
-        const input = document.getElementById('aiChatInput');
-        if (input) input.focus();
-      }, 100);
-    } else {
-      drawer.hidden = true;
-      drawer.style.display = 'none';
-      drawer.classList.add('is-hidden');
     }
-  }
 
-  function closeAiDrawer() {
-    toggleAiDrawer(false);
-  }
+    async function markNotificationRead(notifId) {
+      const n = (state.notifications || []).find(
+        (x) => String(x.notification_id) === String(notifId),
+      );
+      if (n) n.is_read = true;
+      await apiRequest(`/api/notifications/${notifId}/read`, {
+        method: "POST",
+      });
+      fetchNotifications();
+      renderNotificationsList();
+    }
 
-  function initAiChat() {
-    state.aiMessages = [
-      {
-        role: 'assistant',
-        content: `Xin chào! 👋 Tôi là **Trợ lý AI Gia Đình Xanh**.\nTôi có thể giúp bạn:\n• Tư vấn lựa chọn dịch vụ dọn dẹp, nấu ăn, điện lạnh phù hợp.\n• Báo giá chi tiết theo giờ hoặc trọn gói.\n• Tìm đối tác thợ được đánh giá cao nhất.\n• Hướng dẫn đặt lịch và giải đáp chính sách bảo hành 10 triệu đồng.`,
-        created_at: new Date().toISOString()
+    async function markAllNotificationsRead() {
+      (state.notifications || []).forEach((n) => {
+        n.is_read = true;
+      });
+      await apiRequest("/api/notifications/read-all", {
+        method: "POST",
+        body: JSON.stringify({ user_id: state.activeUserId }),
+      });
+      fetchNotifications();
+      renderNotificationsList();
+      showToast("Đã đánh dấu tất cả thông báo là đã đọc");
+    }
+
+    // =====================================================================
+    // AI ASSISTANT CHATBOT MODULE (FR-AI-001 -> FR-AI-005)
+    // =====================================================================
+    function toggleAiDrawer(forceState) {
+      const drawer = document.getElementById("aiChatDrawer");
+      if (!drawer) return;
+      const isCurrentlyOpen =
+        !drawer.hidden &&
+        drawer.style.display !== "none" &&
+        !drawer.classList.contains("is-hidden");
+      const shouldOpen =
+        typeof forceState === "boolean" ? forceState : !isCurrentlyOpen;
+
+      if (shouldOpen) {
+        drawer.hidden = false;
+        drawer.style.display = "flex";
+        drawer.classList.remove("is-hidden");
+        if (!state.aiMessages || state.aiMessages.length === 0) {
+          initAiChat();
+        }
+        setTimeout(() => {
+          const input = document.getElementById("aiChatInput");
+          if (input) input.focus();
+        }, 100);
+      } else {
+        drawer.hidden = true;
+        drawer.style.display = "none";
+        drawer.classList.add("is-hidden");
       }
-    ];
-    renderAiMessages();
-    renderAiPromptChips([
-      'Dọn dẹp nhà 2 giờ giá bao nhiêu?',
-      'Tìm thợ nấu ăn gia đình 5 sao',
-      'Vệ sinh máy lạnh trọn gói',
-      'Chính sách bảo hiểm & hủy đơn'
-    ]);
-  }
+    }
 
-  function renderAiMessages() {
-    const body = document.getElementById('aiChatBody');
-    if (!body) return;
-    body.innerHTML = (state.aiMessages || []).map((m) => {
-      const isBot = m.role === 'assistant';
-      const formattedContent = m.content
-        .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\n/g, '<br>');
+    function closeAiDrawer() {
+      toggleAiDrawer(false);
+    }
 
-      let extraCardsHtml = '';
-      if (m.recommended_services && m.recommended_services.length > 0) {
-        extraCardsHtml = `
+    function initAiChat() {
+      state.aiMessages = [
+        {
+          role: "assistant",
+          content: `Xin chào! 👋 Tôi là **Trợ lý AI Gia Đình Xanh**.\nTôi có thể giúp bạn:\n• Tư vấn lựa chọn dịch vụ dọn dẹp, nấu ăn, điện lạnh phù hợp.\n• Báo giá chi tiết theo giờ hoặc trọn gói.\n• Tìm đối tác thợ được đánh giá cao nhất.\n• Hướng dẫn đặt lịch và giải đáp chính sách bảo hành 10 triệu đồng.`,
+          created_at: new Date().toISOString(),
+        },
+      ];
+      renderAiMessages();
+      renderAiPromptChips([
+        "Dọn dẹp nhà 2 giờ giá bao nhiêu?",
+        "Tìm thợ nấu ăn gia đình 5 sao",
+        "Vệ sinh máy lạnh trọn gói",
+        "Chính sách bảo hiểm & hủy đơn",
+      ]);
+    }
+
+    function renderAiMessages() {
+      const body = document.getElementById("aiChatBody");
+      if (!body) return;
+      body.innerHTML = (state.aiMessages || [])
+        .map((m) => {
+          const isBot = m.role === "assistant";
+          const formattedContent = m.content
+            .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+            .replace(/\n/g, "<br>");
+
+          let extraCardsHtml = "";
+          if (m.recommended_services && m.recommended_services.length > 0) {
+            extraCardsHtml = `
           <div style="margin-top:8px; display:flex; flex-direction:column; gap:6px;">
             <div style="font-size:11px; font-weight:700; color:var(--color-primary); text-transform:uppercase;">Gợi ý dịch vụ phù hợp:</div>
-            ${m.recommended_services.map((s) => `
+            ${m.recommended_services
+              .map(
+                (s) => `
               <div class="ai-service-card">
                 <div>
                   <div class="ai-service-title">${s.title}</div>
-                  <div class="ai-service-price">${formatMoney(s.price)}${s.pricing_type === 'hourly' ? '/giờ' : '/lần'}</div>
+                  <div class="ai-service-price">${formatMoney(s.price)}${s.pricing_type === "hourly" ? "/giờ" : "/lần"}</div>
                 </div>
                 <button type="button" class="btn btn-primary btn-sm" style="padding:4px 10px; font-size:11px;" onclick="GDXApp.bookRecommendedService(${s.service_id})">
                   Đặt ngay &rarr;
                 </button>
               </div>
-            `).join('')}
+            `,
+              )
+              .join("")}
           </div>
         `;
-      }
+          }
 
-      return `
-        <div class="ai-msg ${isBot ? 'bot' : 'user'}">
+          return `
+        <div class="ai-msg ${isBot ? "bot" : "user"}">
           <div>${formattedContent}</div>
           ${extraCardsHtml}
           <span class="ai-msg-time">${formatTimeOnly(m.created_at)}</span>
         </div>
       `;
-    }).join('');
-    body.scrollTop = body.scrollHeight;
-  }
-
-  function renderAiPromptChips(chips) {
-    const container = document.getElementById('aiQuickPrompts');
-    if (!container) return;
-    if (!chips || chips.length === 0) {
-      container.style.display = 'none';
-      return;
-    }
-    container.style.display = 'flex';
-    container.innerHTML = chips.map((c) => `
-      <button type="button" class="ai-prompt-chip" onclick="GDXApp.sendAiPromptChip('${escapeQuotes(c)}')">
-        ${c}
-      </button>
-    `).join('');
-  }
-
-  function sendAiPromptChip(text) {
-    const input = document.getElementById('aiChatInput');
-    if (input) input.value = text;
-    sendAiChatMessage();
-  }
-
-  async function sendAiChatMessage() {
-    const input = document.getElementById('aiChatInput');
-    if (!input) return;
-    const text = input.value.trim();
-    if (!text) return;
-    input.value = '';
-
-    const nowIso = new Date().toISOString();
-    state.aiMessages.push({
-      role: 'user',
-      content: text,
-      created_at: nowIso
-    });
-    renderAiMessages();
-
-    const typingId = 'typing_' + Date.now();
-    const body = document.getElementById('aiChatBody');
-    if (body) {
-      const typingEl = document.createElement('div');
-      typingEl.id = typingId;
-      typingEl.className = 'ai-msg bot';
-      typingEl.innerHTML = `<em>Trợ lý AI đang suy nghĩ...</em>`;
-      body.appendChild(typingEl);
+        })
+        .join("");
       body.scrollTop = body.scrollHeight;
     }
 
-    const res = await apiRequest('/api/ai/chat', {
-      method: 'POST',
-      body: JSON.stringify({
-        conversation_id: state.aiConversationId,
-        user_id: state.activeUserId,
-        message: text
-      })
-    });
+    function renderAiPromptChips(chips) {
+      const container = document.getElementById("aiQuickPrompts");
+      if (!container) return;
+      if (!chips || chips.length === 0) {
+        container.style.display = "none";
+        return;
+      }
+      container.style.display = "flex";
+      container.innerHTML = chips
+        .map(
+          (c) => `
+      <button type="button" class="ai-prompt-chip" onclick="GDXApp.sendAiPromptChip('${escapeQuotes(c)}')">
+        ${c}
+      </button>
+    `,
+        )
+        .join("");
+    }
 
-    const typingEl = document.getElementById(typingId);
-    if (typingEl) typingEl.remove();
+    function sendAiPromptChip(text) {
+      const input = document.getElementById("aiChatInput");
+      if (input) input.value = text;
+      sendAiChatMessage();
+    }
 
-    if (res && res.ok) {
-      state.aiConversationId = res.conversation_id;
+    async function sendAiChatMessage() {
+      const input = document.getElementById("aiChatInput");
+      if (!input) return;
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = "";
+
+      const nowIso = new Date().toISOString();
       state.aiMessages.push({
-        role: 'assistant',
-        content: res.reply,
-        recommended_services: res.recommended_services || [],
-        recommended_providers: res.recommended_providers || [],
-        created_at: new Date().toISOString()
+        role: "user",
+        content: text,
+        created_at: nowIso,
       });
       renderAiMessages();
-      if (res.suggestions && res.suggestions.length > 0) {
-        renderAiPromptChips(res.suggestions);
+
+      const typingId = "typing_" + Date.now();
+      const body = document.getElementById("aiChatBody");
+      if (body) {
+        const typingEl = document.createElement("div");
+        typingEl.id = typingId;
+        typingEl.className = "ai-msg bot";
+        typingEl.innerHTML = `<em>Trợ lý AI đang suy nghĩ...</em>`;
+        body.appendChild(typingEl);
+        body.scrollTop = body.scrollHeight;
       }
-    } else {
-      state.aiMessages.push({
-        role: 'assistant',
-        content: `Xin lỗi, có lỗi kết nối tới trợ lý AI: ${res ? res.error : 'Vui lòng thử lại sau.'}`,
-        created_at: new Date().toISOString()
+
+      const res = await apiRequest("/api/ai/chat", {
+        method: "POST",
+        body: JSON.stringify({
+          conversation_id: state.aiConversationId,
+          user_id: state.activeUserId,
+          message: text,
+        }),
       });
-      renderAiMessages();
-    }
-  }
 
-  function bookRecommendedService(serviceId) {
-    toggleAiDrawer();
-    go('1.2', { serviceId });
-  }
+      const typingEl = document.getElementById(typingId);
+      if (typingEl) typingEl.remove();
 
-  // =====================================================================
-  // SAVED ADDRESSES MODULE (FR-CUST-003)
-  // =====================================================================
-  function pickSavedAddress(street, wardId, lat, lng) {
-    const addrInput = document.getElementById('wizAddress');
-    const wardSelect = document.getElementById('wizWardSelect');
-    const latInput = document.getElementById('wizLat');
-    const lngInput = document.getElementById('wizLng');
-
-    if (addrInput) addrInput.value = street;
-    if (wardSelect) wardSelect.value = wardId;
-    if (latInput) latInput.value = lat;
-    if (lngInput) lngInput.value = lng;
-
-    state.wizardDraft.address = street;
-    state.wizardDraft.ward_id = wardId;
-    state.wizardDraft.latitude = lat;
-    state.wizardDraft.longitude = lng;
-
-    showToast(`Đã áp dụng địa chỉ: ${street.slice(0, 35)}`);
-  }
-
-  async function addCustomerAddress(tag, streetAddress, wardId, isDefault = false) {
-    const res = await apiRequest('/api/customer/addresses', {
-      method: 'POST',
-      body: JSON.stringify({
-        customer_id: state.activeCustomerId,
-        tag,
-        street_address: streetAddress,
-        ward_id: wardId,
-        is_default: isDefault
-      })
-    });
-    if (res && res.ok) {
-      if (!Array.isArray(window.GDX_DB.customer_addresses)) window.GDX_DB.customer_addresses = [];
-      if (isDefault) {
-        window.GDX_DB.customer_addresses.forEach((a) => { if (Number(a.customer_id) === state.activeCustomerId) a.is_default = false; });
-      }
-      window.GDX_DB.customer_addresses.push(res.address);
-      showToast(`Đã lưu địa chỉ "${tag}" vào Sổ địa chỉ`);
-      if (state.currentScreen === '1.5') go('1.5');
-    } else {
-      showToast(res ? res.error : 'Lỗi khi lưu địa chỉ');
-    }
-  }
-
-  async function deleteCustomerAddress(addressId) {
-    if (!confirm('Bạn có chắc chắn muốn xóa địa chỉ này?')) return;
-    const res = await apiRequest(`/api/customer/addresses/${addressId}`, { method: 'DELETE' });
-    if (res && res.ok) {
-      window.GDX_DB.customer_addresses = (window.GDX_DB.customer_addresses || []).filter((a) => String(a.address_id) !== String(addressId));
-      showToast('Đã xóa địa chỉ thành công');
-      if (state.currentScreen === '1.5') go('1.5');
-    }
-  }
-
-  async function setDefaultCustomerAddress(addressId) {
-    const res = await apiRequest(`/api/customer/addresses/${addressId}`, {
-      method: 'PUT',
-      body: JSON.stringify({ is_default: true })
-    });
-    if (res && res.ok) {
-      (window.GDX_DB.customer_addresses || []).forEach((a) => {
-        if (Number(a.customer_id) === state.activeCustomerId) {
-          a.is_default = String(a.address_id) === String(addressId);
-        }
-      });
-      showToast('Đã đặt làm địa chỉ mặc định');
-      if (state.currentScreen === '1.5') go('1.5');
-    }
-  }
-
-  // =====================================================================
-  // PROVIDER FAVORITES MODULE (FR-FAV-001)
-  // =====================================================================
-  async function toggleProviderFavorite(providerId) {
-    const db = window.GDX_DB;
-    if (!Array.isArray(db.favorites)) db.favorites = [];
-    const idx = db.favorites.findIndex((f) => Number(f.customer_id) === state.activeCustomerId && Number(f.provider_id) === Number(providerId));
-    let added = false;
-    if (idx >= 0) {
-      db.favorites.splice(idx, 1);
-      added = false;
-    } else {
-      db.favorites.push({
-        favorite_id: Date.now(),
-        customer_id: state.activeCustomerId,
-        provider_id: Number(providerId),
-        created_at: new Date().toISOString()
-      });
-      added = true;
-    }
-
-    await apiRequest('/api/favorites/toggle', {
-      method: 'POST',
-      body: JSON.stringify({
-        customer_id: state.activeCustomerId,
-        provider_id: providerId
-      })
-    });
-
-    const pp = (db.provider_public_profiles || []).find((p) => p.provider_id === providerId);
-    showToast(added ? `Đã thêm thợ ${pp ? pp.full_name : ''} vào danh sách yêu thích!` : `Đã bỏ lưu thợ khỏi danh sách yêu thích.`);
-    if (state.currentScreen === '1.6') go('1.6');
-  }
-
-  // =====================================================================
-  // REVIEW MODERATION MODULE (FR-REV-005)
-  // =====================================================================
-  async function moderateReview(reviewId, status, reason = '') {
-    const db = window.GDX_DB;
-    const rev = (db.reviews || []).find((r) => r.review_id === reviewId);
-    if (!rev) return;
-    rev.status = status;
-    rev.moderation_reason = reason;
-
-    await apiRequest(`/api/admin/reviews/${reviewId}/moderate`, {
-      method: 'PATCH',
-      body: JSON.stringify({
-        status,
-        moderation_reason: reason,
-        actor_id: state.activeUserId
-      })
-    });
-
-    showToast(status === 'hidden' ? `Đã ẩn bài đánh giá #${reviewId} (Lý do: ${reason})` : `Đã mở lại bài đánh giá #${reviewId}`);
-    if (state.currentScreen === '3.4') go('3.4');
-  }
-
-  function openModerateReviewDialog(reviewId) {
-    const reason = prompt('Nhập lý do ẩn nhận xét vi phạm (VD: Ngôn từ không phù hợp, nội dung sai sự thật):', 'Vi phạm quy tắc cộng đồng');
-    if (reason !== null && reason.trim()) {
-      moderateReview(reviewId, 'hidden', reason.trim());
-    }
-  }
-
-  // =====================================================================
-  // TICKET MESSAGES & INTERNAL NOTES (FR-TKT-005)
-  // =====================================================================
-  async function sendTicketReply(ticketId, form) {
-    const content = form.reply_content.value.trim();
-    if (!content) return;
-    const isInternal = form.is_internal ? form.is_internal.checked : false;
-
-    const res = await apiRequest(`/api/tickets/${ticketId}/messages`, {
-      method: 'POST',
-      body: JSON.stringify({
-        sender_id: state.activeUserId,
-        sender_role: state.userRole === 'admin' ? 'admin' : (state.userRole === 'provider' ? 'provider' : 'customer'),
-        content,
-        visibility: isInternal ? 'internal' : 'public'
-      })
-    });
-
-    if (res && res.ok) {
-      if (!Array.isArray(window.GDX_DB.ticket_messages)) window.GDX_DB.ticket_messages = [];
-      window.GDX_DB.ticket_messages.push(res.message);
-      form.reply_content.value = '';
-      showToast(isInternal ? 'Đã lưu ghi chú nội bộ thành công' : 'Đã gửi phản hồi tới người dùng');
-      openModal(state.userRole === 'admin' ? '3.9' : '1.11', { ticketId });
-    } else {
-      showToast(res ? res.error : 'Lỗi khi gửi phản hồi');
-    }
-  }
-
-  function formatSeconds(sec) {
-    const h = String(Math.floor(sec / 3600)).padStart(2, '0');
-    const m = String(Math.floor((sec % 3600) / 60)).padStart(2, '0');
-    const s = String(sec % 60).padStart(2, '0');
-    return `${h}:${m}:${s}`;
-  }
-
-  function formatTimer(sec) {
-    return formatSeconds(sec);
-  }
-
-  function statusBadge(st) {
-    const cls = {
-      pending: 'badge-warning',
-      confirmed: 'badge-info',
-      in_progress: 'badge-info',
-      completed: 'badge-positive',
-      cancelled: 'badge-negative',
-      auto_cancelled: 'badge-negative',
-      rejected: 'badge-negative'
-    }[st] || 'badge-neutral';
-    return `<span class="badge ${cls}">${formatStatusLabel(st)}</span>`;
-  }
-
-  function paymentBadge(st) {
-    const cls = {
-      paid: 'badge-positive',
-      unpaid: 'badge-warning',
-      refunded: 'badge-neutral'
-    }[st] || 'badge-neutral';
-    return `<span class="badge ${cls}">${formatStatusLabel(st)}</span>`;
-  }
-
-  function priorityBadge(st) {
-    const cls = {
-      urgent: 'badge-negative',
-      high: 'badge-warning',
-      medium: 'badge-info',
-      low: 'badge-neutral'
-    }[st] || 'badge-neutral';
-    return `<span class="badge ${cls}">${formatStatusLabel(st)}</span>`;
-  }
-
-  function startLiveTimer() {
-    if (state.timerInterval) clearInterval(state.timerInterval);
-    state.timerInterval = setInterval(() => {
-      if (state.isTimerRunning) {
-        state.timerSeconds++;
-        const timerEl = document.getElementById('liveTimerDigits');
-        if (timerEl) timerEl.textContent = formatSeconds(state.timerSeconds);
-      }
-    }, 1000);
-  }
-
-  // --- USER-FACING COPY MAP FOR 'user' MODE ---
-  const USER_SCREEN_COPY = {
-    '0.1': { title: 'Đăng nhập & Đăng ký tài khoản', sub: 'Sử dụng số điện thoại hoặc chọn nhanh tài khoản mẫu để trải nghiệm hệ thống.' },
-    '0.2': { title: 'Thiết lập thông tin liên hệ & Địa chỉ', sub: 'Cập nhật địa chỉ mặc định để hệ thống gợi ý thợ gần khu vực nhà bạn nhất.' },
-    '0.3': { title: 'Đăng ký trở thành Công ty Đối tác', sub: 'Điền thông tin doanh nghiệp, mã số thuế và khu vực hoạt động để kích hoạt Cổng Công ty.' },
-    '0.4': { title: 'Trạng thái xác minh Hồ sơ Công ty', sub: 'Theo dõi kết quả thẩm định hồ sơ Công ty Đối tác của bạn tại Gia Đình Xanh.' },
-    '0.5': { title: 'Tài khoản đang tạm ngừng hoạt động', sub: 'Vui lòng gửi yêu cầu hỗ trợ để được giải đáp và mở lại tài khoản.' },
-    '1.1': { title: 'Trang chủ & Khám phá dịch vụ', sub: '' },
-    '1.2': { title: 'Đặt lịch dịch vụ tại nhà', sub: 'Tùy chỉnh thời lượng, địa chỉ hẹn và chọn đối tác thợ phù hợp với lịch gia đình bạn.' },
-    '1.3': { title: 'Theo dõi tiến độ ca dịch vụ', sub: 'Cập nhật trạng thái thực hiện, thông tin thợ phụ trách và chi tiết hóa đơn.' },
-    '1.4': { title: 'Lịch hẹn dịch vụ của tôi', sub: 'Quản lý các lịch hẹn sắp tới, xem lại lịch sử và đánh giá chất lượng phục vụ.' },
-    '1.5': { title: 'Thông tin cá nhân & Sổ địa chỉ', sub: 'Cập nhật họ tên, số điện thoại liên hệ và địa chỉ mặc định khi đặt dịch vụ.' },
-    '1.6': { title: 'Dịch vụ gia đình đã lưu', sub: 'Danh sách các gói dịch vụ bạn yêu thích để đặt lại nhanh chóng.' },
-    '1.7': { title: 'Hồ sơ đối tác thực hiện dịch vụ', sub: 'Thông tin kinh nghiệm, các dịch vụ đảm nhận và nhận xét từ khách hàng trước.' },
-    '1.8': { title: 'Thanh toán hóa đơn dịch vụ', sub: 'Kiểm tra chi tiết chi phí và xác nhận hoàn tất thanh toán cho ca dịch vụ.' },
-    '1.9': { title: 'Đánh giá chất lượng dịch vụ', sub: 'Chia sẻ cảm nhận của bạn sau khi ca làm việc hoàn tất.' },
-    '1.10': { title: 'Xác nhận hủy lịch hẹn', sub: 'Vui lòng cho biết lý do hủy để chúng tôi thông báo tới thợ phụ trách.' },
-    '1.11': { title: 'Trung tâm Hỗ trợ Khách hàng', sub: 'Gửi câu hỏi hoặc phản ánh về ca dịch vụ để đội ngũ chăm sóc khách hàng hỗ trợ bạn.' },
-    '2.1': { title: 'Việc làm mới trong khu vực của bạn', sub: 'Danh sách các lịch hẹn mới phù hợp với kỹ năng và phường/xã bạn đã đăng ký.' },
-    '2.2': { title: 'Ca làm việc đang thực hiện', sub: 'Theo dõi thời gian làm việc, địa chỉ khách hàng và cập nhật phụ phí vật tư mua hộ.' },
-    '2.3': { title: 'Ví thu nhập & Lịch làm việc tuần', sub: 'Tổng hợp thu nhập từ các ca đã hoàn tất và quản lý khung giờ nhận việc trong tuần.' },
-    '2.4': { title: 'Thông tin & Khu vực nhận việc', sub: 'Dịch vụ đảm nhiệm được Công ty quản lý phân công; bạn có thể cập nhật mô tả và khu vực phường/xã nhận việc.' },
-    '2.6': { title: 'Cài đặt lịch làm việc & Xin nghỉ phép', sub: 'Thiết lập các ngày làm cố định trong tuần hoặc báo bận đột xuất.' },
-    '2.7': { title: 'Kê khai phụ phí vật tư mua hộ', sub: 'Ghi nhận chi phí mua thêm vật tư hoặc nguyên liệu theo yêu cầu của chủ nhà.' },
-    '2.8': { title: 'Nghiệm thu & Hoàn thành Ca làm', sub: 'Xác nhận hoàn tất công việc tại nhà khách hàng và chốt hóa đơn.' },
-    '2.9': { title: 'Báo cáo sự cố cần hỗ trợ', sub: 'Gửi thông báo tới bộ phận điều phối khi gặp vướng mắc tại địa chỉ khách hàng.' },
-    '3.1': { title: 'Tổng quan vận hành & Điều phối lịch hẹn', sub: 'Theo dõi doanh thu, tình trạng các ca dịch vụ và hỗ trợ điều phối thợ.' },
-    '3.2': { title: 'Quản lý Danh mục gốc & Giám sát Dịch vụ', sub: 'Quản lý cây danh mục gốc; việc tạo và cấu hình giá dịch vụ được quản lý bởi Công ty Đối tác.' },
-    '3.3': { title: 'Duyệt hồ sơ Công ty Đối tác', sub: 'Kiểm tra thông tin doanh nghiệp và phê duyệt hoặc tạm khóa hoạt động Công ty trên hệ thống.' },
-    '3.4': { title: 'Quản lý tài khoản, Hỗ trợ & Đánh giá', sub: 'Quản lý trạng thái tài khoản người dùng, xử lý yêu cầu hỗ trợ có minh chứng và đánh giá dịch vụ.' },
-    '3.5': { title: 'Chi tiết đơn hàng & Lịch sử cập nhật', sub: 'Xem toàn bộ quá trình thay đổi trạng thái của đơn đặt lịch.' },
-    '3.6': { title: 'Điều chỉnh thanh toán & Hoàn tiền', sub: 'Cập nhật chi phí, trạng thái thanh toán hoặc hoàn tiền cho khách hàng.' },
-    '3.7': { title: 'Xử lý yêu cầu hỗ trợ khách hàng', sub: 'Cập nhật mức độ ưu tiên và kết quả giải quyết phiếu hỗ trợ.' },
-    '3.8': { title: 'Cập nhật Danh mục gốc', sub: 'Thêm mới hoặc chỉnh sửa danh mục dịch vụ cấp nền tảng.' },
-    '3.9': { title: 'Quản lý danh sách Tỉnh/Thành & Phường/Xã', sub: 'Cập nhật các khu vực hành chính đang triển khai dịch vụ.' },
-    '4.1': { title: 'Tổng quan Công ty Đối tác', sub: 'Theo dõi đội ngũ nhân viên Thợ, các gói dịch vụ và đơn hàng thuộc Công ty.' },
-    '4.2': { title: 'Quản lý Nhân viên Thợ', sub: 'Tạo hồ sơ Thợ, phân công dịch vụ và khóa/mở khóa tài khoản nhân viên thuộc Công ty.' },
-    '4.3': { title: 'Quản lý Dịch vụ Công ty', sub: 'Tạo mới, điều chỉnh đơn giá và bật/tắt trạng thái các gói dịch vụ của Công ty.' },
-    '4.4': { title: 'Thêm & Phân công Nhân viên Thợ', sub: 'Cấp tài khoản nhân viên Thợ và chọn các dịch vụ đảm nhiệm.' },
-    '4.5': { title: 'Cập nhật Dịch vụ Công ty', sub: 'Thiết lập tên gói, cách tính giá, đơn giá và thời lượng dịch vụ.' }
-  };
-
-  function cleanTechnicalLabelText(str) {
-    if (!str) return str;
-    return str
-      .replace(/\s*\((?:users|auth\.users|customer_profiles|company_profiles|provider_profiles|provider_public_profiles|provider_services|provider_areas|availability_schedules|availability_exceptions|bookings|booking_status_history|reviews|favorites|support_tickets|service_categories|services|province|ward)[^)]*\)/gi, '')
-      .replace(/\s*\((?:ward_id|id_card_number|tax_code|company_id|default_address|category_id|parent_id|pricing_type|total_incidental|total_amount|payment_status|status|priority|subject|exception_date|day_of_week|base_price|Charts\.bars|Charts\.line|verification_status|ticket_status|ticket_priority|booking_id|image_url|is_active|UNIQUE|0\.\.6)[^)]*\)/gi, '')
-      .replace(/\b(?:pending|confirmed|in_progress|completed|cancelled|rejected|unpaid|paid|refunded|open|resolved|closed|verified)\b/g, (match) => {
-        const map = {
-          pending: 'Chờ xác nhận',
-          confirmed: 'Đã xác nhận',
-          in_progress: 'Đang thực hiện',
-          completed: 'Hoàn thành',
-          cancelled: 'Đã hủy',
-          rejected: 'Từ chối',
-          unpaid: 'Chưa thanh toán',
-          paid: 'Đã thanh toán',
-          refunded: 'Đã hoàn tiền',
-          open: 'Đang mở',
-          resolved: 'Đã giải quyết',
-          closed: 'Đã đóng',
-          verified: 'Đã xác minh'
-        };
-        return map[match] || match;
-      });
-  }
-
-  function applyUserModeCleanups(rootEl, screenOrModalId) {
-    if (!rootEl) return;
-
-    // Always hide raw DB schema subtitles & clean technical column names in ALL modes (including Dev Mode)
-    const findingEl = rootEl.querySelector('.screen-finding') || (rootEl.id === 'modalDialog' ? rootEl.querySelector('#modalSub') : null);
-    if (findingEl) findingEl.style.display = 'none';
-
-    rootEl.querySelectorAll('.modal-header .field-hint').forEach((hint) => {
-      if (/^\s*(Bảng:|Cập nhật support_tickets)/i.test(hint.textContent)) hint.style.display = 'none';
-    });
-
-    rootEl.querySelectorAll('.field-label, .panel-title, .u-tab, .field-hint, .kpi-note, .badge, h3, h4, strong').forEach((el) => {
-      if (el.children.length === 0) {
-        el.textContent = cleanTechnicalLabelText(el.textContent);
-      }
-    });
-
-    if (state.viewMode !== 'user' && state.viewMode !== 'production') return;
-
-    const copy = USER_SCREEN_COPY[screenOrModalId];
-    const titleEl = rootEl.querySelector('.screen-title') || (rootEl.id === 'modalDialog' ? rootEl.querySelector('#modalTitle') : null);
-    if (titleEl) {
-      if (copy && copy.title) {
-        if (screenOrModalId === '1.3') {
-          const bIdMatch = titleEl.textContent.match(/#(?:GDX-)?[A-Za-z0-9-]+/);
-          titleEl.textContent = `${copy.title} ${bIdMatch ? '· ' + bIdMatch[0] : ''}`.trim();
-        } else if (screenOrModalId === '1.6' || screenOrModalId === '2.1') {
-          const countMatch = titleEl.textContent.match(/\(\d+\)/);
-          titleEl.textContent = `${copy.title} ${countMatch ? countMatch[0] : ''}`.trim();
-        } else {
-          titleEl.textContent = copy.title;
+      if (res && res.ok) {
+        state.aiConversationId = res.conversation_id;
+        state.aiMessages.push({
+          role: "assistant",
+          content: res.reply,
+          recommended_services: res.recommended_services || [],
+          recommended_providers: res.recommended_providers || [],
+          created_at: new Date().toISOString(),
+        });
+        renderAiMessages();
+        if (res.suggestions && res.suggestions.length > 0) {
+          renderAiPromptChips(res.suggestions);
         }
       } else {
-        titleEl.textContent = titleEl.textContent.replace(/^\d+\.\d+\.\s*/, '');
+        state.aiMessages.push({
+          role: "assistant",
+          content: `Xin lỗi, có lỗi kết nối tới trợ lý AI: ${res ? res.error : "Vui lòng thử lại sau."}`,
+          created_at: new Date().toISOString(),
+        });
+        renderAiMessages();
       }
     }
 
-    if (state.isProduction || state.viewMode === 'production' || !isDevFromUrl) {
-      rootEl.querySelectorAll('.modal-title').forEach((mt) => {
-        mt.textContent = mt.textContent.replace(/^\d+\.\d+\.\s*/, '');
+    function bookRecommendedService(serviceId) {
+      toggleAiDrawer();
+      go("1.2", { serviceId });
+    }
+
+    // =====================================================================
+    // SAVED ADDRESSES MODULE (FR-CUST-003)
+    // =====================================================================
+    function pickSavedAddress(street, wardId, lat, lng) {
+      const addrInput = document.getElementById("wizAddress");
+      const wardSelect = document.getElementById("wizWardSelect");
+      const provinceSelect = document.getElementById("wizProvSelect");
+      const latInput = document.getElementById("wizLat");
+      const lngInput = document.getElementById("wizLng");
+
+      if (addrInput) addrInput.value = street;
+      const db = window.GDX_DB || {};
+      const wards = db.ward || db.wards || [];
+      const ward = wards.find(
+        (item) => String(item.ward_id) === String(wardId),
+      );
+      if (
+        ward &&
+        provinceSelect &&
+        String(provinceSelect.value) !== String(ward.provinceId)
+      ) {
+        provinceSelect.value = ward.provinceId;
+        handleProvinceChange("wizProvSelect", "wizWardSelect");
+      }
+      if (wardSelect) wardSelect.value = wardId;
+      if (latInput) latInput.value = lat;
+      if (lngInput) lngInput.value = lng;
+
+      state.wizardDraft.address = street;
+      state.wizardDraft.ward_id = wardId;
+      state.wizardDraft.latitude = lat;
+      state.wizardDraft.longitude = lng;
+      state.bookingAddressSelection = {
+        customerId: String(state.activeCustomerId),
+        street,
+        wardId: String(wardId),
+        latitude: Number(lat),
+        longitude: Number(lng),
+      };
+      updateBookingAddressSummary();
+
+      showToast(`Đã áp dụng địa chỉ: ${street.slice(0, 35)}`);
+    }
+
+    function updateBookingAddressSummary() {
+      const summary = document.getElementById("bookingAddressSummary");
+      const address = document.getElementById("wizAddress");
+      const wardSelect = document.getElementById("wizWardSelect");
+      const provinceSelect = document.getElementById("wizProvSelect");
+      if (!summary || !address) return;
+
+      const wardName =
+        wardSelect && wardSelect.selectedOptions[0]
+          ? wardSelect.selectedOptions[0].textContent
+          : "";
+      const provinceName =
+        provinceSelect && provinceSelect.selectedOptions[0]
+          ? provinceSelect.selectedOptions[0].textContent
+          : "";
+      summary.querySelector(".booking-address-street").textContent =
+        address.value || "Chưa có địa chỉ mặc định";
+      summary.querySelector(".booking-address-location").textContent = [
+        wardName,
+        provinceName,
+      ]
+        .filter(Boolean)
+        .join(", ");
+      const bookingSummaryLocation = document.getElementById(
+        "bookingSummaryLocation",
+      );
+      const scheduledTime = document.getElementById("wizScheduledTime");
+      if (bookingSummaryLocation) {
+        bookingSummaryLocation.textContent = `${scheduledTime ? formatDateTime(scheduledTime.value) : ""} · ${wardName}`;
+      }
+      if (address.value && wardSelect && wardSelect.value) {
+        state.bookingAddressSelection = {
+          customerId: String(state.activeCustomerId),
+          street: address.value,
+          wardId: String(wardSelect.value),
+          latitude: Number(document.getElementById("wizLat")?.value) || null,
+          longitude: Number(document.getElementById("wizLng")?.value) || null,
+        };
+      }
+    }
+
+    async function addCustomerAddress(
+      tag,
+      streetAddress,
+      wardId,
+      isDefault = false,
+    ) {
+      const res = await apiRequest("/api/customer/addresses", {
+        method: "POST",
+        body: JSON.stringify({
+          customer_id: state.activeCustomerId,
+          tag,
+          street_address: streetAddress,
+          ward_id: wardId,
+          is_default: isDefault,
+        }),
       });
-    }
-  }
-
-  function renderUserTopbar() {
-    const userNav = document.getElementById('userMainNav');
-    const captionEl = document.getElementById('activeRoleCaption');
-    const roleSelect = document.getElementById('userRoleSelect');
-    const btnUser = document.getElementById('modeBtnUser');
-    const btnDev = document.getElementById('modeBtnDev');
-    const userAccountBar = document.getElementById('userAccountBar');
-    const modeSwitchPill = document.querySelector('.mode-switch-pill');
-    const catalogBtn = document.querySelector('.dev-catalog-btn');
-    const statusBtn = document.getElementById('supabaseStatusBtn');
-
-    if (state.isProduction || state.viewMode === 'production' || !isDevFromUrl) {
-      if (modeSwitchPill) modeSwitchPill.style.display = 'none';
-      if (catalogBtn) catalogBtn.style.display = 'none';
-      if (statusBtn) statusBtn.style.display = 'none';
-      if (roleSelect) roleSelect.style.display = 'none';
+      if (res && res.ok) {
+        if (!Array.isArray(window.GDX_DB.customer_addresses))
+          window.GDX_DB.customer_addresses = [];
+        if (isDefault) {
+          window.GDX_DB.customer_addresses.forEach((a) => {
+            if (Number(a.customer_id) === state.activeCustomerId)
+              a.is_default = false;
+          });
+        }
+        window.GDX_DB.customer_addresses.push(res.address);
+        showToast(`Đã lưu địa chỉ "${tag}" vào Sổ địa chỉ`);
+        if (state.currentScreen === "1.5") go("1.5");
+      } else {
+        showToast(res ? res.error : "Lỗi khi lưu địa chỉ");
+      }
     }
 
-    if (btnUser && btnDev) {
-      btnUser.setAttribute('aria-pressed', state.viewMode === 'user' || state.viewMode === 'production' ? 'true' : 'false');
-      btnDev.setAttribute('aria-pressed', state.viewMode === 'dev' ? 'true' : 'false');
+    async function deleteCustomerAddress(addressId) {
+      if (!confirm("Bạn có chắc chắn muốn xóa địa chỉ này?")) return;
+      const res = await apiRequest(`/api/customer/addresses/${addressId}`, {
+        method: "DELETE",
+      });
+      if (res && res.ok) {
+        window.GDX_DB.customer_addresses = (
+          window.GDX_DB.customer_addresses || []
+        ).filter((a) => String(a.address_id) !== String(addressId));
+        showToast("Đã xóa địa chỉ thành công");
+        if (state.currentScreen === "1.5") go("1.5");
+      }
     }
 
-    if (roleSelect && !state.isProduction && isDevFromUrl) {
-      roleSelect.value = String(state.currentPortal);
+    async function setDefaultCustomerAddress(addressId) {
+      const res = await apiRequest(`/api/customer/addresses/${addressId}`, {
+        method: "PUT",
+        body: JSON.stringify({ is_default: true }),
+      });
+      if (res && res.ok) {
+        (window.GDX_DB.customer_addresses || []).forEach((a) => {
+          if (Number(a.customer_id) === state.activeCustomerId) {
+            a.is_default = String(a.address_id) === String(addressId);
+          }
+        });
+        showToast("Đã đặt làm địa chỉ mặc định");
+        if (state.currentScreen === "1.5") go("1.5");
+      }
     }
 
-    if (userAccountBar && (state.isProduction || !isDevFromUrl)) {
-      if (!state.currentUser) {
-        userAccountBar.innerHTML = `
+    // =====================================================================
+    // PROVIDER FAVORITES MODULE (FR-FAV-001)
+    // =====================================================================
+    async function toggleProviderFavorite(providerId) {
+      const db = window.GDX_DB;
+      if (!Array.isArray(db.favorites)) db.favorites = [];
+      const idx = db.favorites.findIndex(
+        (f) =>
+          Number(f.customer_id) === state.activeCustomerId &&
+          Number(f.provider_id) === Number(providerId),
+      );
+      let added = false;
+      if (idx >= 0) {
+        db.favorites.splice(idx, 1);
+        added = false;
+      } else {
+        db.favorites.push({
+          favorite_id: Date.now(),
+          customer_id: state.activeCustomerId,
+          provider_id: Number(providerId),
+          created_at: new Date().toISOString(),
+        });
+        added = true;
+      }
+
+      await apiRequest("/api/favorites/toggle", {
+        method: "POST",
+        body: JSON.stringify({
+          customer_id: state.activeCustomerId,
+          provider_id: providerId,
+        }),
+      });
+
+      const pp = (db.provider_public_profiles || []).find(
+        (p) => p.provider_id === providerId,
+      );
+      showToast(
+        added
+          ? `Đã thêm thợ ${pp ? pp.full_name : ""} vào danh sách yêu thích!`
+          : `Đã bỏ lưu thợ khỏi danh sách yêu thích.`,
+      );
+      if (state.currentScreen === "1.6") go("1.6");
+    }
+
+    // =====================================================================
+    // REVIEW MODERATION MODULE (FR-REV-005)
+    // =====================================================================
+    async function moderateReview(reviewId, status, reason = "") {
+      const db = window.GDX_DB;
+      const rev = (db.reviews || []).find((r) => r.review_id === reviewId);
+      if (!rev) return;
+      rev.status = status;
+      rev.moderation_reason = reason;
+
+      await apiRequest(`/api/admin/reviews/${reviewId}/moderate`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          status,
+          moderation_reason: reason,
+          actor_id: state.activeUserId,
+        }),
+      });
+
+      showToast(
+        status === "hidden"
+          ? `Đã ẩn bài đánh giá #${reviewId} (Lý do: ${reason})`
+          : `Đã mở lại bài đánh giá #${reviewId}`,
+      );
+      if (state.currentScreen === "3.4") go("3.4");
+    }
+
+    function openModerateReviewDialog(reviewId) {
+      const reason = prompt(
+        "Nhập lý do ẩn nhận xét vi phạm (VD: Ngôn từ không phù hợp, nội dung sai sự thật):",
+        "Vi phạm quy tắc cộng đồng",
+      );
+      if (reason !== null && reason.trim()) {
+        moderateReview(reviewId, "hidden", reason.trim());
+      }
+    }
+
+    // =====================================================================
+    // TICKET MESSAGES & INTERNAL NOTES (FR-TKT-005)
+    // =====================================================================
+    async function sendTicketReply(ticketId, form) {
+      const content = form.reply_content.value.trim();
+      if (!content) return;
+      const isInternal = form.is_internal ? form.is_internal.checked : false;
+
+      const res = await apiRequest(`/api/tickets/${ticketId}/messages`, {
+        method: "POST",
+        body: JSON.stringify({
+          sender_id: state.activeUserId,
+          sender_role:
+            state.userRole === "admin"
+              ? "admin"
+              : state.userRole === "provider"
+                ? "provider"
+                : "customer",
+          content,
+          visibility: isInternal ? "internal" : "public",
+        }),
+      });
+
+      if (res && res.ok) {
+        if (!Array.isArray(window.GDX_DB.ticket_messages))
+          window.GDX_DB.ticket_messages = [];
+        window.GDX_DB.ticket_messages.push(res.message);
+        form.reply_content.value = "";
+        showToast(
+          isInternal
+            ? "Đã lưu ghi chú nội bộ thành công"
+            : "Đã gửi phản hồi tới người dùng",
+        );
+        openModal(state.userRole === "admin" ? "3.9" : "1.11", { ticketId });
+      } else {
+        showToast(res ? res.error : "Lỗi khi gửi phản hồi");
+      }
+    }
+
+    function formatSeconds(sec) {
+      const h = String(Math.floor(sec / 3600)).padStart(2, "0");
+      const m = String(Math.floor((sec % 3600) / 60)).padStart(2, "0");
+      const s = String(sec % 60).padStart(2, "0");
+      return `${h}:${m}:${s}`;
+    }
+
+    function formatTimer(sec) {
+      return formatSeconds(sec);
+    }
+
+    function statusBadge(st) {
+      const cls =
+        {
+          pending: "badge-warning",
+          confirmed: "badge-info",
+          in_progress: "badge-info",
+          completed: "badge-positive",
+          cancelled: "badge-negative",
+          auto_cancelled: "badge-negative",
+          rejected: "badge-negative",
+        }[st] || "badge-neutral";
+      return `<span class="badge ${cls}">${formatStatusLabel(st)}</span>`;
+    }
+
+    function paymentBadge(st) {
+      const cls =
+        {
+          paid: "badge-positive",
+          unpaid: "badge-warning",
+          refunded: "badge-neutral",
+        }[st] || "badge-neutral";
+      return `<span class="badge ${cls}">${formatStatusLabel(st)}</span>`;
+    }
+
+    function priorityBadge(st) {
+      const cls =
+        {
+          urgent: "badge-negative",
+          high: "badge-warning",
+          medium: "badge-info",
+          low: "badge-neutral",
+        }[st] || "badge-neutral";
+      return `<span class="badge ${cls}">${formatStatusLabel(st)}</span>`;
+    }
+
+    function startLiveTimer() {
+      if (state.timerInterval) clearInterval(state.timerInterval);
+      state.timerInterval = setInterval(() => {
+        if (state.isTimerRunning) {
+          state.timerSeconds++;
+          const timerEl = document.getElementById("liveTimerDigits");
+          if (timerEl) timerEl.textContent = formatSeconds(state.timerSeconds);
+        }
+      }, 1000);
+    }
+
+    // --- USER-FACING COPY MAP FOR 'user' MODE ---
+    const USER_SCREEN_COPY = {
+      0.1: {
+        title: "Đăng nhập & Đăng ký tài khoản",
+        sub: "Sử dụng số điện thoại hoặc chọn nhanh tài khoản mẫu để trải nghiệm hệ thống.",
+      },
+      0.2: {
+        title: "Thiết lập thông tin liên hệ & Địa chỉ",
+        sub: "Cập nhật địa chỉ mặc định để hệ thống gợi ý thợ gần khu vực nhà bạn nhất.",
+      },
+      0.3: {
+        title: "Đăng ký trở thành Công ty Đối tác",
+        sub: "Điền thông tin doanh nghiệp, mã số thuế và khu vực hoạt động để kích hoạt Cổng Công ty.",
+      },
+      0.4: {
+        title: "Trạng thái xác minh Hồ sơ Công ty",
+        sub: "Theo dõi kết quả thẩm định hồ sơ Công ty Đối tác của bạn tại Gia Đình Xanh.",
+      },
+      0.5: {
+        title: "Tài khoản đang tạm ngừng hoạt động",
+        sub: "Vui lòng gửi yêu cầu hỗ trợ để được giải đáp và mở lại tài khoản.",
+      },
+      1.1: { title: "Trang chủ & Khám phá dịch vụ", sub: "" },
+      1.2: {
+        title: "Đặt lịch dịch vụ tại nhà",
+        sub: "Tùy chỉnh thời lượng, địa chỉ hẹn và chọn đối tác thợ phù hợp với lịch gia đình bạn.",
+      },
+      1.3: {
+        title: "Theo dõi tiến độ ca dịch vụ",
+        sub: "Cập nhật trạng thái thực hiện, thông tin thợ phụ trách và chi tiết hóa đơn.",
+      },
+      1.4: {
+        title: "Lịch hẹn dịch vụ của tôi",
+        sub: "Quản lý các lịch hẹn sắp tới, xem lại lịch sử và đánh giá chất lượng phục vụ.",
+      },
+      1.5: {
+        title: "Thông tin cá nhân & Sổ địa chỉ",
+        sub: "Cập nhật họ tên, số điện thoại liên hệ và địa chỉ mặc định khi đặt dịch vụ.",
+      },
+      1.6: {
+        title: "Dịch vụ gia đình đã lưu",
+        sub: "Danh sách các gói dịch vụ bạn yêu thích để đặt lại nhanh chóng.",
+      },
+      1.7: {
+        title: "Hồ sơ đối tác thực hiện dịch vụ",
+        sub: "Thông tin kinh nghiệm, các dịch vụ đảm nhận và nhận xét từ khách hàng trước.",
+      },
+      1.8: {
+        title: "Thanh toán hóa đơn dịch vụ",
+        sub: "Kiểm tra chi tiết chi phí và xác nhận hoàn tất thanh toán cho ca dịch vụ.",
+      },
+      1.9: {
+        title: "Đánh giá chất lượng dịch vụ",
+        sub: "Chia sẻ cảm nhận của bạn sau khi ca làm việc hoàn tất.",
+      },
+      "1.10": {
+        title: "Xác nhận hủy lịch hẹn",
+        sub: "Vui lòng cho biết lý do hủy để chúng tôi thông báo tới thợ phụ trách.",
+      },
+      1.11: {
+        title: "Trung tâm Hỗ trợ Khách hàng",
+        sub: "Gửi câu hỏi hoặc phản ánh về ca dịch vụ để đội ngũ chăm sóc khách hàng hỗ trợ bạn.",
+      },
+      2.1: {
+        title: "Việc làm mới trong khu vực của bạn",
+        sub: "Danh sách các lịch hẹn mới phù hợp với kỹ năng và phường/xã bạn đã đăng ký.",
+      },
+      2.2: {
+        title: "Ca làm việc đang thực hiện",
+        sub: "Theo dõi thời gian làm việc, địa chỉ khách hàng và cập nhật phụ phí vật tư mua hộ.",
+      },
+      2.3: {
+        title: "Ví thu nhập & Lịch làm việc tuần",
+        sub: "Tổng hợp thu nhập từ các ca đã hoàn tất và quản lý khung giờ nhận việc trong tuần.",
+      },
+      2.4: {
+        title: "Thông tin & Khu vực nhận việc",
+        sub: "Dịch vụ đảm nhiệm được Công ty quản lý phân công; bạn có thể cập nhật mô tả và khu vực phường/xã nhận việc.",
+      },
+      2.6: {
+        title: "Cài đặt lịch làm việc & Xin nghỉ phép",
+        sub: "Thiết lập các ngày làm cố định trong tuần hoặc báo bận đột xuất.",
+      },
+      2.7: {
+        title: "Kê khai phụ phí vật tư mua hộ",
+        sub: "Ghi nhận chi phí mua thêm vật tư hoặc nguyên liệu theo yêu cầu của chủ nhà.",
+      },
+      2.8: {
+        title: "Nghiệm thu & Hoàn thành Ca làm",
+        sub: "Xác nhận hoàn tất công việc tại nhà khách hàng và chốt hóa đơn.",
+      },
+      2.9: {
+        title: "Báo cáo sự cố cần hỗ trợ",
+        sub: "Gửi thông báo tới bộ phận điều phối khi gặp vướng mắc tại địa chỉ khách hàng.",
+      },
+      3.1: {
+        title: "Tổng quan vận hành & Điều phối lịch hẹn",
+        sub: "Theo dõi doanh thu, tình trạng các ca dịch vụ và hỗ trợ điều phối thợ.",
+      },
+      3.2: {
+        title: "Quản lý Danh mục gốc & Giám sát Dịch vụ",
+        sub: "Quản lý cây danh mục gốc; việc tạo và cấu hình giá dịch vụ được quản lý bởi Công ty Đối tác.",
+      },
+      3.3: {
+        title: "Duyệt hồ sơ Công ty Đối tác",
+        sub: "Kiểm tra thông tin doanh nghiệp và phê duyệt hoặc tạm khóa hoạt động Công ty trên hệ thống.",
+      },
+      3.4: {
+        title: "Quản lý tài khoản, Hỗ trợ & Đánh giá",
+        sub: "Quản lý trạng thái tài khoản người dùng, xử lý yêu cầu hỗ trợ có minh chứng và đánh giá dịch vụ.",
+      },
+      3.5: {
+        title: "Chi tiết đơn hàng & Lịch sử cập nhật",
+        sub: "Xem toàn bộ quá trình thay đổi trạng thái của đơn đặt lịch.",
+      },
+      3.6: {
+        title: "Điều chỉnh thanh toán & Hoàn tiền",
+        sub: "Cập nhật chi phí, trạng thái thanh toán hoặc hoàn tiền cho khách hàng.",
+      },
+      3.7: {
+        title: "Xử lý yêu cầu hỗ trợ khách hàng",
+        sub: "Cập nhật mức độ ưu tiên và kết quả giải quyết phiếu hỗ trợ.",
+      },
+      3.8: {
+        title: "Cập nhật Danh mục gốc",
+        sub: "Thêm mới hoặc chỉnh sửa danh mục dịch vụ cấp nền tảng.",
+      },
+      3.9: {
+        title: "Quản lý danh sách Tỉnh/Thành & Phường/Xã",
+        sub: "Cập nhật các khu vực hành chính đang triển khai dịch vụ.",
+      },
+      4.1: {
+        title: "Tổng quan Công ty Đối tác",
+        sub: "Theo dõi đội ngũ nhân viên Thợ, các gói dịch vụ và đơn hàng thuộc Công ty.",
+      },
+      4.2: {
+        title: "Quản lý Nhân viên Thợ",
+        sub: "Tạo hồ sơ Thợ, phân công dịch vụ và khóa/mở khóa tài khoản nhân viên thuộc Công ty.",
+      },
+      4.3: {
+        title: "Quản lý Dịch vụ Công ty",
+        sub: "Tạo mới, điều chỉnh đơn giá và bật/tắt trạng thái các gói dịch vụ của Công ty.",
+      },
+      4.4: {
+        title: "Thêm & Phân công Nhân viên Thợ",
+        sub: "Cấp tài khoản nhân viên Thợ và chọn các dịch vụ đảm nhiệm.",
+      },
+      4.5: {
+        title: "Cập nhật Dịch vụ Công ty",
+        sub: "Thiết lập tên gói, cách tính giá, đơn giá và thời lượng dịch vụ.",
+      },
+    };
+
+    function cleanTechnicalLabelText(str) {
+      if (!str) return str;
+      return str
+        .replace(
+          /\s*\((?:users|auth\.users|customer_profiles|company_profiles|provider_profiles|provider_public_profiles|provider_services|provider_areas|availability_schedules|availability_exceptions|bookings|booking_status_history|reviews|favorites|support_tickets|service_categories|services|province|ward)[^)]*\)/gi,
+          "",
+        )
+        .replace(
+          /\s*\((?:ward_id|id_card_number|tax_code|company_id|default_address|category_id|parent_id|pricing_type|total_incidental|total_amount|payment_status|status|priority|subject|exception_date|day_of_week|base_price|Charts\.bars|Charts\.line|verification_status|ticket_status|ticket_priority|booking_id|image_url|is_active|UNIQUE|0\.\.6)[^)]*\)/gi,
+          "",
+        )
+        .replace(
+          /\b(?:pending|confirmed|in_progress|completed|cancelled|rejected|unpaid|paid|refunded|open|resolved|closed|verified)\b/g,
+          (match) => {
+            const map = {
+              pending: "Chờ xác nhận",
+              confirmed: "Đã xác nhận",
+              in_progress: "Đang thực hiện",
+              completed: "Hoàn thành",
+              cancelled: "Đã hủy",
+              rejected: "Từ chối",
+              unpaid: "Chưa thanh toán",
+              paid: "Đã thanh toán",
+              refunded: "Đã hoàn tiền",
+              open: "Đang mở",
+              resolved: "Đã giải quyết",
+              closed: "Đã đóng",
+              verified: "Đã xác minh",
+            };
+            return map[match] || match;
+          },
+        );
+    }
+
+    function applyUserModeCleanups(rootEl, screenOrModalId) {
+      if (!rootEl) return;
+
+      // Always hide raw DB schema subtitles & clean technical column names in ALL modes (including Dev Mode)
+      const findingEl =
+        rootEl.querySelector(".screen-finding") ||
+        (rootEl.id === "modalDialog"
+          ? rootEl.querySelector("#modalSub")
+          : null);
+      if (findingEl) findingEl.style.display = "none";
+
+      rootEl.querySelectorAll(".modal-header .field-hint").forEach((hint) => {
+        if (/^\s*(Bảng:|Cập nhật support_tickets)/i.test(hint.textContent))
+          hint.style.display = "none";
+      });
+
+      rootEl
+        .querySelectorAll(
+          ".field-label, .panel-title, .u-tab, .field-hint, .kpi-note, .badge, h3, h4, strong",
+        )
+        .forEach((el) => {
+          if (el.children.length === 0) {
+            el.textContent = cleanTechnicalLabelText(el.textContent);
+          }
+        });
+
+      if (state.viewMode !== "user" && state.viewMode !== "production") return;
+
+      const copy = USER_SCREEN_COPY[screenOrModalId];
+      const titleEl =
+        rootEl.querySelector(".screen-title") ||
+        (rootEl.id === "modalDialog"
+          ? rootEl.querySelector("#modalTitle")
+          : null);
+      if (titleEl) {
+        if (copy && copy.title) {
+          if (screenOrModalId === "1.3") {
+            const bIdMatch = titleEl.textContent.match(
+              /#(?:GDX-)?[A-Za-z0-9-]+/,
+            );
+            titleEl.textContent =
+              `${copy.title} ${bIdMatch ? "· " + bIdMatch[0] : ""}`.trim();
+          } else if (screenOrModalId === "1.6" || screenOrModalId === "2.1") {
+            const countMatch = titleEl.textContent.match(/\(\d+\)/);
+            titleEl.textContent =
+              `${copy.title} ${countMatch ? countMatch[0] : ""}`.trim();
+          } else {
+            titleEl.textContent = copy.title;
+          }
+        } else {
+          titleEl.textContent = titleEl.textContent.replace(
+            /^\d+\.\d+\.\s*/,
+            "",
+          );
+        }
+      }
+
+      if (
+        state.isProduction ||
+        state.viewMode === "production" ||
+        !isDevFromUrl
+      ) {
+        rootEl.querySelectorAll(".modal-title").forEach((mt) => {
+          mt.textContent = mt.textContent.replace(/^\d+\.\d+\.\s*/, "");
+        });
+      }
+    }
+
+    function renderUserTopbar() {
+      const userNav = document.getElementById("userMainNav");
+      const captionEl = document.getElementById("activeRoleCaption");
+      const roleSelect = document.getElementById("userRoleSelect");
+      const btnUser = document.getElementById("modeBtnUser");
+      const btnDev = document.getElementById("modeBtnDev");
+      const userAccountBar = document.getElementById("userAccountBar");
+      const modeSwitchPill = document.querySelector(".mode-switch-pill");
+      const catalogBtn = document.querySelector(".dev-catalog-btn");
+      const statusBtn = document.getElementById("supabaseStatusBtn");
+
+      if (
+        state.isProduction ||
+        state.viewMode === "production" ||
+        !isDevFromUrl
+      ) {
+        if (modeSwitchPill) modeSwitchPill.style.display = "none";
+        if (catalogBtn) catalogBtn.style.display = "none";
+        if (statusBtn) statusBtn.style.display = "none";
+        if (roleSelect) roleSelect.style.display = "none";
+      }
+
+      if (btnUser && btnDev) {
+        btnUser.setAttribute(
+          "aria-pressed",
+          state.viewMode === "user" || state.viewMode === "production"
+            ? "true"
+            : "false",
+        );
+        btnDev.setAttribute(
+          "aria-pressed",
+          state.viewMode === "dev" ? "true" : "false",
+        );
+      }
+
+      if (roleSelect && !state.isProduction && isDevFromUrl) {
+        roleSelect.value = String(state.currentPortal);
+      }
+
+      if (userAccountBar && (state.isProduction || !isDevFromUrl)) {
+        if (!state.currentUser) {
+          userAccountBar.innerHTML = `
           <div class="user-guest-actions">
             <button type="button" class="btn btn-secondary btn-sm" onclick="GDXApp.switchPortal(0, '0.1')">
               Đăng nhập
@@ -1557,9 +2326,14 @@ window.GDXApp = (() => {
             </button>
           </div>
         `;
-      } else {
-        const roleLabel = state.currentUser.role === 'provider' ? 'Đối tác Thợ' : (state.currentUser.role === 'admin' ? 'Quản trị' : 'Khách hàng');
-        userAccountBar.innerHTML = `
+        } else {
+          const roleLabel =
+            state.currentUser.role === "provider"
+              ? "Đối tác Thợ"
+              : state.currentUser.role === "admin"
+                ? "Quản trị"
+                : "Khách hàng";
+          userAccountBar.innerHTML = `
           <div class="user-logged-pill">
             <span class="user-logged-name">${state.currentUser.full_name}</span>
             <span class="badge badge-sm badge-positive">${roleLabel}</span>
@@ -1568,450 +2342,577 @@ window.GDXApp = (() => {
             </button>
           </div>
         `;
-      }
-    }
-
-    if (state.viewMode === 'dev') return;
-
-    const db = window.GDX_DB;
-    const favCount = (db.favorites || []).filter((f) => f.customer_id === state.activeCustomerId).length;
-    const pendingJobsCount = (db.bookings || []).filter((b) => b.status === 'pending').length;
-    const pendingKycCount = (db.company_profiles || []).filter((c) => c.verification_status === 'pending').length;
-
-    if (state.currentPortal === 1) {
-      if (captionEl) captionEl.textContent = 'Chăm sóc nhà cửa tại gia';
-      if (userNav) {
-        let items;
-        if ((state.isProduction || !isDevFromUrl) && !state.currentUser) {
-          // Cold Start / Guest navigation
-          items = [
-            { id: '1.1', label: 'Khám phá dịch vụ' },
-            { id: '1.2', label: 'Đặt lịch' },
-            { id: '1.11', label: 'Hỗ trợ', isModal: true }
-          ];
-        } else {
-          items = [
-            { id: '1.1', label: 'Khám phá' },
-            { id: '1.2', label: 'Đặt lịch' },
-            { id: '1.3', label: 'Theo dõi ca' },
-            { id: '1.4', label: 'Lịch hẹn' },
-            { id: '1.6', label: `Đã lưu (${favCount})` },
-            { id: '1.5', label: 'Hồ sơ' },
-            { id: '1.11', label: 'Hỗ trợ', isModal: true }
-          ];
         }
-        userNav.innerHTML = items
-          .map(
-            (it) => `
-          <button type="button" class="portal-tab" aria-selected="${!it.isModal && state.currentScreen === it.id ? 'true' : 'false'}" onclick="${it.switchPortalTo !== undefined ? `GDXApp.switchPortal(${it.switchPortalTo}, '${it.id}')` : (it.isModal ? `GDXApp.openModal('${it.id}')` : `GDXApp.go('${it.id}')`)}">
-            ${it.label}
-          </button>`
-          )
-          .join('');
       }
-    } else if (state.currentPortal === 2) {
-      if (captionEl) captionEl.textContent = 'Không gian Đối tác Thợ';
-      if (userNav) {
-        const items = [
-          { id: '2.1', label: `Việc mới (${pendingJobsCount})` },
-          { id: '2.2', label: 'Ca đang làm' },
-          { id: '2.3', label: 'Thu nhập & Lịch' },
-          { id: '2.4', label: 'Kỹ năng & Khu vực' },
-          { id: '2.9', label: 'Báo sự cố', isModal: true }
-        ];
-        userNav.innerHTML = items
-          .map(
-            (it) => `
-          <button type="button" class="portal-tab" aria-selected="${!it.isModal && state.currentScreen === it.id ? 'true' : 'false'}" onclick="${it.isModal ? `GDXApp.openModal('${it.id}')` : `GDXApp.go('${it.id}')`}">
+
+      if (state.viewMode === "dev") return;
+
+      const db = window.GDX_DB;
+      const favCount = (db.favorites || []).filter(
+        (f) => f.customer_id === state.activeCustomerId,
+      ).length;
+      const pendingJobsCount = (db.bookings || []).filter(
+        (b) => b.status === "pending",
+      ).length;
+      const pendingKycCount = (db.company_profiles || []).filter(
+        (c) => c.verification_status === "pending",
+      ).length;
+
+      if (state.currentPortal === 1) {
+        if (captionEl) captionEl.textContent = "Chăm sóc nhà cửa tại gia";
+        if (userNav) {
+          let items;
+          if ((state.isProduction || !isDevFromUrl) && !state.currentUser) {
+            // Cold Start / Guest navigation
+            items = [
+              { id: "1.1", label: "Khám phá dịch vụ" },
+              { id: "1.2", label: "Đặt lịch" },
+              { id: "1.11", label: "Hỗ trợ", isModal: true },
+            ];
+          } else {
+            items = [
+              { id: "1.1", label: "Khám phá" },
+              { id: "1.2", label: "Đặt lịch" },
+              { id: "1.3", label: "Theo dõi ca" },
+              { id: "1.4", label: "Lịch hẹn" },
+              { id: "1.6", label: `Đã lưu (${favCount})` },
+              { id: "1.5", label: "Hồ sơ" },
+              { id: "1.11", label: "Hỗ trợ", isModal: true },
+            ];
+          }
+          userNav.innerHTML = items
+            .map(
+              (it) => `
+          <button type="button" class="portal-tab" aria-selected="${!it.isModal && state.currentScreen === it.id ? "true" : "false"}" onclick="${it.switchPortalTo !== undefined ? `GDXApp.switchPortal(${it.switchPortalTo}, '${it.id}')` : it.isModal ? `GDXApp.openModal('${it.id}')` : `GDXApp.go('${it.id}')`}">
             ${it.label}
-          </button>`
-          )
-          .join('');
-      }
-    } else if (state.currentPortal === 3) {
-      if (captionEl) captionEl.textContent = 'Trung tâm Điều phối & Quản trị';
-      if (userNav) {
-        const items = [
-          { id: '3.1', label: 'Tổng quan & Điều phối' },
-          { id: '3.2', label: 'Danh mục & Giám sát DV' },
-          { id: '3.3', label: `Duyệt Công ty (${pendingKycCount})` },
-          { id: '3.4', label: 'Tài khoản & Hỗ trợ' }
-        ];
-        userNav.innerHTML = items
-          .map(
-            (it) => `
-          <button type="button" class="portal-tab" aria-selected="${state.currentScreen === it.id ? 'true' : 'false'}" onclick="GDXApp.go('${it.id}')">
-            ${it.label}
-          </button>`
-          )
-          .join('');
-      }
-    } else if (state.currentPortal === 4) {
-      if (captionEl) captionEl.textContent = 'Cổng Quản lý Công ty Đối tác';
-      if (userNav) {
-        const compStaffCount = (db.provider_profiles || []).filter((p) => String(p.company_id) === String(state.activeCompanyId || 501)).length;
-        const items = [
-          { id: '4.1', label: 'Tổng quan Công ty' },
-          { id: '4.2', label: `Nhân viên Thợ (${compStaffCount})` },
-          { id: '4.3', label: 'Dịch vụ Công ty' }
-        ];
-        userNav.innerHTML = items
-          .map(
-            (it) => `
-          <button type="button" class="portal-tab" aria-selected="${state.currentScreen === it.id ? 'true' : 'false'}" onclick="GDXApp.go('${it.id}')">
-            ${it.label}
-          </button>`
-          )
-          .join('');
-      }
-    } else {
-      if (captionEl) captionEl.textContent = 'Tài khoản & Đăng ký Đối tác Công ty';
-      if (userNav) {
-        const items = [
-          { id: '0.1', label: 'Đăng nhập / Đăng ký' },
-          { id: '0.2', label: 'Hồ sơ Khách mới' },
-          { id: '0.3', label: 'Đăng ký Công ty' },
-          { id: '0.4', label: 'Trạng thái Công ty' },
-          { id: '1.1', label: 'Về Trang chủ', switchPortalTo: 1 }
-        ];
-        userNav.innerHTML = items
-          .map(
-            (it) => `
-          <button type="button" class="portal-tab" aria-selected="${state.currentScreen === it.id ? 'true' : 'false'}" onclick="${it.switchPortalTo ? `GDXApp.switchPortal(1, '1.1')` : `GDXApp.go('${it.id}')`}">
-            ${it.label}
-          </button>`
-          )
-          .join('');
-      }
-    }
-  }
-
-  function setViewMode(mode, silent = false, options = {}) {
-    if (mode === 'production') {
-      state.viewMode = 'production';
-      state.isProduction = true;
-    } else {
-      state.viewMode = mode === 'dev' ? 'dev' : 'user';
-    }
-    document.body.setAttribute('data-view-mode', state.viewMode);
-    renderUserTopbar();
-    switchPortal(state.currentPortal, state.currentScreen, state.currentRouteParams || {}, options);
-    if (!silent) {
-      showToast(
-        state.viewMode === 'production'
-          ? 'Đang ở Chế độ Production Mode (Zero Mock Data — Kết nối Supabase trực tiếp)'
-          : (state.viewMode === 'user'
-              ? 'Đang ở Luồng Người dùng thực tế (giao diện thân thiện)'
-              : 'Đang ở Chế độ Dev (hiển thị 4 Phân hệ, 34 UI & ánh xạ bảng SQL)')
-      );
-    }
-  }
-
-  function goHomeByRole() {
-    if (state.currentPortal === 2) {
-      go('2.1');
-    } else if (state.currentPortal === 3) {
-      go('3.1');
-    } else if (state.currentPortal === 4) {
-      go('4.1');
-    } else {
-      switchPortal(1, '1.1');
-    }
-  }
-
-  function handleUserRoleSwitch(portalVal) {
-    const p = Number(portalVal);
-    switchPortal(p);
-    const names = {
-      0: 'Cổng Tài khoản & Đăng ký Công ty',
-      1: 'Khách hàng: Nguyễn Minh Thảo',
-      2: 'Đối tác Thợ: Đặng Thị Mai Lan',
-      3: 'Quản trị viên: Nguyễn Quang Hào',
-      4: 'Công ty Đối tác: An Bình Home Care'
-    };
-    showToast(`Đã chuyển sang góc nhìn: ${names[p] || ''}`);
-  }
-
-  function handleUserAccountClick() {
-    if (state.currentPortal === 0) {
-      switchPortal(1, '1.1');
-    } else {
-      switchPortal(0, '0.1');
-    }
-  }
-
-  // --- PORTAL & SIDEBAR SWITCHER ---
-  function switchPortal(portalId, targetScreenId = null, params = {}, options = {}) {
-    state.currentPortal = Number(portalId);
-    document.querySelectorAll('#devPortalSwitcher .portal-tab').forEach((tab) => {
-      tab.setAttribute('aria-selected', tab.getAttribute('data-portal') === String(portalId));
-    });
-
-    const captionEl = document.getElementById('activeRoleCaption');
-    const identityEl = document.getElementById('sidebarCurrentIdentity');
-    const provWidget = document.getElementById('providerHeaderWidget');
-
-    // Nếu ở chế độ Production Mode, tôn trọng danh tính thực tế hoặc khách vãng lai
-    if (state.isProduction) {
-      if (portalId === 0) {
-        state.userRole = 'anon';
-        if (identityEl) identityEl.textContent = 'Trạng thái: Khách vãng lai / Đăng ký';
-        if (provWidget) provWidget.style.display = 'none';
-        const dest = targetScreenId || '0.1';
-        renderSidebar(dest);
-        go(dest, params, options);
-        return;
-      } else if (portalId === 1) {
-        state.userRole = state.currentUser ? state.currentUser.role : 'customer';
-        if (identityEl) {
-          identityEl.textContent = state.currentUser
-            ? `auth.uid(): ${state.currentUser.full_name} (${state.currentUser.user_id.slice(0, 8)}...)`
-            : 'Khách hàng chưa đăng nhập (Cold Start)';
+          </button>`,
+            )
+            .join("");
         }
-        if (provWidget) provWidget.style.display = 'none';
-        const dest = targetScreenId || '1.1';
-        renderSidebar(dest);
-        go(dest, params, options);
-        return;
-      }
-    }
-
-    const db = window.GDX_DB || {};
-    if (portalId === 0) {
-      if (captionEl && state.viewMode === 'dev') captionEl.textContent = 'Phân hệ 0 · Dùng chung & Xác thực';
-      if (identityEl) identityEl.textContent = 'Trạng thái: Khách vãng lai / Đăng nhập';
-      state.userRole = 'anon';
-      state.activeUserId = (db.users && db.users[0] && db.users[0].user_id) || 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
-      if (provWidget) provWidget.style.display = 'none';
-      const dest = targetScreenId || '0.1';
-      renderSidebar(dest);
-      go(dest, params, options);
-    } else if (portalId === 1) {
-      const firstCp = (db.customer_profiles && db.customer_profiles[0]) || null;
-      const custUser = (firstCp && (db.users || []).find((u) => String(u.user_id) === String(firstCp.user_id))) || null;
-      if (captionEl && state.viewMode === 'dev') captionEl.textContent = 'Phân hệ 1 · Khách hàng (Customer)';
-      if (identityEl) {
-        identityEl.textContent = `auth.uid(): ${(custUser && custUser.full_name) || 'Nguyễn Minh Thảo'} (customer_id #${(firstCp && firstCp.customer_id) || 101})`;
-      }
-      state.userRole = 'customer';
-      if (!state.currentUser || state.currentUser.role !== 'customer') {
-        state.activeUserId = (firstCp && firstCp.user_id) || 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
-        state.activeCustomerId = (firstCp && firstCp.customer_id) || 101;
-        refreshDemoToken('customer');
-      }
-      if (provWidget) provWidget.style.display = 'none';
-      const dest = targetScreenId || '1.1';
-      renderSidebar(dest);
-      go(dest, params, options);
-    } else if (portalId === 2) {
-      const firstPp = (db.provider_profiles && db.provider_profiles[0]) || null;
-      const provUser = (firstPp && (db.users || []).find((u) => String(u.user_id) === String(firstPp.user_id))) || null;
-      if (captionEl && state.viewMode === 'dev') captionEl.textContent = 'Phân hệ 2 · Thợ / Đối tác (Provider)';
-      if (identityEl) {
-        identityEl.textContent = `auth.uid(): ${(provUser && provUser.full_name) || 'Đặng Thị Mai Lan'} (provider_id #${(firstPp && firstPp.provider_id) || 201})`;
-      }
-      state.userRole = 'provider';
-      if (!state.currentUser || state.currentUser.role !== 'provider') {
-        state.activeUserId = (firstPp && firstPp.user_id) || 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b21';
-        state.activeProviderId = (firstPp && firstPp.provider_id) || 201;
-        refreshDemoToken('provider');
-      }
-      if (provWidget) provWidget.style.display = 'flex';
-      const dest = targetScreenId || '2.1';
-      renderSidebar(dest);
-      go(dest, params, options);
-    } else if (portalId === 3) {
-      const adminUser = ((db.users || []).find((u) => u.role === 'admin')) || null;
-      if (captionEl && state.viewMode === 'dev') captionEl.textContent = 'Phân hệ 3 · Quản trị viên (Admin)';
-      if (identityEl) identityEl.textContent = `auth.uid(): ${(adminUser && adminUser.full_name) || 'Nguyễn Quang Hào'} (role: admin)`;
-      state.userRole = 'admin';
-      if (!state.currentUser || state.currentUser.role !== 'admin') {
-        state.activeUserId = (adminUser && adminUser.user_id) || 'c2eebc99-9c0b-4ef8-bb6d-6bb9bd380c99';
-        refreshDemoToken('admin');
-      }
-      if (provWidget) provWidget.style.display = 'none';
-      const dest = targetScreenId || '3.1';
-      renderSidebar(dest);
-      go(dest, params, options);
-    } else if (portalId === 4) {
-      const activeComp = ((db.company_profiles || []).find((c) => String(c.company_id) === String(state.activeCompanyId))) || (db.company_profiles && db.company_profiles[0]) || null;
-      const compUser = (activeComp && (db.users || []).find((u) => String(u.user_id) === String(activeComp.user_id))) || null;
-      if (captionEl && state.viewMode === 'dev') captionEl.textContent = 'Phân hệ 4 · Công ty Đối tác (Company)';
-      if (identityEl) {
-        identityEl.textContent = `auth.uid(): ${(activeComp && activeComp.company_name) || (compUser && compUser.full_name) || 'Công ty An Bình'} (company_id #${(activeComp && activeComp.company_id) || 501})`;
-      }
-      state.userRole = 'company';
-      if (!state.currentUser || state.currentUser.role !== 'company') {
-        state.activeUserId = (activeComp && activeComp.user_id) || 'd3eebc99-9c0b-4ef8-bb6d-6bb9bd380d31';
-        state.activeCompanyId = (activeComp && activeComp.company_id) || 501;
-        refreshDemoToken('company');
-      }
-      if (provWidget) provWidget.style.display = 'none';
-      const dest = targetScreenId || '4.1';
-      renderSidebar(dest);
-      go(dest, params, options);
-    }
-  }
-
-  function renderSidebar(activeScreenId) {
-    const pageListEl = document.getElementById('sidebarPageList');
-    const modalListEl = document.getElementById('sidebarModalList');
-    if (!pageListEl || !modalListEl) return;
-
-    const portalScreens = Object.values(SCREENS).filter((s) => s.portal === state.currentPortal);
-    const pages = portalScreens.filter((s) => s.type === 'page');
-    const modals = portalScreens.filter((s) => s.type !== 'page');
-
-    pageListEl.innerHTML = pages
-      .map(
-        (p) => `
-      <button type="button" class="sidebar-nav-btn" data-screen="${p.id}" aria-current="${p.id === activeScreenId ? 'page' : 'false'}" onclick="GDXApp.go('${p.id}')">
-        <span>${p.title.split('. ')[1] || p.title}</span>
-        <span class="sidebar-code">${p.id}</span>
-      </button>`
-      )
-      .join('');
-
-    modalListEl.innerHTML = modals
-      .map(
-        (m) => `
-      <button type="button" class="sidebar-nav-btn" data-screen="${m.id}" onclick="GDXApp.openModal('${m.id}')">
-        <span>${m.title.split('. ')[1] || m.title}</span>
-        <span class="badge badge-neutral" style="font-size:11px;">${m.type}</span>
-      </button>`
-      )
-      .join('');
-  }
-
-  function go(screenId, params = {}, options = {}) {
-    state.currentScreen = screenId;
-    state.currentRouteParams = params;
-    const meta = SCREENS[screenId];
-    if (meta && meta.portal !== state.currentPortal) {
-      switchPortal(meta.portal, screenId, params, options);
-      return;
-    }
-
-    if (!options.skipHistory) {
-      pushScreenUrl(screenId, params, Boolean(options.replace));
-    }
-
-    renderSidebar(screenId);
-    renderUserTopbar();
-
-    const viewport = document.getElementById('mainViewport');
-    if (!viewport) return;
-
-    viewport.setAttribute('data-screen', screenId);
-    if (screenId === '1.1') {
-      viewport.setAttribute('data-surface-mode', 'stationery');
-    } else if (screenId === '1.3') {
-      viewport.setAttribute('data-surface-mode', 'map');
-    } else {
-      viewport.removeAttribute('data-surface-mode');
-    }
-
-    viewport.scrollTop = 0;
-
-    switch (screenId) {
-      case '0.1': renderScreen_0_1(viewport, params); break;
-      case '0.2': renderScreen_0_2(viewport, params); break;
-      case '0.3': renderScreen_0_3(viewport, params); break;
-      case '0.4': renderScreen_0_4(viewport, params); break;
-      case '0.5': renderScreen_0_5(viewport, params); break;
-
-      case '1.1': renderScreen_1_1(viewport, params); break;
-      case '1.2': renderScreen_1_2(viewport, params); break;
-      case '1.3': renderScreen_1_3(viewport, params); break;
-      case '1.4': renderScreen_1_4(viewport, params); break;
-      case '1.5': renderScreen_1_5(viewport, params); break;
-      case '1.6': renderScreen_1_6(viewport, params); break;
-      case '1.8': renderScreen_1_8(viewport, params); break;
-
-      case '2.1': renderScreen_2_1(viewport, params); break;
-      case '2.2': renderScreen_2_2(viewport, params); break;
-      case '2.3': renderScreen_2_3(viewport, params); break;
-      case '2.4': renderScreen_2_4(viewport, params); break;
-
-      case '3.1': renderScreen_3_1(viewport, params); break;
-      case '3.2': renderScreen_3_2(viewport, params); break;
-      case '3.3': renderScreen_3_3(viewport, params); break;
-      case '3.4': renderScreen_3_4(viewport, params); break;
-
-      case '4.1': renderScreen_4_1(viewport, params); break;
-      case '4.2': renderScreen_4_2(viewport, params); break;
-      case '4.3': renderScreen_4_3(viewport, params); break;
-
-      default:
-        viewport.innerHTML = `<div class="panel"><h2>Màn hình ${screenId}</h2></div>`;
-    }
-
-    applyUserModeCleanups(viewport, screenId);
-  }
-
-  // --- COMPONENT 2.5: PROVIDER STATUS & GPS TOGGLE ---
-  function toggleProviderOnline() {
-    const prov = window.GDX_DB.provider_profiles.find((p) => p.provider_id === state.activeProviderId);
-    if (!prov) return;
-    prov.is_available_online = !prov.is_available_online;
-
-    const dot = document.getElementById('providerOnlineDot');
-    const label = document.getElementById('providerOnlineLabel');
-    if (dot && label) {
-      if (prov.is_available_online) {
-        dot.className = 'status-dot is-online';
-        label.textContent = 'Đang nhận việc';
+      } else if (state.currentPortal === 2) {
+        if (captionEl) captionEl.textContent = "Không gian Đối tác Thợ";
+        if (userNav) {
+          const items = [
+            { id: "2.1", label: `Việc mới (${pendingJobsCount})` },
+            { id: "2.2", label: "Ca đang làm" },
+            { id: "2.3", label: "Thu nhập & Lịch" },
+            { id: "2.4", label: "Kỹ năng & Khu vực" },
+            { id: "2.9", label: "Báo sự cố", isModal: true },
+          ];
+          userNav.innerHTML = items
+            .map(
+              (it) => `
+          <button type="button" class="portal-tab" aria-selected="${!it.isModal && state.currentScreen === it.id ? "true" : "false"}" onclick="${it.isModal ? `GDXApp.openModal('${it.id}')` : `GDXApp.go('${it.id}')`}">
+            ${it.label}
+          </button>`,
+            )
+            .join("");
+        }
+      } else if (state.currentPortal === 3) {
+        if (captionEl) captionEl.textContent = "Trung tâm Điều phối & Quản trị";
+        if (userNav) {
+          const items = [
+            { id: "3.1", label: "Tổng quan & Điều phối" },
+            { id: "3.2", label: "Danh mục & Giám sát DV" },
+            { id: "3.3", label: `Duyệt Công ty (${pendingKycCount})` },
+            { id: "3.4", label: "Tài khoản & Hỗ trợ" },
+          ];
+          userNav.innerHTML = items
+            .map(
+              (it) => `
+          <button type="button" class="portal-tab" aria-selected="${state.currentScreen === it.id ? "true" : "false"}" onclick="GDXApp.go('${it.id}')">
+            ${it.label}
+          </button>`,
+            )
+            .join("");
+        }
+      } else if (state.currentPortal === 4) {
+        if (captionEl) captionEl.textContent = "Cổng Quản lý Công ty Đối tác";
+        if (userNav) {
+          const compStaffCount = (db.provider_profiles || []).filter(
+            (p) =>
+              String(p.company_id) === String(state.activeCompanyId || 501),
+          ).length;
+          const items = [
+            { id: "4.1", label: "Tổng quan Công ty" },
+            { id: "4.2", label: `Nhân viên Thợ (${compStaffCount})` },
+            { id: "4.3", label: "Dịch vụ Công ty" },
+          ];
+          userNav.innerHTML = items
+            .map(
+              (it) => `
+          <button type="button" class="portal-tab" aria-selected="${state.currentScreen === it.id ? "true" : "false"}" onclick="GDXApp.go('${it.id}')">
+            ${it.label}
+          </button>`,
+            )
+            .join("");
+        }
       } else {
-        dot.className = 'status-dot';
-        label.textContent = 'Tạm dừng nhận đơn';
+        if (captionEl)
+          captionEl.textContent = "Tài khoản & Đăng ký Đối tác Công ty";
+        if (userNav) {
+          const items = [
+            { id: "0.1", label: "Đăng nhập / Đăng ký" },
+            { id: "0.2", label: "Hồ sơ Khách mới" },
+            { id: "0.3", label: "Đăng ký Công ty" },
+            { id: "0.4", label: "Trạng thái Công ty" },
+            { id: "1.1", label: "Về Trang chủ", switchPortalTo: 1 },
+          ];
+          userNav.innerHTML = items
+            .map(
+              (it) => `
+          <button type="button" class="portal-tab" aria-selected="${state.currentScreen === it.id ? "true" : "false"}" onclick="${it.switchPortalTo ? `GDXApp.switchPortal(1, '1.1')` : `GDXApp.go('${it.id}')`}">
+            ${it.label}
+          </button>`,
+            )
+            .join("");
+        }
       }
     }
-    apiRequest('/api/provider/online-gps', {
-      method: 'PATCH',
-      body: JSON.stringify({
-        provider_id: state.activeProviderId,
-        is_available_online: prov.is_available_online
-      })
-    });
-    showToast(`Trạng thái nhận việc: ${prov.is_available_online ? 'Đang trực tuyến' : 'Tạm nghỉ'}`);
-    if (state.currentScreen === '2.1') go('2.1');
-  }
 
-  function refreshProviderGPS() {
-    const prov = window.GDX_DB.provider_profiles.find((p) => p.provider_id === state.activeProviderId);
-    if (!prov) return;
-    prov.lattitude = Number((prov.lattitude + (Math.random() - 0.5) * 0.002).toFixed(6));
-    prov.longtitude = Number((prov.longtitude + (Math.random() - 0.5) * 0.002).toFixed(6));
+    function setViewMode(mode, silent = false, options = {}) {
+      if (mode === "production") {
+        state.viewMode = "production";
+        state.isProduction = true;
+      } else {
+        state.viewMode = mode === "dev" ? "dev" : "user";
+      }
+      document.body.setAttribute("data-view-mode", state.viewMode);
+      renderUserTopbar();
+      switchPortal(
+        state.currentPortal,
+        state.currentScreen,
+        state.currentRouteParams || {},
+        options,
+      );
+      if (!silent) {
+        showToast(
+          state.viewMode === "production"
+            ? "Đang ở Chế độ Production Mode (Zero Mock Data — Kết nối Supabase trực tiếp)"
+            : state.viewMode === "user"
+              ? "Đang ở Luồng Người dùng thực tế (giao diện thân thiện)"
+              : "Đang ở Chế độ Dev (hiển thị 4 Phân hệ, 34 UI & ánh xạ bảng SQL)",
+        );
+      }
+    }
 
-    const gpsEl = document.getElementById('providerGpsText');
-    if (gpsEl) gpsEl.textContent = `${prov.lattitude}, ${prov.longtitude}`;
-    apiRequest('/api/provider/online-gps', {
-      method: 'PATCH',
-      body: JSON.stringify({
-        provider_id: state.activeProviderId,
-        lattitude: prov.lattitude,
-        longtitude: prov.longtitude
-      })
-    });
-    showToast(`Đã cập nhật tọa độ: ${prov.lattitude}, ${prov.longtitude}`);
-    if (state.currentScreen === '2.1' || state.currentScreen === '2.2') go(state.currentScreen);
-  }
+    function goHomeByRole() {
+      if (state.currentPortal === 2) {
+        go("2.1");
+      } else if (state.currentPortal === 3) {
+        go("3.1");
+      } else if (state.currentPortal === 4) {
+        go("4.1");
+      } else {
+        switchPortal(1, "1.1");
+      }
+    }
 
-  // =====================================================================
-  // SCREEN RENDERERS: PHÂN HỆ 0 (AUTH & ONBOARDING: 0.1 – 0.5)
-  // =====================================================================
+    function handleUserRoleSwitch(portalVal) {
+      const p = Number(portalVal);
+      switchPortal(p);
+      const names = {
+        0: "Cổng Tài khoản & Đăng ký Công ty",
+        1: "Khách hàng: Nguyễn Minh Thảo",
+        2: "Đối tác Thợ: Đặng Thị Mai Lan",
+        3: "Quản trị viên: Nguyễn Quang Hào",
+        4: "Công ty Đối tác: An Bình Home Care",
+      };
+      showToast(`Đã chuyển sang góc nhìn: ${names[p] || ""}`);
+    }
 
-  // 0.1: Đăng nhập (Chính) / Đăng ký riêng biệt / Khôi phục mật khẩu riêng biệt
-  function renderScreen_0_1(container, params = {}) {
-    const currentView = (params && params.view) || state.authView || 'login';
-    state.authView = currentView;
+    function handleUserAccountClick() {
+      if (state.currentPortal === 0) {
+        switchPortal(1, "1.1");
+      } else {
+        switchPortal(0, "0.1");
+      }
+    }
 
-    const isDev = !state.isProduction && state.viewMode === 'dev';
+    // --- PORTAL & SIDEBAR SWITCHER ---
+    function switchPortal(
+      portalId,
+      targetScreenId = null,
+      params = {},
+      options = {},
+    ) {
+      state.currentPortal = Number(portalId);
+      document
+        .querySelectorAll("#devPortalSwitcher .portal-tab")
+        .forEach((tab) => {
+          tab.setAttribute(
+            "aria-selected",
+            tab.getAttribute("data-portal") === String(portalId),
+          );
+        });
 
-    let rightFormHtml = '';
+      const captionEl = document.getElementById("activeRoleCaption");
+      const identityEl = document.getElementById("sidebarCurrentIdentity");
+      const provWidget = document.getElementById("providerHeaderWidget");
 
-    if (currentView === 'login') {
-      rightFormHtml = `
+      // Nếu ở chế độ Production Mode, tôn trọng danh tính thực tế hoặc khách vãng lai
+      if (state.isProduction) {
+        if (portalId === 0) {
+          state.userRole = "anon";
+          if (identityEl)
+            identityEl.textContent = "Trạng thái: Khách vãng lai / Đăng ký";
+          if (provWidget) provWidget.style.display = "none";
+          const dest = targetScreenId || "0.1";
+          renderSidebar(dest);
+          go(dest, params, options);
+          return;
+        } else if (portalId === 1) {
+          state.userRole = state.currentUser
+            ? state.currentUser.role
+            : "customer";
+          if (identityEl) {
+            identityEl.textContent = state.currentUser
+              ? `auth.uid(): ${state.currentUser.full_name} (${state.currentUser.user_id.slice(0, 8)}...)`
+              : "Khách hàng chưa đăng nhập (Cold Start)";
+          }
+          if (provWidget) provWidget.style.display = "none";
+          const dest = targetScreenId || "1.1";
+          renderSidebar(dest);
+          go(dest, params, options);
+          return;
+        }
+      }
+
+      const db = window.GDX_DB || {};
+      if (portalId === 0) {
+        if (captionEl && state.viewMode === "dev")
+          captionEl.textContent = "Phân hệ 0 · Dùng chung & Xác thực";
+        if (identityEl)
+          identityEl.textContent = "Trạng thái: Khách vãng lai / Đăng nhập";
+        state.userRole = "anon";
+        state.activeUserId =
+          (db.users && db.users[0] && db.users[0].user_id) ||
+          "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
+        if (provWidget) provWidget.style.display = "none";
+        const dest = targetScreenId || "0.1";
+        renderSidebar(dest);
+        go(dest, params, options);
+      } else if (portalId === 1) {
+        const firstCp =
+          (db.customer_profiles && db.customer_profiles[0]) || null;
+        const custUser =
+          (firstCp &&
+            (db.users || []).find(
+              (u) => String(u.user_id) === String(firstCp.user_id),
+            )) ||
+          null;
+        if (captionEl && state.viewMode === "dev")
+          captionEl.textContent = "Phân hệ 1 · Khách hàng (Customer)";
+        if (identityEl) {
+          identityEl.textContent = `auth.uid(): ${(custUser && custUser.full_name) || "Nguyễn Minh Thảo"} (customer_id #${(firstCp && firstCp.customer_id) || 101})`;
+        }
+        state.userRole = "customer";
+        if (!state.currentUser || state.currentUser.role !== "customer") {
+          state.activeUserId =
+            (firstCp && firstCp.user_id) ||
+            "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
+          state.activeCustomerId = (firstCp && firstCp.customer_id) || 101;
+          refreshDemoToken("customer");
+        }
+        if (provWidget) provWidget.style.display = "none";
+        const dest = targetScreenId || "1.1";
+        renderSidebar(dest);
+        go(dest, params, options);
+      } else if (portalId === 2) {
+        const firstPp =
+          (db.provider_profiles && db.provider_profiles[0]) || null;
+        const provUser =
+          (firstPp &&
+            (db.users || []).find(
+              (u) => String(u.user_id) === String(firstPp.user_id),
+            )) ||
+          null;
+        if (captionEl && state.viewMode === "dev")
+          captionEl.textContent = "Phân hệ 2 · Thợ / Đối tác (Provider)";
+        if (identityEl) {
+          identityEl.textContent = `auth.uid(): ${(provUser && provUser.full_name) || "Đặng Thị Mai Lan"} (provider_id #${(firstPp && firstPp.provider_id) || 201})`;
+        }
+        state.userRole = "provider";
+        if (!state.currentUser || state.currentUser.role !== "provider") {
+          state.activeUserId =
+            (firstPp && firstPp.user_id) ||
+            "b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b21";
+          state.activeProviderId = (firstPp && firstPp.provider_id) || 201;
+          refreshDemoToken("provider");
+        }
+        if (provWidget) provWidget.style.display = "flex";
+        const dest = targetScreenId || "2.1";
+        renderSidebar(dest);
+        go(dest, params, options);
+      } else if (portalId === 3) {
+        const adminUser =
+          (db.users || []).find((u) => u.role === "admin") || null;
+        if (captionEl && state.viewMode === "dev")
+          captionEl.textContent = "Phân hệ 3 · Quản trị viên (Admin)";
+        if (identityEl)
+          identityEl.textContent = `auth.uid(): ${(adminUser && adminUser.full_name) || "Nguyễn Quang Hào"} (role: admin)`;
+        state.userRole = "admin";
+        if (!state.currentUser || state.currentUser.role !== "admin") {
+          state.activeUserId =
+            (adminUser && adminUser.user_id) ||
+            "c2eebc99-9c0b-4ef8-bb6d-6bb9bd380c99";
+          refreshDemoToken("admin");
+        }
+        if (provWidget) provWidget.style.display = "none";
+        const dest = targetScreenId || "3.1";
+        renderSidebar(dest);
+        go(dest, params, options);
+      } else if (portalId === 4) {
+        const activeComp =
+          (db.company_profiles || []).find(
+            (c) => String(c.company_id) === String(state.activeCompanyId),
+          ) ||
+          (db.company_profiles && db.company_profiles[0]) ||
+          null;
+        const compUser =
+          (activeComp &&
+            (db.users || []).find(
+              (u) => String(u.user_id) === String(activeComp.user_id),
+            )) ||
+          null;
+        if (captionEl && state.viewMode === "dev")
+          captionEl.textContent = "Phân hệ 4 · Công ty Đối tác (Company)";
+        if (identityEl) {
+          identityEl.textContent = `auth.uid(): ${(activeComp && activeComp.company_name) || (compUser && compUser.full_name) || "Công ty An Bình"} (company_id #${(activeComp && activeComp.company_id) || 501})`;
+        }
+        state.userRole = "company";
+        if (!state.currentUser || state.currentUser.role !== "company") {
+          state.activeUserId =
+            (activeComp && activeComp.user_id) ||
+            "d3eebc99-9c0b-4ef8-bb6d-6bb9bd380d31";
+          state.activeCompanyId = (activeComp && activeComp.company_id) || 501;
+          refreshDemoToken("company");
+        }
+        if (provWidget) provWidget.style.display = "none";
+        const dest = targetScreenId || "4.1";
+        renderSidebar(dest);
+        go(dest, params, options);
+      }
+    }
+
+    function renderSidebar(activeScreenId) {
+      const pageListEl = document.getElementById("sidebarPageList");
+      const modalListEl = document.getElementById("sidebarModalList");
+      if (!pageListEl || !modalListEl) return;
+
+      const portalScreens = Object.values(SCREENS).filter(
+        (s) => s.portal === state.currentPortal,
+      );
+      const pages = portalScreens.filter((s) => s.type === "page");
+      const modals = portalScreens.filter((s) => s.type !== "page");
+
+      pageListEl.innerHTML = pages
+        .map(
+          (p) => `
+      <button type="button" class="sidebar-nav-btn" data-screen="${p.id}" aria-current="${p.id === activeScreenId ? "page" : "false"}" onclick="GDXApp.go('${p.id}')">
+        <span>${p.title.split(". ")[1] || p.title}</span>
+        <span class="sidebar-code">${p.id}</span>
+      </button>`,
+        )
+        .join("");
+
+      modalListEl.innerHTML = modals
+        .map(
+          (m) => `
+      <button type="button" class="sidebar-nav-btn" data-screen="${m.id}" onclick="GDXApp.openModal('${m.id}')">
+        <span>${m.title.split(". ")[1] || m.title}</span>
+        <span class="badge badge-neutral" style="font-size:11px;">${m.type}</span>
+      </button>`,
+        )
+        .join("");
+    }
+
+    function go(screenId, params = {}, options = {}) {
+      state.currentScreen = screenId;
+      state.currentRouteParams = params;
+      const meta = SCREENS[screenId];
+      if (meta && meta.portal !== state.currentPortal) {
+        switchPortal(meta.portal, screenId, params, options);
+        return;
+      }
+
+      if (!options.skipHistory) {
+        pushScreenUrl(screenId, params, Boolean(options.replace));
+      }
+
+      renderSidebar(screenId);
+      renderUserTopbar();
+
+      const viewport = document.getElementById("mainViewport");
+      if (!viewport) return;
+
+      viewport.setAttribute("data-screen", screenId);
+      if (screenId === "1.1") {
+        viewport.setAttribute("data-surface-mode", "stationery");
+      } else if (screenId === "1.3") {
+        viewport.setAttribute("data-surface-mode", "map");
+      } else {
+        viewport.removeAttribute("data-surface-mode");
+      }
+
+      viewport.scrollTop = 0;
+
+      switch (screenId) {
+        case "0.1":
+          renderScreen_0_1(viewport, params);
+          break;
+        case "0.2":
+          renderScreen_0_2(viewport, params);
+          break;
+        case "0.3":
+          renderScreen_0_3(viewport, params);
+          break;
+        case "0.4":
+          renderScreen_0_4(viewport, params);
+          break;
+        case "0.5":
+          renderScreen_0_5(viewport, params);
+          break;
+
+        case "1.1":
+          renderScreen_1_1(viewport, params);
+          break;
+        case "1.2":
+          renderScreen_1_2(viewport, params);
+          break;
+        case "1.3":
+          renderScreen_1_3(viewport, params);
+          break;
+        case "1.4":
+          renderScreen_1_4(viewport, params);
+          break;
+        case "1.5":
+          renderScreen_1_5(viewport, params);
+          break;
+        case "1.6":
+          renderScreen_1_6(viewport, params);
+          break;
+        case "1.8":
+          renderScreen_1_8(viewport, params);
+          break;
+
+        case "2.1":
+          renderScreen_2_1(viewport, params);
+          break;
+        case "2.2":
+          renderScreen_2_2(viewport, params);
+          break;
+        case "2.3":
+          renderScreen_2_3(viewport, params);
+          break;
+        case "2.4":
+          renderScreen_2_4(viewport, params);
+          break;
+
+        case "3.1":
+          renderScreen_3_1(viewport, params);
+          break;
+        case "3.2":
+          renderScreen_3_2(viewport, params);
+          break;
+        case "3.3":
+          renderScreen_3_3(viewport, params);
+          break;
+        case "3.4":
+          renderScreen_3_4(viewport, params);
+          break;
+
+        case "4.1":
+          renderScreen_4_1(viewport, params);
+          break;
+        case "4.2":
+          renderScreen_4_2(viewport, params);
+          break;
+        case "4.3":
+          renderScreen_4_3(viewport, params);
+          break;
+
+        default:
+          viewport.innerHTML = `<div class="panel"><h2>Màn hình ${screenId}</h2></div>`;
+      }
+
+      applyUserModeCleanups(viewport, screenId);
+    }
+
+    // --- COMPONENT 2.5: PROVIDER STATUS & GPS TOGGLE ---
+    function toggleProviderOnline() {
+      const prov = window.GDX_DB.provider_profiles.find(
+        (p) => p.provider_id === state.activeProviderId,
+      );
+      if (!prov) return;
+      prov.is_available_online = !prov.is_available_online;
+
+      const dot = document.getElementById("providerOnlineDot");
+      const label = document.getElementById("providerOnlineLabel");
+      if (dot && label) {
+        if (prov.is_available_online) {
+          dot.className = "status-dot is-online";
+          label.textContent = "Đang nhận việc";
+        } else {
+          dot.className = "status-dot";
+          label.textContent = "Tạm dừng nhận đơn";
+        }
+      }
+      apiRequest("/api/provider/online-gps", {
+        method: "PATCH",
+        body: JSON.stringify({
+          provider_id: state.activeProviderId,
+          is_available_online: prov.is_available_online,
+        }),
+      });
+      showToast(
+        `Trạng thái nhận việc: ${prov.is_available_online ? "Đang trực tuyến" : "Tạm nghỉ"}`,
+      );
+      if (state.currentScreen === "2.1") go("2.1");
+    }
+
+    function refreshProviderGPS() {
+      const prov = window.GDX_DB.provider_profiles.find(
+        (p) => p.provider_id === state.activeProviderId,
+      );
+      if (!prov) return;
+      prov.lattitude = Number(
+        (prov.lattitude + (Math.random() - 0.5) * 0.002).toFixed(6),
+      );
+      prov.longtitude = Number(
+        (prov.longtitude + (Math.random() - 0.5) * 0.002).toFixed(6),
+      );
+
+      const gpsEl = document.getElementById("providerGpsText");
+      if (gpsEl) gpsEl.textContent = `${prov.lattitude}, ${prov.longtitude}`;
+      apiRequest("/api/provider/online-gps", {
+        method: "PATCH",
+        body: JSON.stringify({
+          provider_id: state.activeProviderId,
+          lattitude: prov.lattitude,
+          longtitude: prov.longtitude,
+        }),
+      });
+      showToast(`Đã cập nhật tọa độ: ${prov.lattitude}, ${prov.longtitude}`);
+      if (state.currentScreen === "2.1" || state.currentScreen === "2.2")
+        go(state.currentScreen);
+    }
+
+    // =====================================================================
+    // SCREEN RENDERERS: PHÂN HỆ 0 (AUTH & ONBOARDING: 0.1 – 0.5)
+    // =====================================================================
+
+    // 0.1: Đăng nhập (Chính) / Đăng ký riêng biệt / Khôi phục mật khẩu riêng biệt
+    function renderScreen_0_1(container, params = {}) {
+      const currentView = (params && params.view) || state.authView || "login";
+      state.authView = currentView;
+
+      const isDev = !state.isProduction && state.viewMode === "dev";
+
+      let rightFormHtml = "";
+
+      if (currentView === "login") {
+        rightFormHtml = `
         <div class="v3-seg-tabs" style="margin:0 0 20px;">
           <button type="button" class="v3-seg-tab is-active" onclick="GDXApp.setAuthView('login')">Đăng nhập</button>
           <button type="button" class="v3-seg-tab" onclick="GDXApp.setAuthView('register')">Tạo tài khoản mới</button>
@@ -2053,8 +2954,8 @@ window.GDXApp = (() => {
           <a href="javascript:void(0)" onclick="GDXApp.setAuthView('register')" class="auth-switch-cta">Đăng ký ngay &rarr;</a>
         </div>
       `;
-    } else if (currentView === 'register') {
-      rightFormHtml = `
+      } else if (currentView === "register") {
+        rightFormHtml = `
         <div class="auth-form-header">
           <span class="auth-badge-pill">Đăng ký thành viên</span>
           <h2 class="auth-form-title">Tạo tài khoản mới</h2>
@@ -2135,8 +3036,8 @@ window.GDXApp = (() => {
           <a href="javascript:void(0)" onclick="GDXApp.setAuthView('login')" class="auth-switch-cta">Đăng nhập ngay &rarr;</a>
         </div>
       `;
-    } else {
-      rightFormHtml = `
+      } else {
+        rightFormHtml = `
         <div class="auth-form-header">
           <span class="auth-badge-pill">Khôi phục quyền truy cập</span>
           <h2 class="auth-form-title">Quên mật khẩu?</h2>
@@ -2164,11 +3065,13 @@ window.GDXApp = (() => {
           <a href="javascript:void(0)" onclick="GDXApp.setAuthView('login')" class="auth-back-cta">&larr; Quay lại trang Đăng nhập</a>
         </div>
       `;
-    }
+      }
 
-    container.innerHTML = `
+      container.innerHTML = `
       <div class="auth-stage-wrapper">
-        ${isDev ? `
+        ${
+          isDev
+            ? `
           <div class="auth-dev-banner">
             <div class="auth-dev-banner-header">
               <div style="display:flex; align-items:center; gap:8px;">
@@ -2222,7 +3125,9 @@ window.GDXApp = (() => {
               </button>
             </div>
           </div>
-        ` : ''}
+        `
+            : ""
+        }
 
         <div class="auth-split-card">
           <!-- Left: Editorial Lifestyle Photo -->
@@ -2240,480 +3145,571 @@ window.GDXApp = (() => {
       </div>
     `;
 
-    applyUserModeCleanups(container, '0.1');
-  }
-
-  function setAuthView(view = 'login') {
-    state.authView = view;
-    pushScreenUrl('0.1', { view });
-    const vp = document.getElementById('mainViewport');
-    if (vp) {
-      renderScreen_0_1(vp, { view });
+      applyUserModeCleanups(container, "0.1");
     }
-  }
 
-  function setAuthTab(tab) {
-    const view = tab === 'forgot' ? 'forgot' : (tab === 'register' ? 'register' : 'login');
-    setAuthView(view);
-  }
-
-  function handleForgot(form) {
-    const identifier = form && form.identifier ? form.identifier.value.trim() : '';
-    if (!identifier) {
-      showToast('Vui lòng nhập email hoặc số điện thoại đã đăng ký.');
-      return;
-    }
-    showToast(`Đã gửi hướng dẫn khôi phục mật khẩu tới: ${identifier}. Vui lòng kiểm tra hộp thư/tin nhắn.`);
-    setTimeout(() => {
-      setAuthView('login');
-    }, 1200);
-  }
-
-  function togglePasswordVisibility(inputId, btnEl) {
-    const input = document.getElementById(inputId);
-    if (!input) return;
-    const isPw = input.type === 'password';
-    input.type = isPw ? 'text' : 'password';
-    if (btnEl) {
-      btnEl.setAttribute('aria-label', isPw ? 'Ẩn mật khẩu' : 'Hiển thị mật khẩu');
-      btnEl.innerHTML = isPw ? Icons.eyeOff() : Icons.eye();
-    }
-  }
-
-  function quickPersonaLogin(role) {
-    handleLogin({ mockRole: { value: role } });
-  }
-
-  async function handleLogin(form) {
-    const hasIdentifier = Boolean(form && form.identifier && form.identifier.value && form.identifier.value.trim());
-    const hasPassword = Boolean(form && form.password && form.password.value);
-
-    // Cho phép trải nghiệm nhanh persona ở chế độ phát triển nếu không nhập thủ công
-    if (!hasIdentifier && form && form.mockRole && !state.isProduction && state.viewMode !== 'production') {
-      const role = form.mockRole.value || 'customer';
-      if (role === 'customer') {
-        showToast('Đã đăng nhập: Nguyễn Minh Thảo (Khách hàng)');
-        switchPortal(1, '1.1');
-      } else if (role === 'provider') {
-        showToast('Đã đăng nhập: Đặng Thị Mai Lan (Đối tác Thợ)');
-        switchPortal(2, '2.1');
-      } else if (role === 'company') {
-        state.activeCompanyId = 501;
-        showToast('Đã đăng nhập: Công ty TNHH An Bình Home Care');
-        switchPortal(4, '4.1');
-      } else if (role === 'company_pending') {
-        state.activeCompanyId = 503;
-        showToast('Hồ sơ Công ty Mai Sáng đang chờ Admin xét duyệt');
-        switchPortal(0, '0.4', { status: 'pending' });
-      } else if (role === 'provider_rejected') {
-        showToast('Tài khoản Ngô Minh Đức đang tạm khóa');
-        switchPortal(0, '0.5');
-      } else if (role === 'admin') {
-        showToast('Đã đăng nhập: Nguyễn Quang Hào (Quản trị viên)');
-        switchPortal(3, '3.1');
+    function setAuthView(view = "login") {
+      state.authView = view;
+      pushScreenUrl("0.1", { view });
+      const vp = document.getElementById("mainViewport");
+      if (vp) {
+        renderScreen_0_1(vp, { view });
       }
-      return;
     }
 
-    const identifier = form && form.identifier ? form.identifier.value.trim() : '';
-    const password = form && form.password ? form.password.value : '';
-
-    if (!identifier) {
-      showToast('Vui lòng nhập số điện thoại hoặc email.');
-      return;
-    }
-    if (!password) {
-      showToast('Vui lòng nhập mật khẩu của bạn.');
-      return;
+    function setAuthTab(tab) {
+      const view =
+        tab === "forgot" ? "forgot" : tab === "register" ? "register" : "login";
+      setAuthView(view);
     }
 
-    // Gửi yêu cầu đăng nhập lên API xác thực
-    const res = await apiRequest('/api/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ identifier, password })
-    });
-
-    if (res && res.ok && res.user) {
-      state.currentUser = res.user;
-      state.activeUserId = res.user.user_id;
-      state.userRole = res.user.role;
-      if (res.token) state.authToken = res.token;
-
-      if (window.GDX_DB && Array.isArray(window.GDX_DB.users)) {
-        const uIdx = window.GDX_DB.users.findIndex(u => u.user_id === res.user.user_id);
-        if (uIdx >= 0) window.GDX_DB.users[uIdx] = res.user;
-        else window.GDX_DB.users.push(res.user);
+    function handleForgot(form) {
+      const identifier =
+        form && form.identifier ? form.identifier.value.trim() : "";
+      if (!identifier) {
+        showToast("Vui lòng nhập email hoặc số điện thoại đã đăng ký.");
+        return;
       }
+      showToast(
+        `Đã gửi hướng dẫn khôi phục mật khẩu tới: ${identifier}. Vui lòng kiểm tra hộp thư/tin nhắn.`,
+      );
+      setTimeout(() => {
+        setAuthView("login");
+      }, 1200);
+    }
 
-      if (res.customer_profile) {
-        state.activeCustomerId = res.customer_profile.customer_id;
-        state.wizardDraft.ward_id = res.customer_profile.ward_id;
-        state.wizardDraft.address = res.customer_profile.default_address;
-        state.wizardDraft.latitude = res.customer_profile.latitude;
-        state.wizardDraft.longitude = res.customer_profile.longitude;
-        if (window.GDX_DB && Array.isArray(window.GDX_DB.customer_profiles)) {
-          const cIdx = window.GDX_DB.customer_profiles.findIndex(c => String(c.user_id) === String(res.user.user_id));
-          if (cIdx >= 0) window.GDX_DB.customer_profiles[cIdx] = res.customer_profile;
-          else window.GDX_DB.customer_profiles.push(res.customer_profile);
+    function togglePasswordVisibility(inputId, btnEl) {
+      const input = document.getElementById(inputId);
+      if (!input) return;
+      const isPw = input.type === "password";
+      input.type = isPw ? "text" : "password";
+      if (btnEl) {
+        btnEl.setAttribute(
+          "aria-label",
+          isPw ? "Ẩn mật khẩu" : "Hiển thị mật khẩu",
+        );
+        btnEl.innerHTML = isPw ? Icons.eyeOff() : Icons.eye();
+      }
+    }
+
+    function quickPersonaLogin(role) {
+      handleLogin({ mockRole: { value: role } });
+    }
+
+    async function handleLogin(form) {
+      const hasIdentifier = Boolean(
+        form &&
+        form.identifier &&
+        form.identifier.value &&
+        form.identifier.value.trim(),
+      );
+      const hasPassword = Boolean(form && form.password && form.password.value);
+
+      // Cho phép trải nghiệm nhanh persona ở chế độ phát triển nếu không nhập thủ công
+      if (
+        !hasIdentifier &&
+        form &&
+        form.mockRole &&
+        !state.isProduction &&
+        state.viewMode !== "production"
+      ) {
+        const role = form.mockRole.value || "customer";
+        if (role === "customer") {
+          showToast("Đã đăng nhập: Nguyễn Minh Thảo (Khách hàng)");
+          switchPortal(1, "1.1");
+        } else if (role === "provider") {
+          showToast("Đã đăng nhập: Đặng Thị Mai Lan (Đối tác Thợ)");
+          switchPortal(2, "2.1");
+        } else if (role === "company") {
+          state.activeCompanyId = 501;
+          showToast("Đã đăng nhập: Công ty TNHH An Bình Home Care");
+          switchPortal(4, "4.1");
+        } else if (role === "company_pending") {
+          state.activeCompanyId = 503;
+          showToast("Hồ sơ Công ty Mai Sáng đang chờ Admin xét duyệt");
+          switchPortal(0, "0.4", { status: "pending" });
+        } else if (role === "provider_rejected") {
+          showToast("Tài khoản Ngô Minh Đức đang tạm khóa");
+          switchPortal(0, "0.5");
+        } else if (role === "admin") {
+          showToast("Đã đăng nhập: Nguyễn Quang Hào (Quản trị viên)");
+          switchPortal(3, "3.1");
         }
+        return;
       }
 
-      if (res.provider_profile) {
-        state.activeProviderId = res.provider_profile.provider_id;
-        if (window.GDX_DB && Array.isArray(window.GDX_DB.provider_profiles)) {
-          const pIdx = window.GDX_DB.provider_profiles.findIndex(p => String(p.user_id) === String(res.user.user_id));
-          if (pIdx >= 0) window.GDX_DB.provider_profiles[pIdx] = res.provider_profile;
-          else window.GDX_DB.provider_profiles.push(res.provider_profile);
+      const identifier =
+        form && form.identifier ? form.identifier.value.trim() : "";
+      const password = form && form.password ? form.password.value : "";
+
+      if (!identifier) {
+        showToast("Vui lòng nhập số điện thoại hoặc email.");
+        return;
+      }
+      if (!password) {
+        showToast("Vui lòng nhập mật khẩu của bạn.");
+        return;
+      }
+
+      // Gửi yêu cầu đăng nhập lên API xác thực
+      const res = await apiRequest("/api/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ identifier, password }),
+      });
+
+      if (res && res.ok && res.user) {
+        state.currentUser = res.user;
+        state.activeUserId = res.user.user_id;
+        state.userRole = res.user.role;
+        if (res.token) state.authToken = res.token;
+
+        if (window.GDX_DB && Array.isArray(window.GDX_DB.users)) {
+          const uIdx = window.GDX_DB.users.findIndex(
+            (u) => u.user_id === res.user.user_id,
+          );
+          if (uIdx >= 0) window.GDX_DB.users[uIdx] = res.user;
+          else window.GDX_DB.users.push(res.user);
         }
-      }
 
-      if (res.company_profile) {
-        state.activeCompanyId = res.company_profile.company_id;
-        if (window.GDX_DB && Array.isArray(window.GDX_DB.company_profiles)) {
-          const compIdx = window.GDX_DB.company_profiles.findIndex(c => String(c.user_id) === String(res.user.user_id));
-          if (compIdx >= 0) window.GDX_DB.company_profiles[compIdx] = res.company_profile;
-          else window.GDX_DB.company_profiles.push(res.company_profile);
+        if (res.customer_profile) {
+          state.activeCustomerId = res.customer_profile.customer_id;
+          state.wizardDraft.ward_id = res.customer_profile.ward_id;
+          state.wizardDraft.address = res.customer_profile.default_address;
+          state.wizardDraft.latitude = res.customer_profile.latitude;
+          state.wizardDraft.longitude = res.customer_profile.longitude;
+          if (window.GDX_DB && Array.isArray(window.GDX_DB.customer_profiles)) {
+            const cIdx = window.GDX_DB.customer_profiles.findIndex(
+              (c) => String(c.user_id) === String(res.user.user_id),
+            );
+            if (cIdx >= 0)
+              window.GDX_DB.customer_profiles[cIdx] = res.customer_profile;
+            else window.GDX_DB.customer_profiles.push(res.customer_profile);
+          }
         }
-      }
 
-      try {
-        localStorage.setItem('gdx_auth_user', JSON.stringify(res.user));
-        if (res.token) localStorage.setItem('gdx_auth_token', res.token);
-      } catch (_) {}
+        if (res.provider_profile) {
+          state.activeProviderId = res.provider_profile.provider_id;
+          if (window.GDX_DB && Array.isArray(window.GDX_DB.provider_profiles)) {
+            const pIdx = window.GDX_DB.provider_profiles.findIndex(
+              (p) => String(p.user_id) === String(res.user.user_id),
+            );
+            if (pIdx >= 0)
+              window.GDX_DB.provider_profiles[pIdx] = res.provider_profile;
+            else window.GDX_DB.provider_profiles.push(res.provider_profile);
+          }
+        }
 
-      showToast(`Đăng nhập thành công! Chào mừng ${res.user.full_name}.`);
-      renderUserTopbar();
+        if (res.company_profile) {
+          state.activeCompanyId = res.company_profile.company_id;
+          if (window.GDX_DB && Array.isArray(window.GDX_DB.company_profiles)) {
+            const compIdx = window.GDX_DB.company_profiles.findIndex(
+              (c) => String(c.user_id) === String(res.user.user_id),
+            );
+            if (compIdx >= 0)
+              window.GDX_DB.company_profiles[compIdx] = res.company_profile;
+            else window.GDX_DB.company_profiles.push(res.company_profile);
+          }
+        }
 
-      if (res.user.role === 'provider') {
-        switchPortal(2, '2.1');
-      } else if (res.user.role === 'company') {
-        if (!res.company_profile) {
-          switchPortal(0, '0.3');
-        } else if (res.company_profile.verification_status !== 'verified') {
-          switchPortal(0, '0.4', { status: res.company_profile.verification_status });
+        try {
+          localStorage.setItem("gdx_auth_user", JSON.stringify(res.user));
+          if (res.token) localStorage.setItem("gdx_auth_token", res.token);
+        } catch (_) {}
+
+        showToast(`Đăng nhập thành công! Chào mừng ${res.user.full_name}.`);
+        renderUserTopbar();
+
+        if (res.user.role === "provider") {
+          switchPortal(2, "2.1");
+        } else if (res.user.role === "company") {
+          if (!res.company_profile) {
+            switchPortal(0, "0.3");
+          } else if (res.company_profile.verification_status !== "verified") {
+            switchPortal(0, "0.4", {
+              status: res.company_profile.verification_status,
+            });
+          } else {
+            switchPortal(4, "4.1");
+          }
+        } else if (res.user.role === "admin") {
+          switchPortal(3, "3.1");
         } else {
-          switchPortal(4, '4.1');
+          switchPortal(1, "1.1");
         }
-      } else if (res.user.role === 'admin') {
-        switchPortal(3, '3.1');
       } else {
-        switchPortal(1, '1.1');
+        showToast(
+          (res && res.error) ||
+            "Đăng nhập không thành công. Vui lòng kiểm tra lại tài khoản hoặc mật khẩu.",
+        );
       }
-    } else {
-      showToast((res && res.error) || 'Đăng nhập không thành công. Vui lòng kiểm tra lại tài khoản hoặc mật khẩu.');
-    }
-  }
-
-  async function handleRegister(form) {
-    const role = form.role ? form.role.value : 'customer';
-    const fullName = form.full_name ? form.full_name.value.trim() : '';
-    const phone = form.phone_number ? form.phone_number.value.trim() : '';
-    const email = form.email ? form.email.value.trim() : '';
-    const password = form.password ? form.password.value : '';
-    const confirmPassword = form.confirm_password ? form.confirm_password.value : '';
-
-    if (!fullName || !phone) {
-      showToast('Vui lòng nhập họ và tên cùng số điện thoại.');
-      return;
     }
 
-    if (!password || password.length < 6) {
-      showToast('Mật khẩu là bắt buộc và phải có tối thiểu 6 ký tự.');
-      if (form.password) form.password.focus();
-      return;
+    async function handleRegister(form) {
+      const role = form.role ? form.role.value : "customer";
+      const fullName = form.full_name ? form.full_name.value.trim() : "";
+      const phone = form.phone_number ? form.phone_number.value.trim() : "";
+      const email = form.email ? form.email.value.trim() : "";
+      const password = form.password ? form.password.value : "";
+      const confirmPassword = form.confirm_password
+        ? form.confirm_password.value
+        : "";
+
+      if (!fullName || !phone) {
+        showToast("Vui lòng nhập họ và tên cùng số điện thoại.");
+        return;
+      }
+
+      if (!password || password.length < 6) {
+        showToast("Mật khẩu là bắt buộc và phải có tối thiểu 6 ký tự.");
+        if (form.password) form.password.focus();
+        return;
+      }
+
+      if (password !== confirmPassword) {
+        showToast("Mật khẩu xác nhận không trùng khớp. Vui lòng kiểm tra lại.");
+        if (form.confirm_password) form.confirm_password.focus();
+        return;
+      }
+
+      const res = await apiRequest("/api/auth/register", {
+        method: "POST",
+        body: JSON.stringify({
+          full_name: fullName,
+          phone_number: phone,
+          email,
+          password,
+          role,
+        }),
+      });
+
+      if (res && res.ok && res.user) {
+        state.currentUser = res.user;
+        state.activeUserId = res.user.user_id;
+        state.userRole = res.user.role;
+        if (res.token) state.authToken = res.token;
+
+        if (window.GDX_DB && Array.isArray(window.GDX_DB.users)) {
+          const uIdx = window.GDX_DB.users.findIndex(
+            (u) => u.user_id === res.user.user_id,
+          );
+          if (uIdx >= 0) window.GDX_DB.users[uIdx] = res.user;
+          else window.GDX_DB.users.push(res.user);
+        }
+
+        try {
+          localStorage.setItem("gdx_auth_user", JSON.stringify(res.user));
+          if (res.token) localStorage.setItem("gdx_auth_token", res.token);
+        } catch (_) {}
+
+        showToast(
+          `Đăng ký tài khoản thành công! Chào mừng ${res.user.full_name}.`,
+        );
+        renderUserTopbar();
+        if (role === "customer") {
+          go("0.2");
+        } else {
+          go("0.3");
+        }
+      } else {
+        showToast(
+          (res && res.error) || "Đăng ký không thành công. Vui lòng thử lại.",
+        );
+      }
     }
 
-    if (password !== confirmPassword) {
-      showToast('Mật khẩu xác nhận không trùng khớp. Vui lòng kiểm tra lại.');
-      if (form.confirm_password) form.confirm_password.focus();
-      return;
+    function handleLogout() {
+      state.currentUser = null;
+      state.authToken = null;
+      state.activeUserId = null;
+      state.activeCustomerId = null;
+      state.activeProviderId = null;
+      state.activeCompanyId = null;
+      state.userRole = "anon";
+      try {
+        localStorage.removeItem("gdx_auth_user");
+        localStorage.removeItem("gdx_auth_token");
+      } catch (_) {}
+      showToast("Đã đăng xuất tài khoản.");
+      renderUserTopbar();
+      switchPortal(1, "1.1");
     }
 
-    const res = await apiRequest('/api/auth/register', {
-      method: 'POST',
-      body: JSON.stringify({
-        full_name: fullName,
-        phone_number: phone,
-        email,
-        password,
-        role
-      })
-    });
+    // ---------------------------------------------------------------------
+    // LEAFLET & OPENSTREETMAP LOCATION PICKER & GEOLOCATION
+    // ---------------------------------------------------------------------
+    const PROVINCE_COORDINATES = {
+      "Hồ Chí Minh": [10.7769, 106.7009],
+      "Hà Nội": [21.0285, 105.8542],
+      "Đà Nẵng": [16.0544, 108.2022],
+      "Hải Phòng": [20.8449, 106.6881],
+      "Cần Thơ": [10.0452, 105.7469],
+      "Bình Dương": [10.9804, 106.6519],
+      "Đồng Nai": [10.9574, 106.8427],
+      "Bà Rịa": [10.4958, 107.1687],
+      "Khánh Hòa": [12.2388, 109.1967],
+      "Lâm Đồng": [11.9404, 108.4583],
+      "Thừa Thiên Huế": [16.4637, 107.5909],
+      Huế: [16.4637, 107.5909],
+      "Quảng Nam": [15.5651, 108.4816],
+      "Quảng Ngãi": [15.1205, 108.7923],
+      "Bình Định": [13.783, 109.2197],
+      "Phú Yên": [13.0882, 109.0924],
+      "Ninh Thuận": [11.5647, 108.9882],
+      "Bình Thuận": [10.9333, 108.1],
+      "Long An": [10.536, 106.4134],
+      "Tiền Giang": [10.3544, 106.3653],
+      "Bến Tre": [10.2415, 106.3759],
+      "Trà Vinh": [9.9347, 106.3458],
+      "Vĩnh Long": [10.2537, 105.9722],
+      "Đồng Tháp": [10.4578, 105.6324],
+      "An Giang": [10.3831, 105.4358],
+      "Kiên Giang": [10.0125, 105.0809],
+      "Hậu Giang": [9.7844, 105.4701],
+      "Sóc Trăng": [9.6033, 105.98],
+      "Bạc Liêu": [9.2941, 105.7278],
+      "Cà Mau": [9.1769, 105.1524],
+      "Tây Ninh": [11.31, 106.0983],
+      "Bình Phước": [11.5333, 106.8833],
+      "Đắk Lắk": [12.6667, 108.0383],
+      "Đắk Nông": [12.0044, 107.6908],
+      "Gia Lai": [13.9833, 108.0],
+      "Kon Tum": [14.35, 108.0],
+      "Quảng Bình": [17.4687, 106.6225],
+      "Quảng Trị": [16.8167, 107.1],
+      "Nghệ An": [18.6734, 105.6813],
+      "Hà Tĩnh": [18.356, 105.9058],
+      "Thanh Hóa": [19.8067, 105.7852],
+      "Ninh Bình": [20.2506, 105.9745],
+      "Nam Định": [20.42, 106.1683],
+      "Thái Bình": [20.45, 106.3333],
+      "Hà Nam": [20.5456, 105.9122],
+      "Hưng Yên": [20.65, 106.05],
+      "Hải Dương": [20.9372, 106.3147],
+      "Bắc Ninh": [21.1861, 106.0763],
+      "Bắc Giang": [21.2731, 106.1946],
+      "Vĩnh Phúc": [21.3089, 105.6049],
+      "Phú Thọ": [21.3228, 105.3283],
+      "Thái Nguyên": [21.5942, 105.8482],
+      "Lạng Sơn": [21.8536, 106.7615],
+      "Quảng Ninh": [20.95, 107.0833],
+    };
 
-    if (res && res.ok && res.user) {
-      state.currentUser = res.user;
-      state.activeUserId = res.user.user_id;
-      state.userRole = res.user.role;
-      if (res.token) state.authToken = res.token;
+    let activeCustomerMap = null;
+    let activeCustomerMarker = null;
 
-      if (window.GDX_DB && Array.isArray(window.GDX_DB.users)) {
-        const uIdx = window.GDX_DB.users.findIndex(u => u.user_id === res.user.user_id);
-        if (uIdx >= 0) window.GDX_DB.users[uIdx] = res.user;
-        else window.GDX_DB.users.push(res.user);
+    let reverseGeocodeTimer = null;
+
+    async function resolveAddressFromCoordinates(lat, lng, opts = {}) {
+      const latFormatted = Number(lat).toFixed(6);
+      const lngFormatted = Number(lng).toFixed(6);
+
+      const addrInput =
+        document.getElementById(opts.addrInputId || "obCustAddr") ||
+        document.getElementById("profAddress") ||
+        document.getElementById("wizAddress");
+
+      const statusPill = document.querySelector(
+        ".geo-map-status-pill span:last-child",
+      );
+      if (statusPill) {
+        statusPill.innerHTML =
+          '<span class="status-dot" style="background:#e07a5f;"></span> Đang nhận diện địa chỉ từ GPS vệ tinh...';
       }
 
       try {
-        localStorage.setItem('gdx_auth_user', JSON.stringify(res.user));
-        if (res.token) localStorage.setItem('gdx_auth_token', res.token);
-      } catch (_) {}
+        const res = await apiRequest(
+          `/api/geo/reverse?lat=${latFormatted}&lng=${lngFormatted}`,
+        );
+        if (res && res.ok && res.detailed_address) {
+          if (addrInput) {
+            addrInput.value = res.detailed_address;
+            addrInput.style.transition =
+              "box-shadow 0.3s ease, border-color 0.3s ease";
+            addrInput.style.borderColor = "var(--color-primary)";
+            addrInput.style.boxShadow = "0 0 0 3px rgba(27, 67, 50, 0.2)";
+            setTimeout(() => {
+              addrInput.style.boxShadow = "";
+            }, 1500);
+          }
 
-      showToast(`Đăng ký tài khoản thành công! Chào mừng ${res.user.full_name}.`);
-      renderUserTopbar();
-      if (role === 'customer') {
-        go('0.2');
-      } else {
-        go('0.3');
+          if (activeCustomerMarker) {
+            activeCustomerMarker
+              .bindPopup(
+                `<strong>${res.detailed_address}</strong><br><span style="font-size:11px; color:#555;">${res.full_address || ""}</span>`,
+              )
+              .openPopup();
+          }
+
+          if (statusPill) {
+            statusPill.innerHTML = `<span class="status-dot is-online"></span> Đã nhận diện: <strong>${res.detailed_address}</strong>`;
+          }
+
+          // Tự động khớp Tỉnh/Thành phố & Phường/Xã trong dropdown nếu có
+          matchProvinceAndWardFromGeo(res.province_name, res.ward_name, opts);
+          if (opts.addrInputId === "wizAddress") updateBookingAddressSummary();
+
+          showToast(`Đã nhận diện vị trí: ${res.detailed_address}`);
+          return res;
+        }
+      } catch (e) {
+        console.warn("Lỗi reverse geocode:", e);
       }
-    } else {
-      showToast((res && res.error) || 'Đăng ký không thành công. Vui lòng thử lại.');
-    }
-  }
 
-  function handleLogout() {
-    state.currentUser = null;
-    state.authToken = null;
-    state.activeUserId = null;
-    state.activeCustomerId = null;
-    state.activeProviderId = null;
-    state.activeCompanyId = null;
-    state.userRole = 'anon';
-    try {
-      localStorage.removeItem('gdx_auth_user');
-      localStorage.removeItem('gdx_auth_token');
-    } catch (_) {}
-    showToast('Đã đăng xuất tài khoản.');
-    renderUserTopbar();
-    switchPortal(1, '1.1');
-  }
-
-  // ---------------------------------------------------------------------
-  // LEAFLET & OPENSTREETMAP LOCATION PICKER & GEOLOCATION
-  // ---------------------------------------------------------------------
-  const PROVINCE_COORDINATES = {
-    'Hồ Chí Minh': [10.7769, 106.7009],
-    'Hà Nội': [21.0285, 105.8542],
-    'Đà Nẵng': [16.0544, 108.2022],
-    'Hải Phòng': [20.8449, 106.6881],
-    'Cần Thơ': [10.0452, 105.7469],
-    'Bình Dương': [10.9804, 106.6519],
-    'Đồng Nai': [10.9574, 106.8427],
-    'Bà Rịa': [10.4958, 107.1687],
-    'Khánh Hòa': [12.2388, 109.1967],
-    'Lâm Đồng': [11.9404, 108.4583],
-    'Thừa Thiên Huế': [16.4637, 107.5909],
-    'Huế': [16.4637, 107.5909],
-    'Quảng Nam': [15.5651, 108.4816],
-    'Quảng Ngãi': [15.1205, 108.7923],
-    'Bình Định': [13.7830, 109.2197],
-    'Phú Yên': [13.0882, 109.0924],
-    'Ninh Thuận': [11.5647, 108.9882],
-    'Bình Thuận': [10.9333, 108.1000],
-    'Long An': [10.5360, 106.4134],
-    'Tiền Giang': [10.3544, 106.3653],
-    'Bến Tre': [10.2415, 106.3759],
-    'Trà Vinh': [9.9347, 106.3458],
-    'Vĩnh Long': [10.2537, 105.9722],
-    'Đồng Tháp': [10.4578, 105.6324],
-    'An Giang': [10.3831, 105.4358],
-    'Kiên Giang': [10.0125, 105.0809],
-    'Hậu Giang': [9.7844, 105.4701],
-    'Sóc Trăng': [9.6033, 105.9800],
-    'Bạc Liêu': [9.2941, 105.7278],
-    'Cà Mau': [9.1769, 105.1524],
-    'Tây Ninh': [11.3100, 106.0983],
-    'Bình Phước': [11.5333, 106.8833],
-    'Đắk Lắk': [12.6667, 108.0383],
-    'Đắk Nông': [12.0044, 107.6908],
-    'Gia Lai': [13.9833, 108.0000],
-    'Kon Tum': [14.3500, 108.0000],
-    'Quảng Bình': [17.4687, 106.6225],
-    'Quảng Trị': [16.8167, 107.1000],
-    'Nghệ An': [18.6734, 105.6813],
-    'Hà Tĩnh': [18.3560, 105.9058],
-    'Thanh Hóa': [19.8067, 105.7852],
-    'Ninh Bình': [20.2506, 105.9745],
-    'Nam Định': [20.4200, 106.1683],
-    'Thái Bình': [20.4500, 106.3333],
-    'Hà Nam': [20.5456, 105.9122],
-    'Hưng Yên': [20.6500, 106.0500],
-    'Hải Dương': [20.9372, 106.3147],
-    'Bắc Ninh': [21.1861, 106.0763],
-    'Bắc Giang': [21.2731, 106.1946],
-    'Vĩnh Phúc': [21.3089, 105.6049],
-    'Phú Thọ': [21.3228, 105.3283],
-    'Thái Nguyên': [21.5942, 105.8482],
-    'Lạng Sơn': [21.8536, 106.7615],
-    'Quảng Ninh': [20.9500, 107.0833]
-  };
-
-  let activeCustomerMap = null;
-  let activeCustomerMarker = null;
-
-  let reverseGeocodeTimer = null;
-
-  async function resolveAddressFromCoordinates(lat, lng, opts = {}) {
-    const latFormatted = Number(lat).toFixed(6);
-    const lngFormatted = Number(lng).toFixed(6);
-
-    const addrInput = document.getElementById(opts.addrInputId || 'obCustAddr')
-      || document.getElementById('profAddress')
-      || document.getElementById('wizAddress');
-
-    const statusPill = document.querySelector('.geo-map-status-pill span:last-child');
-    if (statusPill) {
-      statusPill.innerHTML = '<span class="status-dot" style="background:#e07a5f;"></span> Đang nhận diện địa chỉ từ GPS vệ tinh...';
-    }
-
-    try {
-      const res = await apiRequest(`/api/geo/reverse?lat=${latFormatted}&lng=${lngFormatted}`);
-      if (res && res.ok && res.detailed_address) {
-        if (addrInput) {
-          addrInput.value = res.detailed_address;
-          addrInput.style.transition = 'box-shadow 0.3s ease, border-color 0.3s ease';
-          addrInput.style.borderColor = 'var(--color-primary)';
-          addrInput.style.boxShadow = '0 0 0 3px rgba(27, 67, 50, 0.2)';
-          setTimeout(() => {
-            addrInput.style.boxShadow = '';
-          }, 1500);
-        }
-
-        if (activeCustomerMarker) {
-          activeCustomerMarker.bindPopup(
-            `<strong>${res.detailed_address}</strong><br><span style="font-size:11px; color:#555;">${res.full_address || ''}</span>`
-          ).openPopup();
-        }
-
-        if (statusPill) {
-          statusPill.innerHTML = `<span class="status-dot is-online"></span> Đã nhận diện: <strong>${res.detailed_address}</strong>`;
-        }
-
-        // Tự động khớp Tỉnh/Thành phố & Phường/Xã trong dropdown nếu có
-        matchProvinceAndWardFromGeo(res.province_name, res.ward_name, opts);
-
-        showToast(`Đã nhận diện vị trí: ${res.detailed_address}`);
-        return res;
+      if (statusPill) {
+        statusPill.innerHTML =
+          '<span class="status-dot is-online"></span> Chạm vào bản đồ hoặc kéo chốt định vị để ghim chính xác số nhà';
       }
-    } catch (e) {
-      console.warn('Lỗi reverse geocode:', e);
-    }
-
-    if (statusPill) {
-      statusPill.innerHTML = '<span class="status-dot is-online"></span> Chạm vào bản đồ hoặc kéo chốt định vị để ghim chính xác số nhà';
-    }
-    return null;
-  }
-
-  function matchProvinceAndWardFromGeo(provinceName, wardName, opts = {}) {
-    if (!provinceName && !wardName) return;
-
-    const provSelect = document.getElementById(opts.provSelectId || 'obCustProvince')
-      || document.getElementById('wizProvSelect')
-      || document.getElementById('profProv');
-
-    const wardSelect = document.getElementById(opts.wardSelectId || 'obCustWard')
-      || document.getElementById('wizWardSelect')
-      || document.getElementById('profWard');
-
-    if (!provSelect) return;
-
-    // 1. Khớp Tỉnh / Thành phố
-    if (provinceName) {
-      const pNorm = provinceName.toLowerCase().replace(/^(tỉnh|thành phố|tp\.?)\s+/i, '').trim();
-      let matchedProvOption = null;
-      for (let i = 0; i < provSelect.options.length; i++) {
-        const optText = provSelect.options[i].text.toLowerCase();
-        if (optText.includes(pNorm) || pNorm.includes(optText.replace(/^(tỉnh|thành phố|tp\.?)\s+/i, '').trim())) {
-          matchedProvOption = provSelect.options[i];
-          break;
-        }
-      }
-      if (matchedProvOption && provSelect.value !== matchedProvOption.value) {
-        provSelect.value = matchedProvOption.value;
-        if (wardSelect) {
-          const db = window.GDX_DB;
-          const allWards = db.ward || db.wards || [];
-          const filteredWards = allWards.filter((w) => !w.provinceId || String(w.provinceId) === String(matchedProvOption.value));
-          const wardsToRender = filteredWards.length > 0 ? filteredWards : allWards.slice(0, 100);
-          wardSelect.innerHTML = wardsToRender
-            .map((w) => `<option value="${w.ward_id}">${w.name}</option>`)
-            .join('');
-        }
-      }
-    }
-
-    // 2. Khớp Phường / Xã
-    if (wardName && wardSelect) {
-      const wNorm = wardName.toLowerCase().replace(/^(phường|xã|thị trấn)\s+/i, '').trim();
-      for (let i = 0; i < wardSelect.options.length; i++) {
-        const optText = wardSelect.options[i].text.toLowerCase();
-        if (optText.includes(wNorm) || wNorm.includes(optText.replace(/^(phường|xã|thị trấn)\s+/i, '').trim())) {
-          wardSelect.selectedIndex = i;
-          break;
-        }
-      }
-    }
-  }
-
-  function panCustomerMapTo(lat, lng, zoom) {
-    if (!activeCustomerMap || !activeCustomerMarker) return;
-    const targetZoom = zoom || activeCustomerMap.getZoom() || 14;
-    activeCustomerMarker.setLatLng([lat, lng]);
-    activeCustomerMap.flyTo([lat, lng], targetZoom, { animate: true, duration: 1.0 });
-
-    const latInput = document.getElementById('obCustLat') || document.getElementById('profLat');
-    const lngInput = document.getElementById('obCustLng') || document.getElementById('profLng');
-    const textSpan = document.getElementById('obCustCoordText') || document.getElementById('profCoordText');
-
-    const latFormatted = Number(lat).toFixed(6);
-    const lngFormatted = Number(lng).toFixed(6);
-
-    if (latInput) latInput.value = latFormatted;
-    if (lngInput) lngInput.value = lngFormatted;
-    if (textSpan) textSpan.textContent = `${latFormatted}, ${lngFormatted}`;
-    activeCustomerMarker.bindPopup(`<strong>Vị trí đã chọn</strong><br><span style="font-size:11px; color:#555;">${latFormatted}, ${lngFormatted}</span>`).openPopup();
-  }
-
-  function initCustomerLocationPicker(opts) {
-    const containerId = opts.containerId || 'customerLocationMap';
-    const el = document.getElementById(containerId);
-    if (!el) return null;
-
-    if (typeof L === 'undefined') {
-      console.warn('Thư viện Leaflet chưa được tải.');
       return null;
     }
 
-    if (activeCustomerMap) {
-      try {
-        activeCustomerMap.remove();
-      } catch (err) {
-        // ignore
+    function matchProvinceAndWardFromGeo(provinceName, wardName, opts = {}) {
+      if (!provinceName && !wardName) return;
+
+      const provSelect =
+        document.getElementById(opts.provSelectId || "obCustProvince") ||
+        document.getElementById("wizProvSelect") ||
+        document.getElementById("profProv");
+
+      const wardSelect =
+        document.getElementById(opts.wardSelectId || "obCustWard") ||
+        document.getElementById("wizWardSelect") ||
+        document.getElementById("profWard");
+
+      if (!provSelect) return;
+
+      // 1. Khớp Tỉnh / Thành phố
+      if (provinceName) {
+        const pNorm = provinceName
+          .toLowerCase()
+          .replace(/^(tỉnh|thành phố|tp\.?)\s+/i, "")
+          .trim();
+        let matchedProvOption = null;
+        for (let i = 0; i < provSelect.options.length; i++) {
+          const optText = provSelect.options[i].text.toLowerCase();
+          if (
+            optText.includes(pNorm) ||
+            pNorm.includes(
+              optText.replace(/^(tỉnh|thành phố|tp\.?)\s+/i, "").trim(),
+            )
+          ) {
+            matchedProvOption = provSelect.options[i];
+            break;
+          }
+        }
+        if (matchedProvOption && provSelect.value !== matchedProvOption.value) {
+          provSelect.value = matchedProvOption.value;
+          if (wardSelect) {
+            const db = window.GDX_DB;
+            const allWards = db.ward || db.wards || [];
+            const filteredWards = allWards.filter(
+              (w) =>
+                !w.provinceId ||
+                String(w.provinceId) === String(matchedProvOption.value),
+            );
+            const wardsToRender =
+              filteredWards.length > 0 ? filteredWards : allWards.slice(0, 100);
+            wardSelect.innerHTML = wardsToRender
+              .map((w) => `<option value="${w.ward_id}">${w.name}</option>`)
+              .join("");
+          }
+        }
       }
-      activeCustomerMap = null;
-      activeCustomerMarker = null;
+
+      // 2. Khớp Phường / Xã
+      if (wardName && wardSelect) {
+        const wNorm = wardName
+          .toLowerCase()
+          .replace(/^(phường|xã|thị trấn)\s+/i, "")
+          .trim();
+        for (let i = 0; i < wardSelect.options.length; i++) {
+          const optText = wardSelect.options[i].text.toLowerCase();
+          if (
+            optText.includes(wNorm) ||
+            wNorm.includes(
+              optText.replace(/^(phường|xã|thị trấn)\s+/i, "").trim(),
+            )
+          ) {
+            wardSelect.selectedIndex = i;
+            break;
+          }
+        }
+      }
     }
 
-    const initialLat = Number(opts.lat) || 10.741205;
-    const initialLng = Number(opts.lng) || 106.702110;
-    const zoom = opts.zoom || 15;
+    function panCustomerMapTo(lat, lng, zoom) {
+      if (!activeCustomerMap || !activeCustomerMarker) return;
+      const targetZoom = zoom || activeCustomerMap.getZoom() || 14;
+      activeCustomerMarker.setLatLng([lat, lng]);
+      activeCustomerMap.flyTo([lat, lng], targetZoom, {
+        animate: true,
+        duration: 1.0,
+      });
 
-    const map = L.map(containerId, {
-      center: [initialLat, initialLng],
-      zoom: zoom,
-      zoomControl: true,
-      scrollWheelZoom: true
-    });
+      const latInput =
+        document.getElementById("obCustLat") ||
+        document.getElementById("profLat");
+      const lngInput =
+        document.getElementById("obCustLng") ||
+        document.getElementById("profLng");
+      const textSpan =
+        document.getElementById("obCustCoordText") ||
+        document.getElementById("profCoordText");
 
-    activeCustomerMap = map;
+      const latFormatted = Number(lat).toFixed(6);
+      const lngFormatted = Number(lng).toFixed(6);
 
-    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      maxZoom: 19,
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>'
-    }).addTo(map);
+      if (latInput) latInput.value = latFormatted;
+      if (lngInput) lngInput.value = lngFormatted;
+      if (textSpan) textSpan.textContent = `${latFormatted}, ${lngFormatted}`;
+      activeCustomerMarker
+        .bindPopup(
+          `<strong>Vị trí đã chọn</strong><br><span style="font-size:11px; color:#555;">${latFormatted}, ${lngFormatted}</span>`,
+        )
+        .openPopup();
+    }
 
-    const brandPinIcon = L.divIcon({
-      className: 'custom-map-pin',
-      html: `<div class="pin-marker-wrapper">
+    function initCustomerLocationPicker(opts) {
+      const containerId = opts.containerId || "customerLocationMap";
+      const el = document.getElementById(containerId);
+      if (!el) return null;
+
+      if (typeof L === "undefined") {
+        console.warn("Thư viện Leaflet chưa được tải.");
+        return null;
+      }
+
+      if (activeCustomerMap) {
+        try {
+          activeCustomerMap.remove();
+        } catch (err) {
+          // ignore
+        }
+        activeCustomerMap = null;
+        activeCustomerMarker = null;
+      }
+
+      const initialLat = Number(opts.lat) || 10.741205;
+      const initialLng = Number(opts.lng) || 106.70211;
+      const zoom = opts.zoom || 15;
+
+      const map = L.map(containerId, {
+        center: [initialLat, initialLng],
+        zoom: zoom,
+        zoomControl: true,
+        scrollWheelZoom: true,
+      });
+
+      activeCustomerMap = map;
+
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution:
+          '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
+      }).addTo(map);
+
+      const brandPinIcon = L.divIcon({
+        className: "custom-map-pin",
+        html: `<div class="pin-marker-wrapper">
         <div class="pin-pulse"></div>
         <div class="pin-svg-icon">
           <svg width="34" height="42" viewBox="0 0 34 42" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -2723,146 +3719,206 @@ window.GDXApp = (() => {
           </svg>
         </div>
       </div>`,
-      iconSize: [34, 42],
-      iconAnchor: [17, 42],
-      popupAnchor: [0, -42]
-    });
+        iconSize: [34, 42],
+        iconAnchor: [17, 42],
+        popupAnchor: [0, -42],
+      });
 
-    const marker = L.marker([initialLat, initialLng], {
-      draggable: true,
-      icon: brandPinIcon
-    }).addTo(map);
+      const marker = L.marker([initialLat, initialLng], {
+        draggable: true,
+        icon: brandPinIcon,
+      }).addTo(map);
 
-    activeCustomerMarker = marker;
+      activeCustomerMarker = marker;
 
-    function syncLocation(lat, lng, popupHtml, skipReverseGeocode = false) {
-      const latFormatted = Number(lat).toFixed(6);
-      const lngFormatted = Number(lng).toFixed(6);
+      function syncLocation(lat, lng, popupHtml, skipReverseGeocode = false) {
+        const latFormatted = Number(lat).toFixed(6);
+        const lngFormatted = Number(lng).toFixed(6);
 
-      const latInput = document.getElementById(opts.latInputId || 'obCustLat');
-      const lngInput = document.getElementById(opts.lngInputId || 'obCustLng');
-      const textSpan = document.getElementById(opts.coordTextId || 'obCustCoordText');
-
-      if (latInput) latInput.value = latFormatted;
-      if (lngInput) lngInput.value = lngFormatted;
-      if (textSpan) textSpan.textContent = `${latFormatted}, ${lngFormatted}`;
-
-      const content = popupHtml || `<strong>Vị trí đón thợ</strong><br><span style="color:#555; font-size:11px;">Tọa độ: ${latFormatted}, ${lngFormatted}</span>`;
-      marker.bindPopup(content).openPopup();
-
-      // Tự động nhận diện số nhà, tên đường chi tiết qua reverse geocoding
-      if (!skipReverseGeocode) {
-        clearTimeout(reverseGeocodeTimer);
-        reverseGeocodeTimer = setTimeout(() => {
-          resolveAddressFromCoordinates(lat, lng, opts);
-        }, 400);
-      }
-    }
-
-    syncLocation(initialLat, initialLng, '<strong>Vị trí đón thợ</strong><br><span style="font-size:11px; color:#555;">Kéo ghim hoặc bấm vào bản đồ để chọn</span>', true);
-
-    marker.on('dragend', function () {
-      const pos = marker.getLatLng();
-      syncLocation(pos.lat, pos.lng);
-    });
-
-    map.on('click', function (e) {
-      marker.setLatLng(e.latlng);
-      syncLocation(e.latlng.lat, e.latlng.lng);
-    });
-
-    setTimeout(() => {
-      map.invalidateSize();
-    }, 200);
-
-    return { map, marker };
-  }
-
-  function locateUserGPS(targetLatInputId, targetLngInputId, targetTextId, targetAddrInputId, provSelectId, wardSelectId) {
-    if (!navigator.geolocation) {
-      showToast('Trình duyệt của bạn không hỗ trợ định vị GPS.');
-      return;
-    }
-    showToast('Đang kết nối GPS thiết bị...');
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        const latFormatted = lat.toFixed(6);
-        const lngFormatted = lng.toFixed(6);
-
-        if (activeCustomerMap && activeCustomerMarker) {
-          activeCustomerMarker.setLatLng([lat, lng]);
-          activeCustomerMap.flyTo([lat, lng], 16, { animate: true, duration: 1.2 });
-          activeCustomerMarker.bindPopup(`<strong>Vị trí GPS thực tế</strong><br><span style="font-size:11px; color:#2d6a4f;">Độ chính xác: &plusmn;${Math.round(pos.coords.accuracy || 10)}m</span>`).openPopup();
-        }
-
-        const latInput = document.getElementById(targetLatInputId || 'obCustLat');
-        const lngInput = document.getElementById(targetLngInputId || 'obCustLng');
-        const textSpan = document.getElementById(targetTextId || 'obCustCoordText');
+        const latInput = document.getElementById(
+          opts.latInputId || "obCustLat",
+        );
+        const lngInput = document.getElementById(
+          opts.lngInputId || "obCustLng",
+        );
+        const textSpan = document.getElementById(
+          opts.coordTextId || "obCustCoordText",
+        );
 
         if (latInput) latInput.value = latFormatted;
         if (lngInput) lngInput.value = lngFormatted;
         if (textSpan) textSpan.textContent = `${latFormatted}, ${lngFormatted}`;
 
-        // Lập tức gọi nhận diện địa chỉ chi tiết (Reverse Geocoding)
-        resolveAddressFromCoordinates(lat, lng, {
-          addrInputId: targetAddrInputId,
-          provSelectId: provSelectId,
-          wardSelectId: wardSelectId
-        });
-      },
-      (err) => {
-        console.warn('Geolocation error:', err);
-        showToast('Không thể lấy GPS (' + (err.message || 'Bị từ chối') + '). Vui lòng chạm vào bản đồ để ghim vị trí.');
-      },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }
-    );
-  }
+        const content =
+          popupHtml ||
+          `<strong>Vị trí đón thợ</strong><br><span style="color:#555; font-size:11px;">Tọa độ: ${latFormatted}, ${lngFormatted}</span>`;
+        marker.bindPopup(content).openPopup();
 
-  function handleProvinceChange(provinceSelectId, wardSelectId) {
-    const provSelect = document.getElementById(provinceSelectId);
-    const wardSelect = document.getElementById(wardSelectId);
-    if (!provSelect || !wardSelect) return;
-    const selectedProvId = String(provSelect.value);
-    const db = window.GDX_DB;
-    const allWards = db.ward || db.wards || [];
-    const filteredWards = allWards.filter((w) => !w.provinceId || String(w.provinceId) === selectedProvId);
-    const wardsToRender = filteredWards.length > 0 ? filteredWards : allWards.slice(0, 100);
-    wardSelect.innerHTML = wardsToRender
-      .map((w) => `<option value="${w.ward_id}">${w.name}</option>`)
-      .join('');
+        // Tự động nhận diện số nhà, tên đường chi tiết qua reverse geocoding
+        if (!skipReverseGeocode) {
+          clearTimeout(reverseGeocodeTimer);
+          reverseGeocodeTimer = setTimeout(() => {
+            resolveAddressFromCoordinates(lat, lng, opts);
+          }, 400);
+        }
+      }
 
-    // Nếu đang có bản đồ Leaflet hiển thị, tự động bay tới tọa độ trung tâm tỉnh thành được chọn
-    const selectedOption = provSelect.options[provSelect.selectedIndex];
-    const provName = selectedOption ? selectedOption.text : '';
-    for (const [key, coords] of Object.entries(PROVINCE_COORDINATES)) {
-      if (provName.includes(key)) {
-        panCustomerMapTo(coords[0], coords[1], 13);
-        break;
+      syncLocation(
+        initialLat,
+        initialLng,
+        '<strong>Vị trí đón thợ</strong><br><span style="font-size:11px; color:#555;">Kéo ghim hoặc bấm vào bản đồ để chọn</span>',
+        true,
+      );
+
+      marker.on("dragend", function () {
+        const pos = marker.getLatLng();
+        syncLocation(pos.lat, pos.lng);
+      });
+
+      map.on("click", function (e) {
+        marker.setLatLng(e.latlng);
+        syncLocation(e.latlng.lat, e.latlng.lng);
+      });
+
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 200);
+
+      return { map, marker };
+    }
+
+    function locateUserGPS(
+      targetLatInputId,
+      targetLngInputId,
+      targetTextId,
+      targetAddrInputId,
+      provSelectId,
+      wardSelectId,
+    ) {
+      if (!navigator.geolocation) {
+        showToast("Trình duyệt của bạn không hỗ trợ định vị GPS.");
+        return;
+      }
+      showToast("Đang kết nối GPS thiết bị...");
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          const latFormatted = lat.toFixed(6);
+          const lngFormatted = lng.toFixed(6);
+
+          if (activeCustomerMap && activeCustomerMarker) {
+            activeCustomerMarker.setLatLng([lat, lng]);
+            activeCustomerMap.flyTo([lat, lng], 16, {
+              animate: true,
+              duration: 1.2,
+            });
+            activeCustomerMarker
+              .bindPopup(
+                `<strong>Vị trí GPS thực tế</strong><br><span style="font-size:11px; color:#2d6a4f;">Độ chính xác: &plusmn;${Math.round(pos.coords.accuracy || 10)}m</span>`,
+              )
+              .openPopup();
+          }
+
+          const latInput = document.getElementById(
+            targetLatInputId || "obCustLat",
+          );
+          const lngInput = document.getElementById(
+            targetLngInputId || "obCustLng",
+          );
+          const textSpan = document.getElementById(
+            targetTextId || "obCustCoordText",
+          );
+
+          if (latInput) latInput.value = latFormatted;
+          if (lngInput) lngInput.value = lngFormatted;
+          if (textSpan)
+            textSpan.textContent = `${latFormatted}, ${lngFormatted}`;
+
+          // Lập tức gọi nhận diện địa chỉ chi tiết (Reverse Geocoding)
+          resolveAddressFromCoordinates(lat, lng, {
+            addrInputId: targetAddrInputId,
+            provSelectId: provSelectId,
+            wardSelectId: wardSelectId,
+          });
+        },
+        (err) => {
+          console.warn("Geolocation error:", err);
+          showToast(
+            "Không thể lấy GPS (" +
+              (err.message || "Bị từ chối") +
+              "). Vui lòng chạm vào bản đồ để ghim vị trí.",
+          );
+        },
+        { enableHighAccuracy: true, timeout: 8000, maximumAge: 0 },
+      );
+    }
+
+    function handleProvinceChange(provinceSelectId, wardSelectId) {
+      const provSelect = document.getElementById(provinceSelectId);
+      const wardSelect = document.getElementById(wardSelectId);
+      if (!provSelect || !wardSelect) return;
+      const selectedProvId = String(provSelect.value);
+      const db = window.GDX_DB;
+      const allWards = db.ward || db.wards || [];
+      const filteredWards = allWards.filter(
+        (w) => !w.provinceId || String(w.provinceId) === selectedProvId,
+      );
+      const wardsToRender =
+        filteredWards.length > 0 ? filteredWards : allWards.slice(0, 100);
+      wardSelect.innerHTML = wardsToRender
+        .map((w) => `<option value="${w.ward_id}">${w.name}</option>`)
+        .join("");
+
+      // Nếu đang có bản đồ Leaflet hiển thị, tự động bay tới tọa độ trung tâm tỉnh thành được chọn
+      const selectedOption = provSelect.options[provSelect.selectedIndex];
+      const provName = selectedOption ? selectedOption.text : "";
+      for (const [key, coords] of Object.entries(PROVINCE_COORDINATES)) {
+        if (provName.includes(key)) {
+          panCustomerMapTo(coords[0], coords[1], 13);
+          break;
+        }
       }
     }
-  }
 
-  // 0.2: Customer Onboarding (Địa điểm, Đơn vị hành chính & Định vị GPS)
-  function renderScreen_0_2(container) {
-    const provinces = window.GDX_DB.province || window.GDX_DB.provinces || [];
-    const allWards = window.GDX_DB.ward || window.GDX_DB.wards || [];
-    const defaultName = (state.currentUser && state.currentUser.full_name) || '';
-    const defaultPhone = (state.currentUser && state.currentUser.phone_number) || '';
+    // 0.2: Customer Onboarding (Địa điểm, Đơn vị hành chính & Định vị GPS)
+    function renderScreen_0_2(container) {
+      const provinces = window.GDX_DB.province || window.GDX_DB.provinces || [];
+      const allWards = window.GDX_DB.ward || window.GDX_DB.wards || [];
+      const defaultName =
+        (state.currentUser && state.currentUser.full_name) || "";
+      const defaultPhone =
+        (state.currentUser && state.currentUser.phone_number) || "";
 
-    const existingCp = (window.GDX_DB.customer_profiles || []).find((c) => c.user_id === state.activeUserId);
-    const defaultLat = existingCp && existingCp.latitude ? Number(existingCp.latitude).toFixed(6) : '10.741205';
-    const defaultLng = existingCp && existingCp.longitude ? Number(existingCp.longitude).toFixed(6) : '106.702110';
-    const defaultAddr = existingCp && existingCp.default_address ? existingCp.default_address : 'Số 123 Đường Nguyễn Hữu Thọ, Phường Tân Phong';
+      const existingCp = (window.GDX_DB.customer_profiles || []).find(
+        (c) => c.user_id === state.activeUserId,
+      );
+      const defaultLat =
+        existingCp && existingCp.latitude
+          ? Number(existingCp.latitude).toFixed(6)
+          : "10.741205";
+      const defaultLng =
+        existingCp && existingCp.longitude
+          ? Number(existingCp.longitude).toFixed(6)
+          : "106.702110";
+      const defaultAddr =
+        existingCp && existingCp.default_address
+          ? existingCp.default_address
+          : "Số 123 Đường Nguyễn Hữu Thọ, Phường Tân Phong";
 
-    // Mặc định chọn TP. Hồ Chí Minh (provinceId: '29' ở Supabase hoặc '79' ở local mock) hoặc tỉnh đầu tiên
-    const defaultProv = provinces.find((p) => p.provinceId === '29' || p.provinceId === '79') || provinces[0] || { provinceId: '29', name: 'Thành phố Hồ Chí Minh' };
-    const defaultProvId = String(defaultProv.provinceId);
-    const initialWards = allWards.filter((w) => !w.provinceId || String(w.provinceId) === defaultProvId);
-    const wardsToRender = initialWards.length > 0 ? initialWards : allWards.slice(0, 100);
+      // Mặc định chọn TP. Hồ Chí Minh (provinceId: '29' ở Supabase hoặc '79' ở local mock) hoặc tỉnh đầu tiên
+      const defaultProv = provinces.find(
+        (p) => p.provinceId === "29" || p.provinceId === "79",
+      ) ||
+        provinces[0] || { provinceId: "29", name: "Thành phố Hồ Chí Minh" };
+      const defaultProvId = String(defaultProv.provinceId);
+      const initialWards = allWards.filter(
+        (w) => !w.provinceId || String(w.provinceId) === defaultProvId,
+      );
+      const wardsToRender =
+        initialWards.length > 0 ? initialWards : allWards.slice(0, 100);
 
-    container.innerHTML = `
+      container.innerHTML = `
       <div class="screen-header">
         <div>
           <h1 class="screen-title">0.2. Thiết lập hồ sơ Khách hàng mới</h1>
@@ -2890,12 +3946,12 @@ window.GDXApp = (() => {
               <div class="form-row-2">
                 <div class="field-group">
                   <label class="field-label" for="obCustName">Họ và tên người liên hệ (users.full_name)</label>
-                  <input type="text" id="obCustName" name="full_name" class="input" value="${defaultName || 'Khách hàng mới'}" required>
+                  <input type="text" id="obCustName" name="full_name" class="input" value="${defaultName || "Khách hàng mới"}" required>
                   <div class="error-msg">Vui lòng nhập họ và tên.</div>
                 </div>
                 <div class="field-group">
                   <label class="field-label" for="obCustPhone">Số điện thoại đón thợ (users.phone_number)</label>
-                  <input type="tel" id="obCustPhone" name="phone_number" class="input" value="${defaultPhone || '0901234567'}" required pattern="0[0-9]{9,10}">
+                  <input type="tel" id="obCustPhone" name="phone_number" class="input" value="${defaultPhone || "0901234567"}" required pattern="0[0-9]{9,10}">
                   <div class="error-msg">Vui lòng nhập số điện thoại 10 chữ số.</div>
                 </div>
               </div>
@@ -2904,13 +3960,13 @@ window.GDXApp = (() => {
                 <div class="field-group">
                   <label class="field-label" for="obCustProvince">Tỉnh / Thành phố (${provinces.length} tỉnh thành)</label>
                   <select id="obCustProvince" class="select" onchange="GDXApp.handleProvinceChange('obCustProvince', 'obCustWard')">
-                    ${provinces.map((p) => `<option value="${p.provinceId}" ${String(p.provinceId) === defaultProvId ? 'selected' : ''}>${p.name}</option>`).join('')}
+                    ${provinces.map((p) => `<option value="${p.provinceId}" ${String(p.provinceId) === defaultProvId ? "selected" : ""}>${p.name}</option>`).join("")}
                   </select>
                 </div>
                 <div class="field-group">
                   <label class="field-label" for="obCustWard">Phường / Xã (customer_profiles.ward_id - Bắt buộc)</label>
                   <select id="obCustWard" name="ward_id" class="select" required>
-                    ${wardsToRender.map((w) => `<option value="${w.ward_id}">${w.name}</option>`).join('')}
+                    ${wardsToRender.map((w) => `<option value="${w.ward_id}">${w.name}</option>`).join("")}
                   </select>
                 </div>
               </div>
@@ -2987,83 +4043,104 @@ window.GDXApp = (() => {
       </div>
     `;
 
-    // Khởi tạo bản đồ tương tác Leaflet + OpenStreetMap
-    initCustomerLocationPicker({
-      containerId: 'customerLocationMap',
-      lat: Number(defaultLat),
-      lng: Number(defaultLng),
-      zoom: 15,
-      latInputId: 'obCustLat',
-      lngInputId: 'obCustLng',
-      coordTextId: 'obCustCoordText',
-      addrInputId: 'obCustAddr',
-      provSelectId: 'obCustProvince',
-      wardSelectId: 'obCustWard'
-    });
-  }
-
-  async function handleCustomerOnboarding(form) {
-    const userId = state.activeUserId;
-    if (!userId) {
-      showToast('Vui lòng đăng ký tài khoản trước.');
-      go('0.1');
-      return;
+      // Khởi tạo bản đồ tương tác Leaflet + OpenStreetMap
+      initCustomerLocationPicker({
+        containerId: "customerLocationMap",
+        lat: Number(defaultLat),
+        lng: Number(defaultLng),
+        zoom: 15,
+        latInputId: "obCustLat",
+        lngInputId: "obCustLng",
+        coordTextId: "obCustCoordText",
+        addrInputId: "obCustAddr",
+        provSelectId: "obCustProvince",
+        wardSelectId: "obCustWard",
+      });
     }
 
-    const latVal = form.latitude ? parseFloat(form.latitude.value) : 10.741205;
-    const lngVal = form.longitude ? parseFloat(form.longitude.value) : 106.70211;
-
-    const res = await apiRequest('/api/onboarding/customer', {
-      method: 'POST',
-      body: JSON.stringify({
-        user_id: userId,
-        full_name: form.full_name ? form.full_name.value : '',
-        phone_number: form.phone_number ? form.phone_number.value : '',
-        ward_id: form.ward_id ? form.ward_id.value : '27403',
-        default_address: form.default_address ? form.default_address.value : '',
-        latitude: isNaN(latVal) ? 10.741205 : latVal,
-        longitude: isNaN(lngVal) ? 106.70211 : lngVal
-      })
-    });
-
-    if (res && res.ok && res.customer_profile) {
-      state.activeCustomerId = res.customer_profile.customer_id;
-      if (res.user) state.currentUser = res.user;
-
-      // Đồng bộ vào DB client-side nếu có
-      if (window.GDX_DB && window.GDX_DB.customer_profiles) {
-        let cp = window.GDX_DB.customer_profiles.find(
-          (c) => String(c.user_id) === String(userId) || String(c.customer_id) === String(res.customer_profile.customer_id)
-        );
-        if (!cp) {
-          window.GDX_DB.customer_profiles.push(res.customer_profile);
-        } else {
-          Object.assign(cp, res.customer_profile);
-        }
+    async function handleCustomerOnboarding(form) {
+      const userId = state.activeUserId;
+      if (!userId) {
+        showToast("Vui lòng đăng ký tài khoản trước.");
+        go("0.1");
+        return;
       }
 
-      // Cập nhật wizardDraft để trang đặt lịch nhận ngay lập tức địa chỉ vừa lưu
-      state.wizardDraft.ward_id = res.customer_profile.ward_id;
-      state.wizardDraft.address = res.customer_profile.default_address;
-      state.wizardDraft.latitude = res.customer_profile.latitude;
-      state.wizardDraft.longitude = res.customer_profile.longitude;
+      const latVal = form.latitude
+        ? parseFloat(form.latitude.value)
+        : 10.741205;
+      const lngVal = form.longitude
+        ? parseFloat(form.longitude.value)
+        : 106.70211;
 
-      showToast('Đã lưu hồ sơ và vị trí GPS thành công! Bạn có thể đặt dịch vụ đầu tiên.');
-      renderUserTopbar();
-      switchPortal(1, '1.1');
-    } else {
-      showToast((res && res.error) || 'Có lỗi khi lưu hồ sơ khách hàng.');
+      const res = await apiRequest("/api/onboarding/customer", {
+        method: "POST",
+        body: JSON.stringify({
+          user_id: userId,
+          full_name: form.full_name ? form.full_name.value : "",
+          phone_number: form.phone_number ? form.phone_number.value : "",
+          ward_id: form.ward_id ? form.ward_id.value : "27403",
+          default_address: form.default_address
+            ? form.default_address.value
+            : "",
+          latitude: isNaN(latVal) ? 10.741205 : latVal,
+          longitude: isNaN(lngVal) ? 106.70211 : lngVal,
+        }),
+      });
+
+      if (res && res.ok && res.customer_profile) {
+        state.activeCustomerId = res.customer_profile.customer_id;
+        if (res.user) state.currentUser = res.user;
+
+        // Đồng bộ vào DB client-side nếu có
+        if (window.GDX_DB && window.GDX_DB.customer_profiles) {
+          let cp = window.GDX_DB.customer_profiles.find(
+            (c) =>
+              String(c.user_id) === String(userId) ||
+              String(c.customer_id) ===
+                String(res.customer_profile.customer_id),
+          );
+          if (!cp) {
+            window.GDX_DB.customer_profiles.push(res.customer_profile);
+          } else {
+            Object.assign(cp, res.customer_profile);
+          }
+        }
+
+        // Cập nhật wizardDraft để trang đặt lịch nhận ngay lập tức địa chỉ vừa lưu
+        state.wizardDraft.ward_id = res.customer_profile.ward_id;
+        state.wizardDraft.address = res.customer_profile.default_address;
+        state.wizardDraft.latitude = res.customer_profile.latitude;
+        state.wizardDraft.longitude = res.customer_profile.longitude;
+
+        showToast(
+          "Đã lưu hồ sơ và vị trí GPS thành công! Bạn có thể đặt dịch vụ đầu tiên.",
+        );
+        renderUserTopbar();
+        switchPortal(1, "1.1");
+      } else {
+        showToast((res && res.error) || "Có lỗi khi lưu hồ sơ khách hàng.");
+      }
     }
-  }
 
-  // 0.3: Company Onboarding
-  function renderScreen_0_3(container) {
-    const db = window.GDX_DB;
-    const wards = (db.ward || db.wards || []).filter((w) => !w.provinceId || String(w.provinceId) === '79');
-    const existingComp = (db.company_profiles || []).find((c) => String(c.user_id) === String(state.activeUserId)) || null;
-    const u = state.currentUser || (db.users || []).find((x) => String(x.user_id) === String(state.activeUserId)) || {};
+    // 0.3: Company Onboarding
+    function renderScreen_0_3(container) {
+      const db = window.GDX_DB;
+      const wards = (db.ward || db.wards || []).filter(
+        (w) => !w.provinceId || String(w.provinceId) === "79",
+      );
+      const existingComp =
+        (db.company_profiles || []).find(
+          (c) => String(c.user_id) === String(state.activeUserId),
+        ) || null;
+      const u =
+        state.currentUser ||
+        (db.users || []).find(
+          (x) => String(x.user_id) === String(state.activeUserId),
+        ) ||
+        {};
 
-    container.innerHTML = `
+      container.innerHTML = `
       <div class="screen-header">
         <div>
           <h1 class="screen-title">0.3. Đăng ký Hồ sơ Công ty Đối tác (Company Onboarding)</h1>
@@ -3085,35 +4162,41 @@ window.GDXApp = (() => {
           <div class="form-row-2">
             <div class="field-group">
               <label class="field-label" for="obCompName">Tên Công ty Đối tác (company_name)</label>
-              <input type="text" id="obCompName" name="company_name" class="input" value="${(existingComp && existingComp.company_name) || (u.full_name ? `Công ty Dịch vụ ${u.full_name}` : 'Công ty Dịch vụ Gia đình Thanh Tâm')}" required minlength="3">
+              <input type="text" id="obCompName" name="company_name" class="input" value="${(existingComp && existingComp.company_name) || (u.full_name ? `Công ty Dịch vụ ${u.full_name}` : "Công ty Dịch vụ Gia đình Thanh Tâm")}" required minlength="3">
             </div>
             <div class="field-group">
               <label class="field-label" for="obCompTax">Mã số thuế (tax_code UNIQUE)</label>
-              <input type="text" id="obCompTax" name="tax_code" class="input" value="${(existingComp && existingComp.tax_code) || '0319888777'}" required minlength="6" maxlength="32">
+              <input type="text" id="obCompTax" name="tax_code" class="input" value="${(existingComp && existingComp.tax_code) || "0319888777"}" required minlength="6" maxlength="32">
             </div>
           </div>
 
           <div class="form-row-2">
             <div class="field-group">
               <label class="field-label" for="obCompPhone">Số điện thoại doanh nghiệp (phone_number)</label>
-              <input type="tel" id="obCompPhone" name="phone_number" class="input" value="${(existingComp && existingComp.phone_number) || u.phone_number || '0909888111'}" required>
+              <input type="tel" id="obCompPhone" name="phone_number" class="input" value="${(existingComp && existingComp.phone_number) || u.phone_number || "0909888111"}" required>
             </div>
             <div class="field-group">
               <label class="field-label" for="obCompWard">Phường / Xã đặt trụ sở (ward_id)</label>
               <select id="obCompWard" name="ward_id" class="select">
-                ${wards.slice(0, 40).map((w) => `<option value="${w.ward_id}" ${existingComp && String(existingComp.ward_id) === String(w.ward_id) ? 'selected' : ''}>${w.name} (${w.ward_id})</option>`).join('')}
+                ${wards
+                  .slice(0, 40)
+                  .map(
+                    (w) =>
+                      `<option value="${w.ward_id}" ${existingComp && String(existingComp.ward_id) === String(w.ward_id) ? "selected" : ""}>${w.name} (${w.ward_id})</option>`,
+                  )
+                  .join("")}
               </select>
             </div>
           </div>
 
           <div class="field-group">
             <label class="field-label" for="obCompAddr">Địa chỉ trụ sở chi tiết (company_profiles.address)</label>
-            <input type="text" id="obCompAddr" name="address" class="input" value="${(existingComp && existingComp.address) || '180 Nguyễn Thị Thập, Quận 7, TP.HCM'}" required>
+            <input type="text" id="obCompAddr" name="address" class="input" value="${(existingComp && existingComp.address) || "180 Nguyễn Thị Thập, Quận 7, TP.HCM"}" required>
           </div>
 
           <div class="field-group">
             <label class="field-label" for="obCompDesc">Mô tả năng lực vận hành &amp; đội ngũ (company_profiles.description)</label>
-            <textarea id="obCompDesc" name="description" class="textarea" rows="3" required>${(existingComp && existingComp.description) || 'Cung cấp đội ngũ thợ vệ sinh nhà cửa, nấu ăn gia đình chuyên nghiệp được đào tạo bài bản và quản lý chất lượng trực tiếp.'}</textarea>
+            <textarea id="obCompDesc" name="description" class="textarea" rows="3" required>${(existingComp && existingComp.description) || "Cung cấp đội ngũ thợ vệ sinh nhà cửa, nấu ăn gia đình chuyên nghiệp được đào tạo bài bản và quản lý chất lượng trực tiếp."}</textarea>
           </div>
 
           <div class="panel-subtle" style="font-size:13px; color:var(--app-muted);">
@@ -3128,75 +4211,97 @@ window.GDXApp = (() => {
         </div>
       </form>
     `;
-  }
-
-  function selectOnboardingAvatar(url) {
-    state.onboardingAvatar = url;
-  }
-
-  async function handleCompanyOnboarding(form) {
-    const userId = state.activeUserId;
-    if (!userId) {
-      showToast('Vui lòng đăng ký tài khoản Công ty trước.');
-      go('0.1', { view: 'register' });
-      return;
     }
 
-    const res = await apiRequest('/api/onboarding/company', {
-      method: 'POST',
-      body: JSON.stringify({
-        user_id: userId,
-        company_name: form.company_name ? form.company_name.value.trim() : '',
-        tax_code: form.tax_code ? form.tax_code.value.trim() : '',
-        phone_number: form.phone_number ? form.phone_number.value.trim() : '',
-        ward_id: form.ward_id ? form.ward_id.value : '27403',
-        address: form.address ? form.address.value.trim() : '',
-        description: form.description ? form.description.value.trim() : ''
-      })
-    });
+    function selectOnboardingAvatar(url) {
+      state.onboardingAvatar = url;
+    }
 
-    if (res && res.ok && res.company_profile) {
-      state.activeCompanyId = res.company_profile.company_id;
-      if (window.GDX_DB && Array.isArray(window.GDX_DB.company_profiles)) {
-        const idx = window.GDX_DB.company_profiles.findIndex((c) => Number(c.company_id) === Number(res.company_profile.company_id));
-        if (idx >= 0) window.GDX_DB.company_profiles[idx] = res.company_profile;
-        else window.GDX_DB.company_profiles.push(res.company_profile);
+    async function handleCompanyOnboarding(form) {
+      const userId = state.activeUserId;
+      if (!userId) {
+        showToast("Vui lòng đăng ký tài khoản Công ty trước.");
+        go("0.1", { view: "register" });
+        return;
       }
-      showToast('Đã nộp hồ sơ Công ty! Chuyển sang trang theo dõi trạng thái xác minh.');
-      go('0.4', { status: res.company_profile.verification_status || 'pending' });
-    } else {
-      showToast((res && res.error) || 'Không thể lưu hồ sơ Công ty. Vui lòng kiểm tra lại thông tin.');
+
+      const res = await apiRequest("/api/onboarding/company", {
+        method: "POST",
+        body: JSON.stringify({
+          user_id: userId,
+          company_name: form.company_name ? form.company_name.value.trim() : "",
+          tax_code: form.tax_code ? form.tax_code.value.trim() : "",
+          phone_number: form.phone_number ? form.phone_number.value.trim() : "",
+          ward_id: form.ward_id ? form.ward_id.value : "27403",
+          address: form.address ? form.address.value.trim() : "",
+          description: form.description ? form.description.value.trim() : "",
+        }),
+      });
+
+      if (res && res.ok && res.company_profile) {
+        state.activeCompanyId = res.company_profile.company_id;
+        if (window.GDX_DB && Array.isArray(window.GDX_DB.company_profiles)) {
+          const idx = window.GDX_DB.company_profiles.findIndex(
+            (c) =>
+              Number(c.company_id) === Number(res.company_profile.company_id),
+          );
+          if (idx >= 0)
+            window.GDX_DB.company_profiles[idx] = res.company_profile;
+          else window.GDX_DB.company_profiles.push(res.company_profile);
+        }
+        showToast(
+          "Đã nộp hồ sơ Công ty! Chuyển sang trang theo dõi trạng thái xác minh.",
+        );
+        go("0.4", {
+          status: res.company_profile.verification_status || "pending",
+        });
+      } else {
+        showToast(
+          (res && res.error) ||
+            "Không thể lưu hồ sơ Công ty. Vui lòng kiểm tra lại thông tin.",
+        );
+      }
     }
-  }
 
-  function handleProviderOnboarding(form) {
-    return handleCompanyOnboarding(form);
-  }
+    function handleProviderOnboarding(form) {
+      return handleCompanyOnboarding(form);
+    }
 
-  // 0.4: Company Verification Status
-  function renderScreen_0_4(container, params = {}) {
-    const db = window.GDX_DB;
-    const requestedStatus = params.status;
-    let comp =
-      (db.company_profiles || []).find((c) => String(c.company_id) === String(state.activeCompanyId)) ||
-      (db.company_profiles || []).find((c) => c.verification_status === (requestedStatus || 'pending')) ||
-      (db.company_profiles || [])[2] ||
-      (db.company_profiles || [])[0] ||
-      { company_id: 503, company_name: 'Công ty Vệ Sinh Mai Sáng', tax_code: '0318554321', phone_number: '0911223344', address: 'Quận 7, TP.HCM', verification_status: 'pending', description: 'Hồ sơ đang chờ xét duyệt' };
+    // 0.4: Company Verification Status
+    function renderScreen_0_4(container, params = {}) {
+      const db = window.GDX_DB;
+      const requestedStatus = params.status;
+      let comp = (db.company_profiles || []).find(
+        (c) => String(c.company_id) === String(state.activeCompanyId),
+      ) ||
+        (db.company_profiles || []).find(
+          (c) => c.verification_status === (requestedStatus || "pending"),
+        ) ||
+        (db.company_profiles || [])[2] ||
+        (db.company_profiles || [])[0] || {
+          company_id: 503,
+          company_name: "Công ty Vệ Sinh Mai Sáng",
+          tax_code: "0318554321",
+          phone_number: "0911223344",
+          address: "Quận 7, TP.HCM",
+          verification_status: "pending",
+          description: "Hồ sơ đang chờ xét duyệt",
+        };
 
-    const effStatus = requestedStatus || comp.verification_status || 'pending';
-    const isPending = effStatus === 'pending';
-    const isVerified = effStatus === 'verified';
+      const effStatus =
+        requestedStatus || comp.verification_status || "pending";
+      const isPending = effStatus === "pending";
+      const isVerified = effStatus === "verified";
 
-    container.innerHTML = `
+      container.innerHTML = `
       <div class="screen-header">
         <div>
           <h1 class="screen-title">0.4. Trạng thái Xác minh Công ty Đối tác</h1>
           <p class="screen-finding">Bảng company_profiles: Chỉ công ty verified mới xuất hiện nhân viên &amp; dịch vụ trên sàn đặt lịch.</p>
         </div>
         <div class="screen-actions">
-          <button type="button" class="btn btn-secondary btn-sm" onclick="GDXApp.go('0.4', {status: '${isPending ? 'rejected' : 'pending'}'})">
-            Chuyển xem trạng thái: ${isPending ? 'Cần bổ sung hồ sơ' : 'Đang chờ duyệt'}
+          <button type="button" class="btn btn-secondary btn-sm" onclick="GDXApp.go('0.4', {status: '${isPending ? "rejected" : "pending"}'})">
+            Chuyển xem trạng thái: ${isPending ? "Cần bổ sung hồ sơ" : "Đang chờ duyệt"}
           </button>
         </div>
       </div>
@@ -3209,14 +4314,14 @@ window.GDXApp = (() => {
             <div class="field-hint">Đã ghi nhận thông tin pháp lý</div>
           </div>
         </div>
-        <div class="stepper-node ${isPending ? 'is-current' : 'is-done'}">
+        <div class="stepper-node ${isPending ? "is-current" : "is-done"}">
           <div class="stepper-icon">${Icons.shield()}</div>
           <div>
             <div style="font-weight:600; font-size:13.5px;">Thẩm định Mã số thuế &amp; Giấy phép</div>
-            <div class="field-hint">${isPending ? 'Quản trị viên đang đối chiếu' : (isVerified ? 'Đã duyệt hợp lệ' : 'Cần bổ sung hồ sơ')}</div>
+            <div class="field-hint">${isPending ? "Quản trị viên đang đối chiếu" : isVerified ? "Đã duyệt hợp lệ" : "Cần bổ sung hồ sơ"}</div>
           </div>
         </div>
-        <div class="stepper-node ${isVerified ? 'is-done' : ''}">
+        <div class="stepper-node ${isVerified ? "is-done" : ""}">
           <div class="stepper-icon">${Icons.user()}</div>
           <div>
             <div style="font-weight:600; font-size:13.5px;">Mở khóa Cổng Công ty</div>
@@ -3231,30 +4336,30 @@ window.GDXApp = (() => {
             <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
               <div>
                 <h2 class="panel-title">${comp.company_name}</h2>
-                <div class="field-hint">MST: <strong class="num">${comp.tax_code}</strong> · SĐT: ${comp.phone_number || '—'}</div>
+                <div class="field-hint">MST: <strong class="num">${comp.tax_code}</strong> · SĐT: ${comp.phone_number || "—"}</div>
               </div>
-              <span class="badge ${isVerified ? 'badge-positive' : (isPending ? 'badge-warning' : 'badge-negative')}">
-                ${isVerified ? 'Đã xác minh' : (isPending ? 'Đang chờ xét duyệt' : 'Cần bổ sung hồ sơ')}
+              <span class="badge ${isVerified ? "badge-positive" : isPending ? "badge-warning" : "badge-negative"}">
+                ${isVerified ? "Đã xác minh" : isPending ? "Đang chờ xét duyệt" : "Cần bổ sung hồ sơ"}
               </span>
             </div>
 
             <div class="panel-subtle">
               <div style="font-weight:600; margin-bottom:6px;">
-                ${isVerified ? 'Công ty đã được phê duyệt hoạt động!' : (isPending ? 'Hồ sơ Công ty đang được Admin kiểm tra' : 'Hồ sơ chưa đạt yêu cầu xác minh')}
+                ${isVerified ? "Công ty đã được phê duyệt hoạt động!" : isPending ? "Hồ sơ Công ty đang được Admin kiểm tra" : "Hồ sơ chưa đạt yêu cầu xác minh"}
               </div>
               <p class="field-hint" style="font-size:13.5px;">
                 ${
                   isVerified
-                    ? 'Bạn có thể truy cập Phân hệ 4 (Công ty Đối tác) để thêm nhân viên Thợ, phân công kỹ năng và phát hành gói dịch vụ.'
-                    : (isPending
-                        ? 'Quản trị viên đang kiểm tra mã số thuế và thông tin liên hệ của doanh nghiệp. Sau khi duyệt, bạn có thể quản lý nhân viên và dịch vụ.'
-                        : 'Mã số thuế hoặc thông tin trụ sở chưa đầy đủ. Vui lòng cập nhật lại thông tin ở màn hình Đăng ký Công ty.')
+                    ? "Bạn có thể truy cập Phân hệ 4 (Công ty Đối tác) để thêm nhân viên Thợ, phân công kỹ năng và phát hành gói dịch vụ."
+                    : isPending
+                      ? "Quản trị viên đang kiểm tra mã số thuế và thông tin liên hệ của doanh nghiệp. Sau khi duyệt, bạn có thể quản lý nhân viên và dịch vụ."
+                      : "Mã số thuế hoặc thông tin trụ sở chưa đầy đủ. Vui lòng cập nhật lại thông tin ở màn hình Đăng ký Công ty."
                 }
               </p>
             </div>
 
             <div style="display:flex; gap:10px; flex-wrap:wrap; padding-top:6px;">
-              ${isVerified ? `<button type="button" class="btn btn-primary" onclick="GDXApp.switchPortal(4, '4.1')">Mở Cổng Công ty &rarr;</button>` : ''}
+              ${isVerified ? `<button type="button" class="btn btn-primary" onclick="GDXApp.switchPortal(4, '4.1')">Mở Cổng Công ty &rarr;</button>` : ""}
               <button type="button" class="btn btn-primary" onclick="GDXApp.switchPortal(1, '1.1')">Về trang chủ dịch vụ</button>
               <button type="button" class="btn btn-secondary" onclick="GDXApp.go('0.3')">Chỉnh sửa hồ sơ Công ty</button>
             </div>
@@ -3267,7 +4372,7 @@ window.GDXApp = (() => {
             <div class="slip-row">
               <span class="field-hint">Trạng thái hiện tại</span>
               <span class="slip-dots"></span>
-              <strong>${isVerified ? 'Đã xác minh' : (isPending ? 'Chờ duyệt' : 'Từ chối')}</strong>
+              <strong>${isVerified ? "Đã xác minh" : isPending ? "Chờ duyệt" : "Từ chối"}</strong>
             </div>
             <div class="slip-row">
               <span class="field-hint">Mã số thuế</span>
@@ -3277,7 +4382,7 @@ window.GDXApp = (() => {
             <div class="slip-row">
               <span class="field-hint">Trụ sở chính</span>
               <span class="slip-dots"></span>
-              <strong>${comp.address || 'TP.HCM'}</strong>
+              <strong>${comp.address || "TP.HCM"}</strong>
             </div>
             <button type="button" class="btn btn-secondary btn-sm" onclick="GDXApp.openModal('1.11')">
               Liên hệ Trung tâm Hỗ trợ
@@ -3286,11 +4391,11 @@ window.GDXApp = (() => {
         </div>
       </div>
     `;
-  }
+    }
 
-  // 0.5: Account Suspended
-  function renderScreen_0_5(container) {
-    container.innerHTML = `
+    // 0.5: Account Suspended
+    function renderScreen_0_5(container) {
+      container.innerHTML = `
       <div class="v3-glass-center-card" style="max-width:740px; margin:36px auto; padding:44px 40px; border-radius:28px; background:rgba(255,255,255,0.88); backdrop-filter:blur(20px); border:1px solid rgba(255,255,255,0.75); box-shadow:0 18px 42px rgba(27,67,50,0.08); text-align:center;">
         <span class="badge badge-negative" style="padding:6px 16px; font-size:13px;">⛔ Tài khoản đang tạm khóa</span>
         <h1 style="font-family:var(--font-heading); font-size:28px; font-weight:700; color:#16201C; margin:18px 0 18px;">
@@ -3314,87 +4419,128 @@ window.GDXApp = (() => {
         </div>
       </div>
     `;
-  }
+    }
 
+    function isCookingService(s) {
+      if (!s) return false;
+      const t = (s.title || "").toLowerCase();
+      const slug = (s.slug || "").toLowerCase();
+      return (
+        t.includes("nấu") ||
+        t.includes("cơm") ||
+        t.includes("bếp") ||
+        t.includes("cooking") ||
+        slug.includes("nau-an") ||
+        String(s.category_id).endsWith("302") ||
+        s.category_id === 2 ||
+        s.category_id === "2"
+      );
+    }
 
-  function isCookingService(s) {
-    if (!s) return false;
-    const t = (s.title || '').toLowerCase();
-    const slug = (s.slug || '').toLowerCase();
-    return t.includes('nấu') || t.includes('cơm') || t.includes('bếp') || t.includes('cooking') || slug.includes('nau-an') || String(s.category_id).endsWith('302') || s.category_id === 2 || s.category_id === '2';
-  }
+    function getServiceImage(s) {
+      if (!s) return "/assets/cleaning-livingroom.jpg";
+      if (s.image_url) return s.image_url;
+      const t = (s.title || "").toLowerCase();
+      if (t.includes("nấu") || t.includes("cơm"))
+        return "/assets/cooking-family-meal.jpg";
+      if (t.includes("đầu bếp") || t.includes("tiệc"))
+        return "/assets/cooking-chef-prep.jpg";
+      if (t.includes("deep") || t.includes("sâu") || t.includes("tổng vệ sinh"))
+        return "/assets/cleaning-deep.jpg";
+      if (isCookingService(s)) return "/assets/cooking-family-meal.jpg";
+      return "/assets/cleaning-livingroom.jpg";
+    }
 
-  function getServiceImage(s) {
-    if (!s) return '/assets/cleaning-livingroom.jpg';
-    if (s.image_url) return s.image_url;
-    const t = (s.title || '').toLowerCase();
-    if (t.includes('nấu') || t.includes('cơm')) return '/assets/cooking-family-meal.jpg';
-    if (t.includes('đầu bếp') || t.includes('tiệc')) return '/assets/cooking-chef-prep.jpg';
-    if (t.includes('deep') || t.includes('sâu') || t.includes('tổng vệ sinh')) return '/assets/cleaning-deep.jpg';
-    if (isCookingService(s)) return '/assets/cooking-family-meal.jpg';
-    return '/assets/cleaning-livingroom.jpg';
-  }
+    // =====================================================================
+    // SCREEN RENDERERS: PHÂN HỆ 1 (CUSTOMER PORTAL: 1.1 – 1.6)
+    // =====================================================================
 
-  // =====================================================================
-  // SCREEN RENDERERS: PHÂN HỆ 1 (CUSTOMER PORTAL: 1.1 – 1.6)
-  // =====================================================================
+    // 1.1: Trang chủ & Khám phá dịch vụ (Warm Minimalism — Reference Layout)
+    function renderScreen_1_1(container) {
+      const db = window.GDX_DB;
+      const activeServices =
+        state.customerServiceLoadStatus === "loaded"
+          ? (db.services || []).filter((s) => {
+              if (!s.is_active) return false;
+              const t = (s.title || "").toLowerCase();
+              if (
+                t.includes("repair") ||
+                t.includes("sửa") ||
+                t.includes("appliance")
+              )
+                return false;
+              return true;
+            })
+          : [];
+      const publicProviders = db.provider_public_profiles;
+      const wards = db.ward;
+      const favCount = db.favorites.filter(
+        (f) => f.customer_id === state.activeCustomerId,
+      ).length;
+      const activeBooking = db.bookings.find(
+        (b) =>
+          b.customer_id === state.activeCustomerId &&
+          (b.status === "in_progress" || b.status === "confirmed"),
+      );
 
-  // 1.1: Trang chủ & Khám phá dịch vụ (Warm Minimalism — Reference Layout)
-  function renderScreen_1_1(container) {
-    const db = window.GDX_DB;
-    const activeServices = state.customerServiceLoadStatus === 'loaded' ? (db.services || []).filter((s) => {
-      if (!s.is_active) return false;
-      const t = (s.title || '').toLowerCase();
-      if (t.includes('repair') || t.includes('sửa') || t.includes('appliance')) return false;
-      return true;
-    }) : [];
-    const publicProviders = db.provider_public_profiles;
-    const wards = db.ward;
-    const favCount = db.favorites.filter((f) => f.customer_id === state.activeCustomerId).length;
-    const activeBooking = db.bookings.find(
-      (b) => b.customer_id === state.activeCustomerId && (b.status === 'in_progress' || b.status === 'confirmed')
-    );
+      const filteredServices = activeServices.filter((s) => {
+        if (state.catalogFilter.categoryId !== "all") {
+          const catId = String(state.catalogFilter.categoryId);
+          const isCooking = isCookingService(s);
+          if (catId === "1" && isCooking) return false;
+          if (catId === "2" && !isCooking) return false;
+        }
+        if (
+          state.catalogFilter.pricingType !== "all" &&
+          s.pricing_type !== state.catalogFilter.pricingType
+        ) {
+          return false;
+        }
+        if (state.catalogFilter.searchQuery.trim() !== "") {
+          const q = state.catalogFilter.searchQuery.trim().toLowerCase();
+          if (!s.title.toLowerCase().includes(q)) return false;
+        }
+        return true;
+      });
 
-    const filteredServices = activeServices.filter((s) => {
-      if (state.catalogFilter.categoryId !== 'all') {
-        const catId = String(state.catalogFilter.categoryId);
-        const isCooking = isCookingService(s);
-        if (catId === '1' && isCooking) return false;
-        if (catId === '2' && !isCooking) return false;
-      }
-      if (state.catalogFilter.pricingType !== 'all' && s.pricing_type !== state.catalogFilter.pricingType) {
-        return false;
-      }
-      if (state.catalogFilter.searchQuery.trim() !== '') {
-        const q = state.catalogFilter.searchQuery.trim().toLowerCase();
-        if (!s.title.toLowerCase().includes(q)) return false;
-      }
-      return true;
-    });
+      const activeBookingSvc = activeBooking
+        ? db.services.find(
+            (s) => String(s.service_id) === String(activeBooking.service_id),
+          )
+        : null;
+      const activeBookingProv = activeBooking
+        ? publicProviders.find(
+            (p) => p.provider_id === activeBooking.provider_id,
+          )
+        : null;
 
-    const activeBookingSvc = activeBooking
-      ? db.services.find((s) => String(s.service_id) === String(activeBooking.service_id))
-      : null;
-    const activeBookingProv = activeBooking
-      ? publicProviders.find((p) => p.provider_id === activeBooking.provider_id)
-      : null;
+      const avgRatingAll =
+        publicProviders.length > 0
+          ? (
+              publicProviders.reduce(
+                (sum, p) => sum + Number(p.average_rating || 0),
+                0,
+              ) / publicProviders.length
+            ).toFixed(2)
+          : "4.92";
 
-    const avgRatingAll =
-      publicProviders.length > 0
-        ? (
-            publicProviders.reduce((sum, p) => sum + Number(p.average_rating || 0), 0) /
-            publicProviders.length
-          ).toFixed(2)
-        : '4.92';
+      const omniTimes = [
+        {
+          label: "Sáng mai (08:00 – 12:00)",
+          value: getLocalDateTimeOffset(1, 8, 0),
+        },
+        {
+          label: "Chiều mai (13:30 – 17:30)",
+          value: getLocalDateTimeOffset(1, 13, 30),
+        },
+        {
+          label: "Tối mai (18:00 – 21:00)",
+          value: getLocalDateTimeOffset(1, 18, 0),
+        },
+        { label: "Ngày kia (08:30)", value: getLocalDateTimeOffset(2, 8, 30) },
+      ];
 
-    const omniTimes = [
-      { label: 'Sáng mai (08:00 – 12:00)', value: getLocalDateTimeOffset(1, 8, 0) },
-      { label: 'Chiều mai (13:30 – 17:30)', value: getLocalDateTimeOffset(1, 13, 30) },
-      { label: 'Tối mai (18:00 – 21:00)', value: getLocalDateTimeOffset(1, 18, 0) },
-      { label: 'Ngày kia (08:30)', value: getLocalDateTimeOffset(2, 8, 30) }
-    ];
-
-    container.innerHTML = `
+      container.innerHTML = `
       ${
         activeBooking
           ? `
@@ -3404,10 +4550,10 @@ window.GDXApp = (() => {
               <span class="status-dot is-online"></span>
               <div>
                 <div style="font-family:var(--font-heading); font-weight:700; font-size:0.9375rem; color:var(--color-primary);">
-                  Ca dịch vụ #${shortCode(activeBooking.booking_id)}: ${activeBookingSvc ? activeBookingSvc.title : 'Dịch vụ gia đình'} đang thực hiện
+                  Ca dịch vụ #${shortCode(activeBooking.booking_id)}: ${activeBookingSvc ? activeBookingSvc.title : "Dịch vụ gia đình"} đang thực hiện
                 </div>
                 <div class="field-hint">
-                  Đối tác: <strong>${activeBookingProv ? activeBookingProv.full_name : 'Đặng Thị Mai Lan'}</strong> · Địa chỉ: ${activeBooking.address} · Tổng tạm tính: <strong class="num">${formatMoney(activeBooking.total_amount + activeBooking.total_incidental)}</strong>
+                  Đối tác: <strong>${activeBookingProv ? activeBookingProv.full_name : "Đặng Thị Mai Lan"}</strong> · Địa chỉ: ${activeBooking.address} · Tổng tạm tính: <strong class="num">${formatMoney(activeBooking.total_amount + activeBooking.total_incidental)}</strong>
                 </div>
               </div>
             </div>
@@ -3416,14 +4562,14 @@ window.GDXApp = (() => {
                 Theo dõi tiến độ ca làm &rarr;
               </button>
               ${
-                activeBooking.payment_status === 'unpaid'
+                activeBooking.payment_status === "unpaid"
                   ? `<button type="button" class="ghost-btn btn-sm" onclick="GDXApp.openModal('1.8', {bookingId: ${activeBooking.booking_id}})">Thanh toán hóa đơn</button>`
-                  : ''
+                  : ""
               }
             </div>
           </div>
         </div>`
-          : ''
+          : ""
       }
 
       <!-- 1. HERO SECTION & OMNI-SEARCH (Home Cleaning & Home Cooking) -->
@@ -3449,15 +4595,17 @@ window.GDXApp = (() => {
                     </svg>
                     Dịch vụ cần đặt
                   </label>
-                  <select id="omniServiceSelect" name="service_id" class="omni-input" ${activeServices.length === 0 ? 'disabled' : ''}>
-                    ${activeServices.length === 0
-                      ? `<option value="">${state.customerServiceLoadStatus === 'loading' ? 'Đang tải dịch vụ...' : state.customerServiceLoadStatus === 'error' ? 'Không tải được dịch vụ' : 'Chưa có dịch vụ khả dụng'}</option>`
-                      : activeServices
-                      .map(
-                        (s) =>
-                          `<option value="${s.service_id}">${s.title} (${formatMoney(s.price)}${s.pricing_type === 'hourly' ? '/giờ' : '/lần'})</option>`
-                      )
-                      .join('')}
+                  <select id="omniServiceSelect" name="service_id" class="omni-input" ${activeServices.length === 0 ? "disabled" : ""}>
+                    ${
+                      activeServices.length === 0
+                        ? `<option value="">${state.customerServiceLoadStatus === "loading" ? "Đang tải dịch vụ..." : state.customerServiceLoadStatus === "error" ? "Không tải được dịch vụ" : "Chưa có dịch vụ khả dụng"}</option>`
+                        : activeServices
+                            .map(
+                              (s) =>
+                                `<option value="${s.service_id}">${s.title} (${formatMoney(s.price)}${s.pricing_type === "hourly" ? "/giờ" : "/lần"})</option>`,
+                            )
+                            .join("")
+                    }
                   </select>
                 </div>
 
@@ -3470,8 +4618,11 @@ window.GDXApp = (() => {
                   </label>
                   <select id="omniWardSelect" name="ward_id" class="omni-input">
                     ${wards
-                      .map((w) => `<option value="${w.ward_id}">${w.name}</option>`)
-                      .join('')}
+                      .map(
+                        (w) =>
+                          `<option value="${w.ward_id}">${w.name}</option>`,
+                      )
+                      .join("")}
                   </select>
                 </div>
 
@@ -3483,12 +4634,12 @@ window.GDXApp = (() => {
                     Khung giờ hẹn
                   </label>
                   <select id="omniTimeSelect" name="scheduled_time" class="omni-input">
-                    ${omniTimes.map((slot) => `<option value="${slot.value}">${slot.label}</option>`).join('')}
+                    ${omniTimes.map((slot) => `<option value="${slot.value}">${slot.label}</option>`).join("")}
                   </select>
                 </div>
 
                 <div class="omni-action">
-                  <button type="submit" class="primary-btn search-submit-btn" ${activeServices.length === 0 ? 'disabled' : ''}>
+                  <button type="submit" class="primary-btn search-submit-btn" ${activeServices.length === 0 ? "disabled" : ""}>
                     Tìm &amp; Đặt lịch
                   </button>
                 </div>
@@ -3498,13 +4649,13 @@ window.GDXApp = (() => {
             <!-- Quick Filter Chips -->
             <div class="quick-chips" aria-label="Gợi ý tìm kiếm nhanh">
               <span class="chips-label">Dịch vụ:</span>
-              <button type="button" class="quick-chip ${state.catalogFilter.categoryId === 'all' ? 'is-active' : ''}" onclick="GDXApp.setCatalogCategory('all'); document.getElementById('dich-vu')?.scrollIntoView({behavior:'smooth'});">
+              <button type="button" class="quick-chip ${state.catalogFilter.categoryId === "all" ? "is-active" : ""}" onclick="GDXApp.setCatalogCategory('all'); document.getElementById('dich-vu')?.scrollIntoView({behavior:'smooth'});">
                 Tất cả (${activeServices.length})
               </button>
-              <button type="button" class="quick-chip ${state.catalogFilter.categoryId === '1' ? 'is-active' : ''}" onclick="GDXApp.setCatalogCategory('1'); document.getElementById('dich-vu')?.scrollIntoView({behavior:'smooth'});">
+              <button type="button" class="quick-chip ${state.catalogFilter.categoryId === "1" ? "is-active" : ""}" onclick="GDXApp.setCatalogCategory('1'); document.getElementById('dich-vu')?.scrollIntoView({behavior:'smooth'});">
                 Dọn dẹp nhà cửa (Home Cleaning)
               </button>
-              <button type="button" class="quick-chip ${state.catalogFilter.categoryId === '2' ? 'is-active' : ''}" onclick="GDXApp.setCatalogCategory('2'); document.getElementById('dich-vu')?.scrollIntoView({behavior:'smooth'});">
+              <button type="button" class="quick-chip ${state.catalogFilter.categoryId === "2" ? "is-active" : ""}" onclick="GDXApp.setCatalogCategory('2'); document.getElementById('dich-vu')?.scrollIntoView({behavior:'smooth'});">
                 Nấu ăn tại nhà (Home Cooking)
               </button>
               <button type="button" class="quick-chip" onclick="GDXApp.go('1.6')">
@@ -3519,7 +4670,7 @@ window.GDXApp = (() => {
                 <h2 class="wizard-prompt-title">Tự cấu hình thời lượng &amp; chọn thợ</h2>
                 <p class="wizard-prompt-desc">Tùy chỉnh số giờ phục vụ, kiểm tra lịch rảnh thực tế của từng đối tác thợ trong khu vực và nhận báo giá tự động.</p>
               </div>
-              <button type="button" class="wizard-cta-btn" ${activeServices.length === 0 ? 'disabled' : ''} onclick="GDXApp.go('1.2', {serviceId: ${activeServices[0] ? inlineIdentifier(activeServices[0].service_id) : 'null'}})">
+              <button type="button" class="wizard-cta-btn" ${activeServices.length === 0 ? "disabled" : ""} onclick="GDXApp.go('1.2', {serviceId: ${activeServices[0] ? inlineIdentifier(activeServices[0].service_id) : "null"}})">
                 Tự cấu hình &amp; Báo giá ngay
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                   <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -3576,22 +4727,22 @@ window.GDXApp = (() => {
 
           <div class="filter-toolbar">
             <div class="filter-chips" role="tablist" aria-label="Lọc theo danh mục">
-              <button type="button" class="filter-chip" aria-pressed="${state.catalogFilter.categoryId === 'all'}" onclick="GDXApp.setCatalogCategory('all')">
+              <button type="button" class="filter-chip" aria-pressed="${state.catalogFilter.categoryId === "all"}" onclick="GDXApp.setCatalogCategory('all')">
                 Tất cả (${activeServices.length})
               </button>
-              <button type="button" class="filter-chip" aria-pressed="${state.catalogFilter.categoryId === '1'}" onclick="GDXApp.setCatalogCategory('1')">
+              <button type="button" class="filter-chip" aria-pressed="${state.catalogFilter.categoryId === "1"}" onclick="GDXApp.setCatalogCategory('1')">
                 Dọn dẹp nhà cửa (Home Cleaning)
               </button>
-              <button type="button" class="filter-chip" aria-pressed="${state.catalogFilter.categoryId === '2'}" onclick="GDXApp.setCatalogCategory('2')">
+              <button type="button" class="filter-chip" aria-pressed="${state.catalogFilter.categoryId === "2"}" onclick="GDXApp.setCatalogCategory('2')">
                 Nấu ăn tại nhà (Home Cooking)
               </button>
             </div>
 
             <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
               <select class="select" style="min-height:42px; width:auto; border-radius:var(--radius-pill); padding:0 18px;" onchange="GDXApp.setCatalogPricingType(this.value)" aria-label="Cách tính phí">
-                <option value="all" ${state.catalogFilter.pricingType === 'all' ? 'selected' : ''}>Mọi hình thức tính phí</option>
-                <option value="hourly" ${state.catalogFilter.pricingType === 'hourly' ? 'selected' : ''}>Tính theo giờ (Hourly)</option>
-                <option value="fixed" ${state.catalogFilter.pricingType === 'fixed' ? 'selected' : ''}>Trọn gói cố định (Fixed)</option>
+                <option value="all" ${state.catalogFilter.pricingType === "all" ? "selected" : ""}>Mọi hình thức tính phí</option>
+                <option value="hourly" ${state.catalogFilter.pricingType === "hourly" ? "selected" : ""}>Tính theo giờ (Hourly)</option>
+                <option value="fixed" ${state.catalogFilter.pricingType === "fixed" ? "selected" : ""}>Trọn gói cố định (Fixed)</option>
               </select>
               <div class="search-input-wrap">
                 <input type="search" class="input" style="min-height:42px; border-radius:var(--radius-pill);" placeholder="Tìm dịch vụ (dọn dẹp, tổng vệ sinh, nấu ăn, đầu bếp)..." value="${state.catalogFilter.searchQuery}" oninput="GDXApp.setCatalogSearch(this.value)" aria-label="Tìm kiếm dịch vụ">
@@ -3601,37 +4752,51 @@ window.GDXApp = (() => {
 
           <div class="services-grid">
             ${
-              state.customerServiceLoadStatus === 'loading'
+              state.customerServiceLoadStatus === "loading"
                 ? `<div class="customer-api-state" style="grid-column:1 / -1;" role="status">Đang tải danh sách dịch vụ...</div>`
-                : state.customerServiceLoadStatus === 'error'
-                ? `<div class="customer-api-state is-error" style="grid-column:1 / -1;" role="alert">
+                : state.customerServiceLoadStatus === "error"
+                  ? `<div class="customer-api-state is-error" style="grid-column:1 / -1;" role="alert">
                     <div class="customer-api-state-title">Không thể tải dịch vụ</div>
                     <p>Không thể kết nối để tải danh sách dịch vụ. Vui lòng thử lại.</p>
                     <button type="button" class="ghost-btn btn-sm" onclick="GDXApp.refreshCustomerServices()">Thử tải lại</button>
                   </div>`
-                : filteredServices.length === 0
-                ? `<div class="panel" style="grid-column:1 / -1; text-align:center; padding:36px;">
-                    <div style="font-family:var(--font-heading); font-weight:700; font-size:1.125rem; margin-bottom:6px;">${activeServices.length ? 'Không tìm thấy gói dịch vụ phù hợp' : 'Hiện chưa có dịch vụ khả dụng'}</div>
-                    <p class="field-hint" style="margin-bottom:16px;">${activeServices.length ? 'Hãy thử xóa từ khóa tìm kiếm hoặc chọn lại danh mục "Tất cả".' : 'Danh mục sẽ được cập nhật khi có dịch vụ mới.'}</p>
-                    ${activeServices.length ? '<button type="button" class="ghost-btn btn-sm" onclick="GDXApp.resetCatalogFilters()">Xem tất cả dịch vụ</button>' : ''}
+                  : filteredServices.length === 0
+                    ? `<div class="panel" style="grid-column:1 / -1; text-align:center; padding:36px;">
+                    <div style="font-family:var(--font-heading); font-weight:700; font-size:1.125rem; margin-bottom:6px;">${activeServices.length ? "Không tìm thấy gói dịch vụ phù hợp" : "Hiện chưa có dịch vụ khả dụng"}</div>
+                    <p class="field-hint" style="margin-bottom:16px;">${activeServices.length ? 'Hãy thử xóa từ khóa tìm kiếm hoặc chọn lại danh mục "Tất cả".' : "Danh mục sẽ được cập nhật khi có dịch vụ mới."}</p>
+                    ${activeServices.length ? '<button type="button" class="ghost-btn btn-sm" onclick="GDXApp.resetCatalogFilters()">Xem tất cả dịch vụ</button>' : ""}
                   </div>`
-                : filteredServices
-                    .map((s) => {
-                      const isFav = db.favorites.some(
-                        (f) => String(f.customer_id) === String(state.activeCustomerId) && String(f.service_id) === String(s.service_id)
-                      );
-                      const providerCount = db.provider_services.filter((ps) => {
-                        const p = publicProviders.find((pub) => String(pub.provider_id) === String(ps.provider_id));
-                        return String(ps.service_id) === String(s.service_id) && Boolean(p);
-                      }).length;
-                      const desc = s.description || 'Dịch vụ chăm sóc gia đình với đội ngũ đối tác đã xác minh.';
+                    : filteredServices
+                        .map((s) => {
+                          const isFav = db.favorites.some(
+                            (f) =>
+                              String(f.customer_id) ===
+                                String(state.activeCustomerId) &&
+                              String(f.service_id) === String(s.service_id),
+                          );
+                          const providerCount = db.provider_services.filter(
+                            (ps) => {
+                              const p = publicProviders.find(
+                                (pub) =>
+                                  String(pub.provider_id) ===
+                                  String(ps.provider_id),
+                              );
+                              return (
+                                String(ps.service_id) ===
+                                  String(s.service_id) && Boolean(p)
+                              );
+                            },
+                          ).length;
+                          const desc =
+                            s.description ||
+                            "Dịch vụ chăm sóc gia đình với đội ngũ đối tác đã xác minh.";
 
-                      return `
+                          return `
                       <article class="service-card">
                         <div class="service-card-media">
                           <img src="${getServiceImage(s)}" alt="${s.title}" loading="lazy">
-                          <span class="service-badge-pill">${isCookingService(s) ? 'Nấu ăn tại nhà (Home Cooking)' : 'Dọn dẹp nhà cửa (Home Cleaning)'}</span>
-                          <button type="button" class="fav-icon-btn ${isFav ? 'is-favorited' : ''}" onclick="GDXApp.toggleFavorite(${inlineIdentifier(s.service_id)})" aria-label="${isFav ? 'Bỏ lưu dịch vụ' : 'Lưu dịch vụ yêu thích'}" title="${isFav ? 'Đã lưu yêu thích' : 'Lưu vào yêu thích'}">
+                          <span class="service-badge-pill">${isCookingService(s) ? "Nấu ăn tại nhà (Home Cooking)" : "Dọn dẹp nhà cửa (Home Cleaning)"}</span>
+                          <button type="button" class="fav-icon-btn ${isFav ? "is-favorited" : ""}" onclick="GDXApp.toggleFavorite(${inlineIdentifier(s.service_id)})" aria-label="${isFav ? "Bỏ lưu dịch vụ" : "Lưu dịch vụ yêu thích"}" title="${isFav ? "Đã lưu yêu thích" : "Lưu vào yêu thích"}">
                             ${Icons.heart(isFav)}
                           </button>
                         </div>
@@ -3640,13 +4805,13 @@ window.GDXApp = (() => {
                           <p class="service-desc">${desc}</p>
                           <ul class="service-features">
                             <li>Thời lượng tiêu chuẩn: ~${s.estimated_duration} phút / ca</li>
-                            <li>Hình thức tính phí: ${s.pricing_type === 'hourly' ? 'Tính theo giờ thực tế' : 'Trọn gói cố định theo lần'}</li>
+                            <li>Hình thức tính phí: ${s.pricing_type === "hourly" ? "Tính theo giờ thực tế" : "Trọn gói cố định theo lần"}</li>
                             <li>Đội ngũ sẵn sàng: ${providerCount} đối tác thợ đã xác minh CCCD</li>
                           </ul>
                           <div class="service-card-footer">
                             <div class="service-price-box">
                               <span class="price-label">Giá niêm yết</span>
-                              <strong class="price-value num">${formatMoney(s.price)}<span class="price-unit">${s.pricing_type === 'hourly' ? '/giờ' : '/lần'}</span></strong>
+                              <strong class="price-value num">${formatMoney(s.price)}<span class="price-unit">${s.pricing_type === "hourly" ? "/giờ" : "/lần"}</span></strong>
                             </div>
                             <button type="button" class="primary-btn btn-sm" onclick="GDXApp.go('1.2', {serviceId: ${inlineIdentifier(s.service_id)}})">
                               Chọn dịch vụ
@@ -3654,8 +4819,8 @@ window.GDXApp = (() => {
                           </div>
                         </div>
                       </article>`;
-                    })
-                    .join('')
+                        })
+                        .join("")
             }
           </div>
 
@@ -3664,7 +4829,7 @@ window.GDXApp = (() => {
               <h3 class="callout-title">Cần tùy chỉnh thời lượng hoặc chọn thợ quen?</h3>
               <p class="callout-desc">Sử dụng trình cấu hình để chọn khung giờ hẹn, kiểm tra khoảng cách của thợ và nhận báo giá chi tiết.</p>
             </div>
-            <button type="button" class="wizard-cta-btn" ${activeServices.length === 0 ? 'disabled' : ''} onclick="GDXApp.go('1.2', {serviceId: ${activeServices[0] ? inlineIdentifier(activeServices[0].service_id) : 'null'}})">
+            <button type="button" class="wizard-cta-btn" ${activeServices.length === 0 ? "disabled" : ""} onclick="GDXApp.go('1.2', {serviceId: ${activeServices[0] ? inlineIdentifier(activeServices[0].service_id) : "null"}})">
               Mở trình cấu hình chi tiết &rarr;
             </button>
           </div>
@@ -3781,24 +4946,32 @@ window.GDXApp = (() => {
                     const skillNames = (db.services || [])
                       .filter((s) => skillIds.includes(s.service_id))
                       .map((s) => s.title);
-                    const bookingService = activeServices.find((s) => skillIds.some((id) => String(id) === String(s.service_id)));
+                    const bookingService = activeServices.find((s) =>
+                      skillIds.some(
+                        (id) => String(id) === String(s.service_id),
+                      ),
+                    );
                     const areaWards = (db.provider_areas || [])
                       .filter((pa) => pa.provider_id === p.provider_id)
                       .map((pa) => {
-                        const w = (db.ward || []).find((x) => x.ward_id === pa.ward_id);
-                        return w ? w.name.replace('Phường ', 'P. ') : pa.ward_id;
+                        const w = (db.ward || []).find(
+                          (x) => x.ward_id === pa.ward_id,
+                        );
+                        return w
+                          ? w.name.replace("Phường ", "P. ")
+                          : pa.ward_id;
                       });
 
                     return `
                     <article class="provider-card">
                       <div class="provider-card-top">
-                        <img src="${p.avatar_url || '/assets/provider-lan.jpg'}" alt="${p.full_name}" class="provider-avatar" loading="lazy">
+                        <img src="${p.avatar_url || "/assets/provider-lan.jpg"}" alt="${p.full_name}" class="provider-avatar" loading="lazy">
                         <div class="provider-meta">
                           <div class="provider-name-row">
                             <h3 class="provider-name">${p.full_name}</h3>
                             <span class="badge badge-positive">Đã xác minh</span>
                           </div>
-                          <span class="provider-Exp">Khu vực: ${areaWards.join(', ') || 'TP.HCM'}</span>
+                          <span class="provider-Exp">Khu vực: ${areaWards.join(", ") || "TP.HCM"}</span>
                           <div class="provider-rating">
                             <span class="star-rating num">${Icons.star(true)} ${Number(p.average_rating || 5).toFixed(2)}</span>
                             <span class="rating-count">(${p.total_reviews || 0} đánh giá)</span>
@@ -3807,30 +4980,33 @@ window.GDXApp = (() => {
                       </div>
                       <div class="provider-specialty">
                         <span class="specialty-label">Chuyên môn &amp; Kinh nghiệm:</span>
-                        <p class="specialty-text">${p.info || 'Đối tác thợ kỹ thuật tiêu chuẩn Gia Đình Xanh'}</p>
+                        <p class="specialty-text">${p.info || "Đối tác thợ kỹ thuật tiêu chuẩn Gia Đình Xanh"}</p>
                         <div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:10px;">
                           ${skillNames
                             .slice(0, 3)
-                            .map((name) => `<span class="badge badge-positive">${name}</span>`)
-                            .join('')}
+                            .map(
+                              (name) =>
+                                `<span class="badge badge-positive">${name}</span>`,
+                            )
+                            .join("")}
                         </div>
                       </div>
                       <div class="provider-card-footer">
-                        <span class="provider-rate">${p.is_available_online ? 'Đang nhận việc' : 'Theo lịch hẹn'}</span>
+                        <span class="provider-rate">${p.is_available_online ? "Đang nhận việc" : "Theo lịch hẹn"}</span>
                         <div style="display:flex; gap:8px;">
                           <button type="button" class="ghost-btn btn-sm" onclick="GDXApp.openModal('1.7', {providerId: ${p.provider_id}})">
                             Xem lịch rảnh
                           </button>
-                          ${bookingService ? `<button type="button" class="primary-btn btn-sm" onclick="GDXApp.go('1.2', {serviceId: ${inlineIdentifier(bookingService.service_id)}, providerId: ${inlineIdentifier(p.provider_id)}})">Đặt lịch</button>` : ''}
+                          ${bookingService ? `<button type="button" class="primary-btn btn-sm" onclick="GDXApp.go('1.2', {serviceId: ${inlineIdentifier(bookingService.service_id)}, providerId: ${inlineIdentifier(p.provider_id)}})">Đặt lịch</button>` : ""}
                         </div>
                       </div>
                     </article>`;
                   })
-                  .join('')}
+                  .join("")}
               </div>
             </div>
           </section>`
-          : ''
+          : ""
       }
 
       <!-- 4. TRUST & TRANSPARENCY SECTION (DB-Compliant) -->
@@ -3891,14 +5067,14 @@ window.GDXApp = (() => {
             <div class="testimonial-content">
               <h2 class="section-title">Thời gian thảnh thơi bên gia đình</h2>
               <blockquote class="testimonial-quote">
-                "${db.reviews[0] ? db.reviews[0].comment : 'Chị Lan đến đúng giờ, mang đầy đủ khăn lau phân màu theo từng khu vực bếp và phòng tắm, làm việc rất kỹ lưỡng.'}"
+                "${db.reviews[0] ? db.reviews[0].comment : "Chị Lan đến đúng giờ, mang đầy đủ khăn lau phân màu theo từng khu vực bếp và phòng tắm, làm việc rất kỹ lưỡng."}"
               </blockquote>
               <div class="testimonial-author">
                 <strong>Gia đình chị Nguyễn Minh Thảo</strong>
                 <span>Khách hàng tại Khu đô thị Phú Mỹ Hưng, Quận 7, TP.HCM</span>
               </div>
               <div style="display:flex; gap:12px; flex-wrap:wrap;">
-                <button type="button" class="primary-btn" ${activeServices.length === 0 ? 'disabled' : ''} onclick="GDXApp.go('1.2', {serviceId: ${activeServices[0] ? inlineIdentifier(activeServices[0].service_id) : 'null'}})">
+                <button type="button" class="primary-btn" ${activeServices.length === 0 ? "disabled" : ""} onclick="GDXApp.go('1.2', {serviceId: ${activeServices[0] ? inlineIdentifier(activeServices[0].service_id) : "null"}})">
                   Đặt lịch chăm sóc tổ ấm ngay &rarr;
                 </button>
                 <button type="button" class="ghost-btn" onclick="GDXApp.go('1.4')">
@@ -3912,20 +5088,26 @@ window.GDXApp = (() => {
             ${db.reviews
               .slice(0, 3)
               .map((r) => {
-                const bk = db.bookings.find((b) => b.booking_id === r.booking_id);
-                const svc = bk ? db.services.find((s) => s.service_id === bk.service_id) : null;
-                const prov = publicProviders.find((p) => p.provider_id === r.provider_id);
+                const bk = db.bookings.find(
+                  (b) => b.booking_id === r.booking_id,
+                );
+                const svc = bk
+                  ? db.services.find((s) => s.service_id === bk.service_id)
+                  : null;
+                const prov = publicProviders.find(
+                  (p) => p.provider_id === r.provider_id,
+                );
                 return `
                 <article class="review-quote-card">
                   <p class="review-quote-text">"${r.comment}"</p>
                   <div style="margin-top:auto; padding-top:8px; display:flex; justify-content:space-between; align-items:center; font-size:0.875rem;">
-                    <span>Đối tác: <strong>${prov ? prov.full_name : 'Thợ Gia Đình Xanh'}</strong></span>
+                    <span>Đối tác: <strong>${prov ? prov.full_name : "Thợ Gia Đình Xanh"}</strong></span>
                     <span class="badge badge-positive num">Điểm ${r.rating}.0 / 5.0 · Đơn #${shortCode(r.booking_id)}</span>
                   </div>
-                  <div class="field-hint">${svc ? svc.title : ''}</div>
+                  <div class="field-hint">${svc ? svc.title : ""}</div>
                 </article>`;
               })
-              .join('')}
+              .join("")}
           </div>
         </div>
       </section>
@@ -3954,9 +5136,16 @@ window.GDXApp = (() => {
             <div class="footer-links-col">
               <h3 class="footer-heading">Dịch vụ Gia đình</h3>
               <ul class="footer-nav">
-                ${activeServices.length
-                  ? activeServices.map((s) => `<li><button type="button" onclick="GDXApp.go('1.2', {serviceId: ${inlineIdentifier(s.service_id)}})">${s.title}</button></li>`).join('')
-                  : `<li><span class="field-hint">${state.customerServiceLoadStatus === 'loading' ? 'Đang tải dịch vụ...' : 'Chưa có dịch vụ khả dụng'}</span></li>`}
+                ${
+                  activeServices.length
+                    ? activeServices
+                        .map(
+                          (s) =>
+                            `<li><button type="button" onclick="GDXApp.go('1.2', {serviceId: ${inlineIdentifier(s.service_id)}})">${s.title}</button></li>`,
+                        )
+                        .join("")
+                    : `<li><span class="field-hint">${state.customerServiceLoadStatus === "loading" ? "Đang tải dịch vụ..." : "Chưa có dịch vụ khả dụng"}</span></li>`
+                }
               </ul>
             </div>
 
@@ -3978,269 +5167,361 @@ window.GDXApp = (() => {
         </div>
       </footer>
     `;
-  }
-
-  function handleOmniSearchSubmit(form) {
-    const svcId = form.service_id ? form.service_id.value : '';
-    const service = (window.GDX_DB.services || []).find((s) => String(s.service_id) === String(svcId));
-    if (!service) {
-      showToast(state.customerServiceLoadError || 'Vui lòng chọn một dịch vụ đang được cung cấp.');
-      return;
     }
-    const wardId = form.ward_id ? form.ward_id.value : '27472';
-    const schedTime = form.scheduled_time ? form.scheduled_time.value : getDefaultUpcomingTimeLocal();
-    state.selectedServiceId = service.service_id;
-    state.wizardDraft.service_id = service.service_id;
-    state.wizardDraft.ward_id = wardId;
-    state.wizardDraft.scheduled_time = schedTime;
-    go('1.2', { serviceId: service.service_id, wardId, scheduledTime: schedTime });
-  }
 
-  function setCatalogCategory(catId) {
-    state.catalogFilter.categoryId = catId;
-    go('1.1');
-  }
-
-  function setCatalogPricingType(pricingType) {
-    state.catalogFilter.pricingType = pricingType;
-    go('1.1');
-  }
-
-  function setCatalogSearch(q) {
-    state.catalogFilter.searchQuery = q;
-    const viewport = document.getElementById('mainViewport');
-    if (viewport && state.currentScreen === '1.1') {
-      renderScreen_1_1(viewport);
-      applyUserModeCleanups(viewport, '1.1');
-      const searchInput = viewport.querySelector('input[type="search"]');
-      if (searchInput) {
-        searchInput.focus();
-        searchInput.setSelectionRange(q.length, q.length);
+    function handleOmniSearchSubmit(form) {
+      const svcId = form.service_id ? form.service_id.value : "";
+      const service = (window.GDX_DB.services || []).find(
+        (s) => String(s.service_id) === String(svcId),
+      );
+      if (!service) {
+        showToast(
+          state.customerServiceLoadError ||
+            "Vui lòng chọn một dịch vụ đang được cung cấp.",
+        );
+        return;
       }
-    }
-  }
-
-  function resetCatalogFilters() {
-    state.catalogFilter = { categoryId: 'all', pricingType: 'all', searchQuery: '' };
-    go('1.1');
-  }
-
-  function toggleFavorite(serviceId) {
-    const db = window.GDX_DB;
-    const idx = db.favorites.findIndex(
-      (f) => String(f.customer_id) === String(state.activeCustomerId) && String(f.service_id) === String(serviceId)
-    );
-    if (idx >= 0) {
-      db.favorites.splice(idx, 1);
-      showToast('Đã xóa dịch vụ khỏi danh sách yêu thích');
-    } else {
-      db.favorites.push({
-        customer_id: state.activeCustomerId,
-        service_id: serviceId,
-        created_at: new Date().toISOString()
+      const wardId = form.ward_id ? form.ward_id.value : "27472";
+      const schedTime = form.scheduled_time
+        ? form.scheduled_time.value
+        : getDefaultUpcomingTimeLocal();
+      state.selectedServiceId = service.service_id;
+      state.wizardDraft.service_id = service.service_id;
+      state.wizardDraft.ward_id = wardId;
+      state.wizardDraft.scheduled_time = schedTime;
+      go("1.2", {
+        serviceId: service.service_id,
+        wardId,
+        scheduledTime: schedTime,
       });
-      showToast('Đã lưu dịch vụ vào danh sách yêu thích');
-    }
-    apiRequest('/api/favorites/toggle', {
-      method: 'POST',
-      body: JSON.stringify({ customer_id: state.activeCustomerId, service_id: serviceId })
-    });
-    go(state.currentScreen);
-  }
-
-  // Helper tra cứu hồ sơ khách hàng hoạt động (Active Customer Profile)
-  function getActiveCustomerProfile() {
-    const db = window.GDX_DB;
-    if (!db || !db.customer_profiles) return null;
-
-    // 1. Tìm theo state.activeCustomerId (chấp nhận cả string lẫn number)
-    if (state.activeCustomerId) {
-      const byCid = db.customer_profiles.find(
-        (c) => String(c.customer_id) === String(state.activeCustomerId)
-      );
-      if (byCid) return byCid;
     }
 
-    // 2. Tìm theo state.activeUserId (UUID)
-    if (state.activeUserId) {
-      const byUid = db.customer_profiles.find(
-        (c) => String(c.user_id) === String(state.activeUserId)
-      );
-      if (byUid) {
-        state.activeCustomerId = byUid.customer_id;
-        return byUid;
+    function setCatalogCategory(catId) {
+      state.catalogFilter.categoryId = catId;
+      go("1.1");
+    }
+
+    function setCatalogPricingType(pricingType) {
+      state.catalogFilter.pricingType = pricingType;
+      go("1.1");
+    }
+
+    function setCatalogSearch(q) {
+      state.catalogFilter.searchQuery = q;
+      const viewport = document.getElementById("mainViewport");
+      if (viewport && state.currentScreen === "1.1") {
+        renderScreen_1_1(viewport);
+        applyUserModeCleanups(viewport, "1.1");
+        const searchInput = viewport.querySelector('input[type="search"]');
+        if (searchInput) {
+          searchInput.focus();
+          searchInput.setSelectionRange(q.length, q.length);
+        }
       }
     }
 
-    // 3. Tìm theo currentUser nếu có
-    if (state.currentUser && state.currentUser.user_id) {
-      const byCur = db.customer_profiles.find(
-        (c) => String(c.user_id) === String(state.currentUser.user_id)
+    function resetCatalogFilters() {
+      state.catalogFilter = {
+        categoryId: "all",
+        pricingType: "all",
+        searchQuery: "",
+      };
+      go("1.1");
+    }
+
+    function toggleFavorite(serviceId) {
+      const db = window.GDX_DB;
+      const idx = db.favorites.findIndex(
+        (f) =>
+          String(f.customer_id) === String(state.activeCustomerId) &&
+          String(f.service_id) === String(serviceId),
       );
-      if (byCur) {
-        state.activeCustomerId = byCur.customer_id;
-        return byCur;
+      if (idx >= 0) {
+        db.favorites.splice(idx, 1);
+        showToast("Đã xóa dịch vụ khỏi danh sách yêu thích");
+      } else {
+        db.favorites.push({
+          customer_id: state.activeCustomerId,
+          service_id: serviceId,
+          created_at: new Date().toISOString(),
+        });
+        showToast("Đã lưu dịch vụ vào danh sách yêu thích");
       }
+      apiRequest("/api/favorites/toggle", {
+        method: "POST",
+        body: JSON.stringify({
+          customer_id: state.activeCustomerId,
+          service_id: serviceId,
+        }),
+      });
+      go(state.currentScreen);
     }
 
-    // 4. Fallback ở chế độ dev/mock không phải production
-    if (!state.isProduction && db.customer_profiles.length > 0) {
-      state.activeCustomerId = db.customer_profiles[0].customer_id;
-      return db.customer_profiles[0];
+    // Helper tra cứu hồ sơ khách hàng hoạt động (Active Customer Profile)
+    function getActiveCustomerProfile() {
+      const db = window.GDX_DB;
+      if (!db || !db.customer_profiles) return null;
+
+      // 1. Tìm theo state.activeCustomerId (chấp nhận cả string lẫn number)
+      if (state.activeCustomerId) {
+        const byCid = db.customer_profiles.find(
+          (c) => String(c.customer_id) === String(state.activeCustomerId),
+        );
+        if (byCid) return byCid;
+      }
+
+      // 2. Tìm theo state.activeUserId (UUID)
+      if (state.activeUserId) {
+        const byUid = db.customer_profiles.find(
+          (c) => String(c.user_id) === String(state.activeUserId),
+        );
+        if (byUid) {
+          state.activeCustomerId = byUid.customer_id;
+          return byUid;
+        }
+      }
+
+      // 3. Tìm theo currentUser nếu có
+      if (state.currentUser && state.currentUser.user_id) {
+        const byCur = db.customer_profiles.find(
+          (c) => String(c.user_id) === String(state.currentUser.user_id),
+        );
+        if (byCur) {
+          state.activeCustomerId = byCur.customer_id;
+          return byCur;
+        }
+      }
+
+      // 4. Fallback ở chế độ dev/mock không phải production
+      if (!state.isProduction && db.customer_profiles.length > 0) {
+        state.activeCustomerId = db.customer_profiles[0].customer_id;
+        return db.customer_profiles[0];
+      }
+
+      return null;
     }
 
-    return null;
-  }
-
-  function getLocalDateTimeOffset(days, hours, minutes) {
-    const d = new Date();
-    d.setDate(d.getDate() + days);
-    d.setHours(hours, minutes, 0, 0);
-    const pad = (n) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  }
-
-  function getDefaultUpcomingTimeLocal() {
-    return getLocalDateTimeOffset(1, 9, 0);
-  }
-
-  function getMinDateTimeLocal() {
-    const d = new Date();
-    const pad = (n) => String(n).padStart(2, '0');
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  }
-
-  // 1.2: Cấu hình dịch vụ trước khi đặt (Booking Wizard — Reference Layout)
-  function renderScreen_1_2(container, params = {}) {
-    if (params.serviceId) {
-      state.selectedServiceId = isNaN(Number(params.serviceId)) ? String(params.serviceId) : Number(params.serviceId);
+    function getLocalDateTimeOffset(days, hours, minutes) {
+      const d = new Date();
+      d.setDate(d.getDate() + days);
+      d.setHours(hours, minutes, 0, 0);
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
     }
-    if (params.providerId) {
-      state.selectedProviderId = isNaN(Number(params.providerId)) ? String(params.providerId) : Number(params.providerId);
+
+    function getDefaultUpcomingTimeLocal() {
+      return getLocalDateTimeOffset(1, 9, 0);
     }
-    if (params.wardId) state.wizardDraft.ward_id = params.wardId;
-    if (params.scheduledTime) state.wizardDraft.scheduled_time = params.scheduledTime;
 
-    const db = window.GDX_DB;
-    const activeServices = (db.services || []).filter((s) => {
-      if (!s.is_active) return false;
-      const t = (s.title || '').toLowerCase();
-      if (t.includes('repair') || t.includes('sửa') || t.includes('appliance')) return false;
-      return true;
-    });
+    function getMinDateTimeLocal() {
+      const d = new Date();
+      const pad = (n) => String(n).padStart(2, "0");
+      return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    }
 
-    if (state.customerServiceLoadStatus !== 'loaded' || activeServices.length === 0) {
-      const isLoading = state.customerServiceLoadStatus === 'loading';
-      const isError = state.customerServiceLoadStatus === 'error';
-      const message = isLoading
-        ? 'Đang tải danh sách dịch vụ...'
-        : isError
-          ? 'Không thể kết nối để tải danh sách dịch vụ. Vui lòng thử lại.'
-          : 'Hiện chưa có dịch vụ nào khả dụng.';
-      container.innerHTML = `
+    // 1.2: Cấu hình dịch vụ trước khi đặt (Booking Wizard — Reference Layout)
+    function renderScreen_1_2(container, params = {}) {
+      if (params.serviceId) {
+        state.selectedServiceId = isNaN(Number(params.serviceId))
+          ? String(params.serviceId)
+          : Number(params.serviceId);
+      }
+      if (params.providerId) {
+        state.selectedProviderId = isNaN(Number(params.providerId))
+          ? String(params.providerId)
+          : Number(params.providerId);
+      }
+      if (params.wardId) state.wizardDraft.ward_id = params.wardId;
+      if (params.scheduledTime)
+        state.wizardDraft.scheduled_time = params.scheduledTime;
+
+      const db = window.GDX_DB;
+      const activeServices = (db.services || []).filter((s) => {
+        if (!s.is_active) return false;
+        const t = (s.title || "").toLowerCase();
+        if (
+          t.includes("repair") ||
+          t.includes("sửa") ||
+          t.includes("appliance")
+        )
+          return false;
+        return true;
+      });
+
+      if (
+        state.customerServiceLoadStatus !== "loaded" ||
+        activeServices.length === 0
+      ) {
+        const isLoading = state.customerServiceLoadStatus === "loading";
+        const isError = state.customerServiceLoadStatus === "error";
+        const message = isLoading
+          ? "Đang tải danh sách dịch vụ..."
+          : isError
+            ? "Không thể kết nối để tải danh sách dịch vụ. Vui lòng thử lại."
+            : "Hiện chưa có dịch vụ nào khả dụng.";
+        container.innerHTML = `
         <div class="v3-wiz-page">
-          <div class="panel" style="max-width:680px; margin:40px auto; text-align:center; padding:32px;" role="${isLoading ? 'status' : 'alert'}">
-            <h1 class="screen-title">${isLoading ? 'Đang tải dịch vụ' : 'Chưa thể đặt lịch'}</h1>
+          <div class="panel" style="max-width:680px; margin:40px auto; text-align:center; padding:32px;" role="${isLoading ? "status" : "alert"}">
+            <h1 class="screen-title">${isLoading ? "Đang tải dịch vụ" : "Chưa thể đặt lịch"}</h1>
             <p class="field-hint" style="margin:12px 0 20px;">${message}</p>
             <div style="display:flex; justify-content:center; gap:10px; flex-wrap:wrap;">
               <button type="button" class="ghost-btn btn-sm" onclick="GDXApp.go('1.1')">Quay lại danh sách dịch vụ</button>
-              ${isError ? '<button type="button" class="primary-btn btn-sm" onclick="GDXApp.refreshCustomerServices()">Thử tải lại</button>' : ''}
+              ${isError ? '<button type="button" class="primary-btn btn-sm" onclick="GDXApp.refreshCustomerServices()">Thử tải lại</button>' : ""}
             </div>
           </div>
         </div>`;
-      return;
-    }
-
-    const selectedService = activeServices.find((s) => String(s.service_id) === String(state.selectedServiceId));
-    const svc = selectedService || activeServices[0];
-    if (params.serviceId || !selectedService) {
-      state.wizardCategory = isCookingService(svc) ? '2' : '1';
-    }
-    state.selectedServiceId = svc.service_id;
-    state.wizardDraft.service_id = svc.service_id;
-
-    if (!state.wizardCategory) {
-      state.wizardCategory = isCookingService(svc) ? '2' : '1';
-    }
-
-    const categoryServices = activeServices.filter((s) => {
-      const isCooking = isCookingService(s);
-      return state.wizardCategory === '2' ? isCooking : !isCooking;
-    });
-    const cust = getActiveCustomerProfile();
-    const provinces = db.province || db.provinces || [];
-    const allWards = db.ward || db.wards || [];
-
-    // Lựa chọn Phường/Xã:
-    // 1. Tham số truyền vào params.wardId (khi tìm kiếm omni-search)
-    // 2. ward_id từ Hồ sơ khách hàng đã lưu (cust.ward_id)
-    // 3. Draft tạm nếu vừa chuyển trong phiên
-    // 4. Phường mặc định đầu tiên
-    const selectedWardId = params.wardId || (cust && cust.ward_id) || state.wizardDraft.ward_id || (allWards[0] ? allWards[0].ward_id : '27403');
-    const currentBookingWard = allWards.find((w) => String(w.ward_id) === String(selectedWardId));
-    const currentBookingProvId = currentBookingWard ? String(currentBookingWard.provinceId) : (provinces.find((p) => p.provinceId === '29' || p.provinceId === '79')?.provinceId || '29');
-    const bookingWards = allWards.filter((w) => !w.provinceId || String(w.provinceId) === String(currentBookingProvId));
-    const wardsToRender = bookingWards.length > 0 ? bookingWards : allWards.slice(0, 100);
-
-    // Địa chỉ chi tiết:
-    // Ưu tiên params.address -> cust.default_address -> state.wizardDraft.address
-    const defaultAddressValue = (params.address !== undefined)
-      ? params.address
-      : (cust && cust.default_address ? cust.default_address : (state.wizardDraft.address || ''));
-
-    const upcomingDefault = getDefaultUpcomingTimeLocal();
-    const draftTimeMs = state.wizardDraft.scheduled_time ? Date.parse(state.wizardDraft.scheduled_time) : 0;
-    const validDraftTime = draftTimeMs && draftTimeMs > Date.now() ? state.wizardDraft.scheduled_time : upcomingDefault;
-    const selectedTime = params.scheduledTime || validDraftTime;
-    const minBookingTime = getMinDateTimeLocal();
-
-    const matchingProviderIds = (db.provider_services || [])
-      .filter((ps) => String(ps.service_id) === String(svc.service_id))
-      .map((ps) => ps.provider_id);
-
-    const baseEligibleProviders = (db.provider_public_profiles || []).filter((p) => {
-      if (matchingProviderIds.length > 0 && !matchingProviderIds.some((id) => String(id) === String(p.provider_id))) {
-        return false;
+        return;
       }
-      return true;
-    });
 
-    const verifiedCompanies = (db.company_profiles || []).filter((c) => c.verification_status === 'verified');
-    const searchKw = (state.directProviderSearch || '').trim().toLowerCase();
-    const companyFilterId = state.directProviderCompanyId || 'all';
-
-    const eligibleProviders = baseEligibleProviders.filter((p) => {
-      const comp = (db.company_profiles || []).find((c) => Number(c.company_id) === Number(p.company_id));
-      const compName = p.company_name || (comp && comp.company_name) || '';
-      if (companyFilterId !== 'all' && String(p.company_id) !== String(companyFilterId)) {
-        return false;
+      const selectedService = activeServices.find(
+        (s) => String(s.service_id) === String(state.selectedServiceId),
+      );
+      const svc = selectedService || activeServices[0];
+      if (params.serviceId || !selectedService) {
+        state.wizardCategory = isCookingService(svc) ? "2" : "1";
       }
-      if (searchKw) {
-        const provMatch = (p.full_name || '').toLowerCase().includes(searchKw);
-        const compMatch = compName.toLowerCase().includes(searchKw);
-        if (!provMatch && !compMatch) return false;
+      state.selectedServiceId = svc.service_id;
+      state.wizardDraft.service_id = svc.service_id;
+
+      if (!state.wizardCategory) {
+        state.wizardCategory = isCookingService(svc) ? "2" : "1";
       }
-      return true;
-    });
 
-    if (state.wizardProviderMode === 'direct') {
-      if (!eligibleProviders.some((p) => String(p.provider_id) === String(state.selectedProviderId)) && eligibleProviders.length > 0) {
-        state.selectedProviderId = eligibleProviders[0].provider_id;
+      const categoryServices = activeServices.filter((s) => {
+        const isCooking = isCookingService(s);
+        return state.wizardCategory === "2" ? isCooking : !isCooking;
+      });
+      const cust = getActiveCustomerProfile();
+      const savedBookingAddress =
+        state.bookingAddressSelection &&
+        String(state.bookingAddressSelection.customerId) ===
+          String(state.activeCustomerId)
+          ? state.bookingAddressSelection
+          : null;
+      const provinces = db.province || db.provinces || [];
+      const allWards = db.ward || db.wards || [];
+
+      // Use the explicitly selected saved address, otherwise the profile default.
+      const selectedWardId =
+        params.wardId ||
+        (savedBookingAddress && savedBookingAddress.wardId) ||
+        (cust && cust.ward_id) ||
+        "";
+      const currentBookingWard = allWards.find(
+        (w) => String(w.ward_id) === String(selectedWardId),
+      );
+      const currentBookingProvId = currentBookingWard
+        ? String(currentBookingWard.provinceId)
+        : provinces.find((p) => p.provinceId === "29" || p.provinceId === "79")
+            ?.provinceId || "29";
+      const bookingWards = allWards.filter(
+        (w) =>
+          !w.provinceId ||
+          String(w.provinceId) === String(currentBookingProvId),
+      );
+      const wardsToRender =
+        bookingWards.length > 0 ? bookingWards : allWards.slice(0, 100);
+
+      // An explicit route address takes precedence over the selected/profile address.
+      const defaultAddressValue =
+        params.address !== undefined
+          ? params.address
+          : savedBookingAddress
+            ? savedBookingAddress.street
+            : cust && cust.default_address
+              ? cust.default_address
+              : "";
+
+      const upcomingDefault = getDefaultUpcomingTimeLocal();
+      const draftTimeMs = state.wizardDraft.scheduled_time
+        ? Date.parse(state.wizardDraft.scheduled_time)
+        : 0;
+      const validDraftTime =
+        draftTimeMs && draftTimeMs > Date.now()
+          ? state.wizardDraft.scheduled_time
+          : upcomingDefault;
+      const selectedTime = params.scheduledTime || validDraftTime;
+      const minBookingTime = getMinDateTimeLocal();
+
+      const matchingProviderIds = (db.provider_services || [])
+        .filter((ps) => String(ps.service_id) === String(svc.service_id))
+        .map((ps) => ps.provider_id);
+
+      const baseEligibleProviders = (db.provider_public_profiles || []).filter(
+        (p) => {
+          if (
+            matchingProviderIds.length > 0 &&
+            !matchingProviderIds.some(
+              (id) => String(id) === String(p.provider_id),
+            )
+          ) {
+            return false;
+          }
+          return true;
+        },
+      );
+
+      const verifiedCompanies = (db.company_profiles || []).filter(
+        (c) => c.verification_status === "verified",
+      );
+      const searchKw = (state.directProviderSearch || "").trim().toLowerCase();
+      const companyFilterId = state.directProviderCompanyId || "all";
+
+      const eligibleProviders = baseEligibleProviders.filter((p) => {
+        const comp = (db.company_profiles || []).find(
+          (c) => Number(c.company_id) === Number(p.company_id),
+        );
+        const compName = p.company_name || (comp && comp.company_name) || "";
+        if (
+          companyFilterId !== "all" &&
+          String(p.company_id) !== String(companyFilterId)
+        ) {
+          return false;
+        }
+        if (searchKw) {
+          const provMatch = (p.full_name || "")
+            .toLowerCase()
+            .includes(searchKw);
+          const compMatch = compName.toLowerCase().includes(searchKw);
+          if (!provMatch && !compMatch) return false;
+        }
+        return true;
+      });
+
+      if (state.wizardProviderMode === "direct") {
+        if (
+          !eligibleProviders.some(
+            (p) => String(p.provider_id) === String(state.selectedProviderId),
+          ) &&
+          eligibleProviders.length > 0
+        ) {
+          state.selectedProviderId = eligibleProviders[0].provider_id;
+        }
+      } else {
+        state.selectedProviderId = null;
       }
-    } else {
-      state.selectedProviderId = null;
-    }
 
-    const selectedProv =
-      eligibleProviders.find((p) => String(p.provider_id) === String(state.selectedProviderId)) || eligibleProviders[0];
-    const totalAmount =
-      svc.pricing_type === 'hourly' ? svc.price * state.bookingHours : svc.price;
+      const selectedProv =
+        eligibleProviders.find(
+          (p) => String(p.provider_id) === String(state.selectedProviderId),
+        ) || eligibleProviders[0];
+      const totalAmount =
+        svc.pricing_type === "hourly"
+          ? svc.price * state.bookingHours
+          : svc.price;
 
-    const savedAddrs = (db.customer_addresses || []).filter(
-      (a) => String(a.customer_id) === String(state.activeCustomerId)
-    );
+      const savedAddrs = (db.customer_addresses || []).filter(
+        (a) =>
+          String(a.customer_id) === String(state.activeCustomerId) &&
+          !(
+            cust &&
+            cust.default_address &&
+            String(a.ward_id) === String(cust.ward_id) &&
+            a.street_address === cust.default_address
+          ),
+      );
 
-    container.innerHTML = `
+      container.innerHTML = `
       <div class="v3-wiz-page">
         <div class="v3-wiz-header">
           <h1 class="v3-wiz-title">Đặt lịch trong 4 chạm</h1>
@@ -4255,47 +5536,50 @@ window.GDXApp = (() => {
               <div class="v3-wiz-sec-head">
                 <h2 class="v3-wiz-sec-title">1. Chọn gói dịch vụ</h2>
                 <div class="v3-seg-tabs" style="padding:3px;">
-                  <button type="button" class="v3-seg-tab ${state.wizardCategory === '1' ? 'is-active' : ''}" style="padding:5px 12px; font-size:12.5px;" onclick="GDXApp.setWizardCategory('1')">
+                  <button type="button" class="v3-seg-tab ${state.wizardCategory === "1" ? "is-active" : ""}" style="padding:5px 12px; font-size:12.5px;" onclick="GDXApp.setWizardCategory('1')">
                     Dọn dẹp nhà cửa
                   </button>
-                  <button type="button" class="v3-seg-tab ${state.wizardCategory === '2' ? 'is-active' : ''}" style="padding:5px 12px; font-size:12.5px;" onclick="GDXApp.setWizardCategory('2')">
+                  <button type="button" class="v3-seg-tab ${state.wizardCategory === "2" ? "is-active" : ""}" style="padding:5px 12px; font-size:12.5px;" onclick="GDXApp.setWizardCategory('2')">
                     Nấu ăn tại nhà
                   </button>
                 </div>
               </div>
 
               <div class="v3-wiz-svc-grid">
-                ${categoryServices.length > 0
-                  ? categoryServices
-                  .map((s) => {
-                    const isSel = String(s.service_id) === String(svc.service_id);
-                    const unit = s.pricing_type === 'hourly' ? '/h' : '';
-                    return `
-                    <button type="button" class="v3-wiz-svc-item ${isSel ? 'is-selected' : ''}" onclick="GDXApp.go('1.2', {serviceId: ${inlineIdentifier(s.service_id)}})">
+                ${
+                  categoryServices.length > 0
+                    ? categoryServices
+                        .map((s) => {
+                          const isSel =
+                            String(s.service_id) === String(svc.service_id);
+                          const unit = s.pricing_type === "hourly" ? "/h" : "";
+                          return `
+                    <button type="button" class="v3-wiz-svc-item ${isSel ? "is-selected" : ""}" onclick="GDXApp.go('1.2', {serviceId: ${inlineIdentifier(s.service_id)}})">
                       <img src="${getServiceImage(s)}" alt="${s.title}" class="v3-wiz-svc-img">
                       <div class="v3-wiz-svc-name">${s.title}</div>
-                      <div class="v3-wiz-svc-price num">${formatMoney(s.price).replace(' đ', 'đ')}${unit}</div>
+                      <div class="v3-wiz-svc-price num">${formatMoney(s.price).replace(" đ", "đ")}${unit}</div>
                     </button>`;
-                  })
-                  .join('')
-                  : '<div class="panel-subtle" style="grid-column:1 / -1; text-align:center; padding:20px;">Chưa có gói dịch vụ trong danh mục này.</div>'}
+                        })
+                        .join("")
+                    : '<div class="panel-subtle" style="grid-column:1 / -1; text-align:center; padding:20px;">Chưa có gói dịch vụ trong danh mục này.</div>'
+                }
               </div>
 
               ${
-                svc.pricing_type === 'hourly'
+                svc.pricing_type === "hourly"
                   ? `
                 <div class="v3-wiz-hours-row">
                   <span class="v3-wiz-hours-label">Thời lượng:</span>
                   ${[2, 3, 4]
                     .map(
                       (h) => `
-                    <button type="button" class="v3-appt-filter-pill ${state.bookingHours === h ? 'is-active' : ''}" onclick="GDXApp.setBookingHours(${h})">
+                    <button type="button" class="v3-appt-filter-pill ${state.bookingHours === h ? "is-active" : ""}" onclick="GDXApp.setBookingHours(${h})">
                       ${h} giờ
-                    </button>`
+                    </button>`,
                     )
-                    .join('')}
+                    .join("")}
                 </div>`
-                  : ''
+                  : ""
               }
             </div>
 
@@ -4306,28 +5590,31 @@ window.GDXApp = (() => {
                   <label for="wizScheduledTime">2. Ngày &amp; giờ phục vụ</label>
                   <input type="datetime-local" id="wizScheduledTime" class="v3-profile-input" value="${selectedTime}" min="${minBookingTime}" required>
                 </div>
-                <div class="v3-profile-field">
-                  <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <label for="wizAddress">Địa chỉ thực hiện</label>
-                    <button type="button" class="v3-prov-expand-btn" style="font-size:11.5px;" onclick="GDXApp.locateUserGPS('wizLat', 'wizLng', null, 'wizAddress', 'wizProvSelect', 'wizWardSelect')">
-                      &#128205; Định vị GPS
-                    </button>
+                <div class="booking-address-panel">
+                  <div class="booking-address-heading">
+                    <div>
+                      <span class="booking-address-eyebrow">ĐỊA CHỈ ĐÃ LƯU TRONG HỒ SƠ</span>
+                      <strong>Địa chỉ thực hiện</strong>
+                    </div>
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="GDXApp.go('1.5')">Sửa hồ sơ</button>
                   </div>
-                  <input type="text" id="wizAddress" class="v3-profile-input" value="${defaultAddressValue}" placeholder="Số nhà, tên đường, tòa căn hộ..." required>
-                </div>
-              </div>
-
-              <div class="v3-wiz-row-2">
-                <div class="v3-profile-field">
-                  <label for="wizProvSelect">Tỉnh / Thành phố</label>
-                  <select id="wizProvSelect" class="v3-profile-input" onchange="GDXApp.handleProvinceChange('wizProvSelect', 'wizWardSelect')">
-                    ${provinces.map((p) => `<option value="${p.provinceId}" ${String(p.provinceId) === String(currentBookingProvId) ? 'selected' : ''}>${p.name}</option>`).join('')}
+                  <div id="bookingAddressSummary" class="booking-address-summary">
+                    <span class="booking-address-street">${escapeHtml(defaultAddressValue || "Chưa có địa chỉ mặc định")}</span>
+                    <span class="booking-address-location">${escapeHtml([currentBookingWard && currentBookingWard.name, provinces.find((p) => String(p.provinceId) === String(currentBookingProvId))?.name].filter(Boolean).join(", "))}</span>
+                  </div>
+                  <p class="booking-address-hint">Địa chỉ mặc định được lấy từ hồ sơ. Bạn có thể chọn địa chỉ khác đã lưu hoặc dùng GPS riêng cho đơn này.</p>
+                  ${
+                    defaultAddressValue
+                      ? `<button type="button" class="booking-address-gps" onclick="GDXApp.locateUserGPS('wizLat', 'wizLng', null, 'wizAddress', 'wizProvSelect', 'wizWardSelect')">&#128205; Chọn vị trí GPS cho đơn này</button>`
+                      : `<div class="booking-address-missing" role="alert">Bạn chưa lưu địa chỉ mặc định. <button type="button" onclick="GDXApp.go('1.5')">Cập nhật hồ sơ</button> để tiếp tục đặt lịch.</div>`
+                  }
+                  <input type="hidden" id="wizAddress" value="${escapeHtml(defaultAddressValue)}">
+                  <select id="wizProvSelect" class="booking-address-hidden" aria-hidden="true" tabindex="-1" onchange="GDXApp.handleProvinceChange('wizProvSelect', 'wizWardSelect')">
+                    ${provinces.map((p) => `<option value="${escapeHtml(p.provinceId)}" ${String(p.provinceId) === String(currentBookingProvId) ? "selected" : ""}>${escapeHtml(p.name)}</option>`).join("")}
                   </select>
-                </div>
-                <div class="v3-profile-field">
-                  <label for="wizWardSelect">Phường / Xã phục vụ</label>
-                  <select id="wizWardSelect" class="v3-profile-input">
-                    ${wardsToRender.map((w) => `<option value="${w.ward_id}" ${String(selectedWardId) === String(w.ward_id) ? 'selected' : ''}>${w.name}</option>`).join('')}
+                  <select id="wizWardSelect" class="booking-address-hidden" aria-hidden="true" tabindex="-1">
+                    ${selectedWardId ? "" : '<option value="" selected disabled>Chưa có phường/xã trong hồ sơ</option>'}
+                    ${wardsToRender.map((w) => `<option value="${escapeHtml(w.ward_id)}" ${String(selectedWardId) === String(w.ward_id) ? "selected" : ""}>${escapeHtml(w.name)}</option>`).join("")}
                   </select>
                 </div>
               </div>
@@ -4336,20 +5623,21 @@ window.GDXApp = (() => {
                 savedAddrs.length > 0
                   ? `
                 <div class="wizard-address-chips">
+                  <span class="booking-address-saved-label">Địa chỉ khác đã lưu:</span>
                   ${savedAddrs
                     .map(
                       (a) => `
-                    <button type="button" class="wizard-addr-chip" onclick="GDXApp.pickSavedAddress('${escapeQuotes(a.street_address)}', '${a.ward_id}', ${a.latitude || 10.741}, ${a.longitude || 106.702})">
-                      &#128205;                       <strong>${a.tag || a.label || 'Địa chỉ'}</strong>: ${a.street_address.slice(0, 28)}${a.street_address.length > 28 ? '...' : ''}
-                    </button>`
+                    <button type="button" class="wizard-addr-chip" onclick="GDXApp.pickSavedAddress('${escapeQuotes(a.street_address)}', '${escapeQuotes(a.ward_id)}', ${a.latitude || 10.741}, ${a.longitude || 106.702})">
+                      &#128205; <strong>${escapeQuotes(a.tag || a.label || "Địa chỉ")}</strong>: ${escapeQuotes(a.street_address.slice(0, 28))}${a.street_address.length > 28 ? "..." : ""}
+                    </button>`,
                     )
-                    .join('')}
+                    .join("")}
                 </div>`
-                  : ''
+                  : ""
               }
 
-              <input type="hidden" id="wizLat" value="${cust && cust.latitude ? cust.latitude : 10.741205}">
-              <input type="hidden" id="wizLng" value="${cust && cust.longitude ? cust.longitude : 106.702110}">
+              <input type="hidden" id="wizLat" value="${savedBookingAddress ? savedBookingAddress.latitude : cust && cust.latitude ? cust.latitude : 10.741205}">
+              <input type="hidden" id="wizLng" value="${savedBookingAddress ? savedBookingAddress.longitude : cust && cust.longitude ? cust.longitude : 106.70211}">
 
               <div class="v3-profile-field">
                 <label for="wizNotes">Ghi chú cho thợ (tùy chọn)</label>
@@ -4362,24 +5650,24 @@ window.GDXApp = (() => {
               <div class="v3-wiz-sec-head">
                 <h2 class="v3-wiz-sec-title">3. Chọn Thợ đề xuất gần bạn</h2>
                 <div class="v3-seg-tabs" style="padding:3px;">
-                  <button type="button" class="v3-seg-tab ${state.wizardProviderMode !== 'direct' ? 'is-active' : ''}" style="padding:5px 12px; font-size:12.5px;" onclick="GDXApp.setWizardProviderMode('broadcast')">
+                  <button type="button" class="v3-seg-tab ${state.wizardProviderMode !== "direct" ? "is-active" : ""}" style="padding:5px 12px; font-size:12.5px;" onclick="GDXApp.setWizardProviderMode('broadcast')">
                     &#9889; Rải đơn nhanh
                   </button>
-                  <button type="button" class="v3-seg-tab ${state.wizardProviderMode === 'direct' ? 'is-active' : ''}" style="padding:5px 12px; font-size:12.5px;" onclick="GDXApp.setWizardProviderMode('direct')">
+                  <button type="button" class="v3-seg-tab ${state.wizardProviderMode === "direct" ? "is-active" : ""}" style="padding:5px 12px; font-size:12.5px;" onclick="GDXApp.setWizardProviderMode('direct')">
                     &#128100; Tự chọn thợ (${baseEligibleProviders.length})
                   </button>
                 </div>
               </div>
 
               ${
-                state.wizardProviderMode === 'direct'
+                state.wizardProviderMode === "direct"
                   ? `
                 <div class="v3-wiz-row-2" style="margin-bottom:4px;">
                   <input
                     type="text"
                     id="directProviderSearchInput"
                     class="v3-profile-input"
-                    value="${escapeQuotes(state.directProviderSearch || '')}"
+                    value="${escapeQuotes(state.directProviderSearch || "")}"
                     placeholder="Tìm theo tên Thợ hoặc Công ty..."
                     oninput="GDXApp.setDirectProviderSearch(this.value)"
                   >
@@ -4389,8 +5677,8 @@ window.GDXApp = (() => {
                     onchange="GDXApp.setDirectProviderCompanyFilter(this.value)"
                     aria-label="Lọc theo Công ty Đối tác"
                   >
-                    <option value="all" ${companyFilterId === 'all' ? 'selected' : ''}>Tất cả Công ty (${verifiedCompanies.length})</option>
-                    ${verifiedCompanies.map((c) => `<option value="${c.company_id}" ${String(companyFilterId) === String(c.company_id) ? 'selected' : ''}>${c.company_name}</option>`).join('')}
+                    <option value="all" ${companyFilterId === "all" ? "selected" : ""}>Tất cả Công ty (${verifiedCompanies.length})</option>
+                    ${verifiedCompanies.map((c) => `<option value="${c.company_id}" ${String(companyFilterId) === String(c.company_id) ? "selected" : ""}>${c.company_name}</option>`).join("")}
                   </select>
                 </div>
 
@@ -4399,18 +5687,37 @@ window.GDXApp = (() => {
                     eligibleProviders.length > 0
                       ? eligibleProviders
                           .map((p) => {
-                            const fullProv = (db.provider_profiles || []).find((fp) => fp.provider_id === p.provider_id);
-                            const compObj = (db.company_profiles || []).find((c) => Number(c.company_id) === Number(p.company_id || (fullProv && fullProv.company_id)));
-                            const companyLabel = p.company_name || (compObj && compObj.company_name) || 'Công ty Đối tác';
+                            const fullProv = (db.provider_profiles || []).find(
+                              (fp) => fp.provider_id === p.provider_id,
+                            );
+                            const compObj = (db.company_profiles || []).find(
+                              (c) =>
+                                Number(c.company_id) ===
+                                Number(
+                                  p.company_id ||
+                                    (fullProv && fullProv.company_id),
+                                ),
+                            );
+                            const companyLabel =
+                              p.company_name ||
+                              (compObj && compObj.company_name) ||
+                              "Công ty Đối tác";
                             const distKm =
                               cust && fullProv
-                                ? calcDistanceKm(cust.latitude, cust.longitude, fullProv.lattitude, fullProv.longtitude)
-                                : '1.4';
-                            const isSelected = selectedProv && selectedProv.provider_id === p.provider_id;
+                                ? calcDistanceKm(
+                                    cust.latitude,
+                                    cust.longitude,
+                                    fullProv.lattitude,
+                                    fullProv.longtitude,
+                                  )
+                                : "1.4";
+                            const isSelected =
+                              selectedProv &&
+                              selectedProv.provider_id === p.provider_id;
 
                             return `
-                          <div class="v3-wiz-prov-card ${isSelected ? 'is-selected' : ''}" onclick="GDXApp.selectBookingProvider(${p.provider_id})">
-                            <img src="${p.avatar_url || '/assets/provider-lan.jpg'}" onerror="this.onerror=null; this.src='/assets/provider-lan.jpg';" alt="${p.full_name}" class="v3-wiz-prov-avatar">
+                          <div class="v3-wiz-prov-card ${isSelected ? "is-selected" : ""}" onclick="GDXApp.selectBookingProvider(${p.provider_id})">
+                            <img src="${p.avatar_url || "/assets/provider-lan.jpg"}" onerror="this.onerror=null; this.src='/assets/provider-lan.jpg';" alt="${p.full_name}" class="v3-wiz-prov-avatar">
                             <div class="v3-wiz-prov-info">
                               <div class="v3-wiz-prov-name">
                                 ${p.full_name} &middot; <span class="num">&#9733; ${Number(p.average_rating || 5).toFixed(2)} (${p.total_reviews || 42} đánh giá)</span>
@@ -4422,12 +5729,12 @@ window.GDXApp = (() => {
                                 </button>
                               </div>
                             </div>
-                            <span class="v3-wiz-prov-pick ${isSelected ? 'is-selected' : ''}">
-                              ${isSelected ? '&#10003; Đã chọn' : 'Chọn thợ'}
+                            <span class="v3-wiz-prov-pick ${isSelected ? "is-selected" : ""}">
+                              ${isSelected ? "&#10003; Đã chọn" : "Chọn thợ"}
                             </span>
                           </div>`;
                           })
-                          .join('')
+                          .join("")
                       : `<div class="panel-subtle" style="text-align:center; padding:20px;">
                           Chưa có thợ phù hợp bộ lọc. Bạn có thể chuyển sang <strong>Rải đơn nhanh</strong> để hệ thống tự điều phối.
                         </div>`
@@ -4452,16 +5759,16 @@ window.GDXApp = (() => {
 
             <div class="v3-wiz-sum-detail">
               <div class="v3-wiz-sum-svc">
-                ${svc.title}${svc.pricing_type === 'hourly' ? ` (${state.bookingHours} giờ)` : ''}
+                ${svc.title}${svc.pricing_type === "hourly" ? ` (${state.bookingHours} giờ)` : ""}
               </div>
-              <div class="v3-wiz-sum-line num">
-                ${formatDateTime(selectedTime)} &middot; ${currentBookingWard ? currentBookingWard.name : ''}
+              <div id="bookingSummaryLocation" class="v3-wiz-sum-line num">
+                ${formatDateTime(selectedTime)} &middot; ${currentBookingWard ? currentBookingWard.name : ""}
               </div>
               <div class="v3-wiz-sum-line">
                 Thợ: ${
-                  state.wizardProviderMode === 'direct' && selectedProv
+                  state.wizardProviderMode === "direct" && selectedProv
                     ? `${selectedProv.full_name} (&#9733; ${Number(selectedProv.average_rating || 5).toFixed(2)})`
-                    : 'Điều phối tự động (Rải đơn)'
+                    : "Điều phối tự động (Rải đơn)"
                 }
               </div>
             </div>
@@ -4476,237 +5783,281 @@ window.GDXApp = (() => {
         </div>
       </div>
     `;
-  }
-
-  function setWizardCategory(catId) {
-    state.wizardCategory = catId;
-    const db = window.GDX_DB;
-    const activeServices = (db.services || []).filter((s) => {
-      if (!s.is_active) return false;
-      const t = (s.title || '').toLowerCase();
-      if (t.includes('repair') || t.includes('sửa') || t.includes('appliance')) return false;
-      return true;
-    });
-    const match = activeServices.find((s) => catId === '2' ? isCookingService(s) : !isCookingService(s));
-    if (match) {
-      state.selectedServiceId = match.service_id;
     }
-    go('1.2');
-  }
 
-  function setWizardProviderMode(mode) {
-    state.wizardProviderMode = mode;
-    if (mode === 'broadcast') {
-      state.selectedProviderId = null;
+    function setWizardCategory(catId) {
+      state.wizardCategory = catId;
+      const db = window.GDX_DB;
+      const activeServices = (db.services || []).filter((s) => {
+        if (!s.is_active) return false;
+        const t = (s.title || "").toLowerCase();
+        if (
+          t.includes("repair") ||
+          t.includes("sửa") ||
+          t.includes("appliance")
+        )
+          return false;
+        return true;
+      });
+      const match = activeServices.find((s) =>
+        catId === "2" ? isCookingService(s) : !isCookingService(s),
+      );
+      if (match) {
+        state.selectedServiceId = match.service_id;
+      }
+      go("1.2");
     }
-    go('1.2');
-  }
 
-  function setDirectProviderSearch(val) {
-    state.directProviderSearch = val || '';
-    const activeId = document.activeElement && document.activeElement.id;
-    go('1.2');
-    if (activeId === 'directProviderSearchInput') {
-      const inp = document.getElementById('directProviderSearchInput');
-      if (inp) {
-        inp.focus();
-        const len = inp.value.length;
-        inp.setSelectionRange(len, len);
+    function setWizardProviderMode(mode) {
+      state.wizardProviderMode = mode;
+      if (mode === "broadcast") {
+        state.selectedProviderId = null;
+      }
+      go("1.2");
+    }
+
+    function setDirectProviderSearch(val) {
+      state.directProviderSearch = val || "";
+      const activeId = document.activeElement && document.activeElement.id;
+      go("1.2");
+      if (activeId === "directProviderSearchInput") {
+        const inp = document.getElementById("directProviderSearchInput");
+        if (inp) {
+          inp.focus();
+          const len = inp.value.length;
+          inp.setSelectionRange(len, len);
+        }
       }
     }
-  }
 
-  function setDirectProviderCompanyFilter(companyId) {
-    state.directProviderCompanyId = companyId || 'all';
-    go('1.2');
-  }
-
-  function setBookingHours(h) {
-    state.bookingHours = h;
-    go('1.2');
-  }
-
-  function selectBookingProvider(providerId) {
-    state.wizardProviderMode = 'direct';
-    state.selectedProviderId = providerId;
-    go('1.2');
-  }
-
-  function updateBookingSubmitStatus(message, status) {
-    const statusEl = document.getElementById('bookingSubmitStatus');
-    if (!statusEl) return;
-    statusEl.textContent = message;
-    statusEl.dataset.status = status;
-  }
-
-  async function submitNewBooking() {
-    const db = window.GDX_DB;
-
-    // Check auth in Cold Start / Production mode
-    if (!state.activeUserId) {
-      showToast('Vui lòng đăng ký hoặc đăng nhập để tiếp tục đặt lịch.');
-      switchPortal(0, '0.1');
-      return;
-    }
-    let cust = getActiveCustomerProfile();
-    if (!state.activeCustomerId && cust) {
-      state.activeCustomerId = cust.customer_id;
-    }
-    if (!state.activeCustomerId) {
-      showToast('Vui lòng hoàn tất thông tin hồ sơ khách hàng trước.');
-      go('0.2');
-      return;
+    function setDirectProviderCompanyFilter(companyId) {
+      state.directProviderCompanyId = companyId || "all";
+      go("1.2");
     }
 
-    const svc = (db.services || []).find((s) =>
-      String(s.service_id) === String(state.selectedServiceId) && s.is_active
-    );
-    if (!svc) {
-      showToast('Vui lòng chọn một dịch vụ hợp lệ.');
-      return;
-    }
-    if (!cust || cust.customer_id == null) {
-      showToast('Vui lòng hoàn tất thông tin hồ sơ khách hàng trước.');
-      go('0.2');
-      return;
+    function setBookingHours(h) {
+      state.bookingHours = h;
+      go("1.2");
     }
 
-    const schedEl = document.getElementById('wizScheduledTime');
-    const wardEl = document.getElementById('wizWardSelect');
-    const addrEl = document.getElementById('wizAddress');
-    const notesEl = document.getElementById('wizNotes');
-    const latEl = document.getElementById('wizLat');
-    const lngEl = document.getElementById('wizLng');
-
-    const addressVal = addrEl ? addrEl.value.trim() : '';
-    if (!addressVal) {
-      showToast('Vui lòng nhập số nhà, địa chỉ phục vụ chi tiết.');
-      if (addrEl) addrEl.focus();
-      return;
+    function selectBookingProvider(providerId) {
+      state.wizardProviderMode = "direct";
+      state.selectedProviderId = providerId;
+      go("1.2");
     }
 
-    const schedRaw = schedEl && schedEl.value ? schedEl.value : '';
-    const schedMs = schedRaw ? Date.parse(schedRaw) : NaN;
-    if (!Number.isFinite(schedMs) || schedMs < Date.now() - 5 * 60 * 1000) {
-      showToast('Thời gian hẹn phải từ hiện tại trở đi (không thể đặt lịch trong quá khứ).');
-      if (schedEl) schedEl.focus();
-      return;
+    function updateBookingSubmitStatus(message, status) {
+      const statusEl = document.getElementById("bookingSubmitStatus");
+      if (!statusEl) return;
+      statusEl.textContent = message;
+      statusEl.dataset.status = status;
     }
 
-    const totalAmount = Number(svc.pricing_type === 'hourly' ? svc.price * state.bookingHours : svc.price);
-    if (!Number.isFinite(totalAmount) || totalAmount < 0) {
-      showToast('Giá dịch vụ hiện không hợp lệ. Vui lòng chọn dịch vụ khác.');
-      return;
-    }
+    async function submitNewBooking() {
+      const db = window.GDX_DB;
 
-    const chosenLat = latEl && latEl.value ? Number(latEl.value) : (cust && cust.latitude ? Number(cust.latitude) : 10.741205);
-    const chosenLng = lngEl && lngEl.value ? Number(lngEl.value) : (cust && cust.longitude ? Number(cust.longitude) : 106.702110);
-
-    const isBroadcast = state.wizardProviderMode !== 'direct';
-    const chosenProviderId = isBroadcast ? null : state.selectedProviderId;
-    if (!isBroadcast && (chosenProviderId == null || chosenProviderId === '')) {
-      showToast('Vui lòng chọn thợ hoặc chuyển sang điều phối tự động.');
-      return;
-    }
-
-    const wardVal = (wardEl && wardEl.value ? String(wardEl.value).trim() : '') ||
-                    (cust && cust.ward_id ? String(cust.ward_id).trim() : '') ||
-                    (state.wizardDraft.ward_id ? String(state.wizardDraft.ward_id).trim() : '');
-    if (!wardVal) {
-      showToast('Vui lòng chọn phường/xã phục vụ.');
-      if (wardEl) wardEl.focus();
-      return;
-    }
-
-    const newBooking = {
-      customer_id: cust.customer_id,
-      provider_id: chosenProviderId,
-      service_id: svc.service_id,
-      scheduled_time: new Date(schedMs).toISOString(),
-      total_amount: totalAmount,
-      address: addressVal,
-      ward_id: wardVal,
-      latitude: chosenLat,
-      longitude: chosenLng,
-      notes: notesEl ? notesEl.value.trim() : '',
-      changed_by: state.activeUserId || null
-    };
-
-    const submitBtn = document.querySelector('.v3-wiz-submit-btn');
-    const originalButtonText = submitBtn ? submitBtn.innerHTML : '';
-    updateBookingSubmitStatus('Đang gửi yêu cầu đặt lịch...', 'loading');
-    if (submitBtn) {
-      submitBtn.disabled = true;
-      submitBtn.setAttribute('aria-busy', 'true');
-      submitBtn.textContent = 'Đang gửi yêu cầu...';
-    }
-
-    let res;
-    try {
-      res = await apiRequest('/api/bookings', {
-        method: 'POST',
-        body: JSON.stringify(newBooking)
-      });
-      if (!res || res.ok !== true || !res.booking || res.booking.booking_id == null) {
-        const message = (res && res.error) || 'Máy chủ chưa xác nhận tạo đơn. Vui lòng thử lại.';
-        updateBookingSubmitStatus(message, 'error');
-        showToast(message);
+      // Check auth in Cold Start / Production mode
+      if (!state.activeUserId) {
+        showToast("Vui lòng đăng ký hoặc đăng nhập để tiếp tục đặt lịch.");
+        switchPortal(0, "0.1");
         return;
       }
-    } catch (err) {
-      const message = err.message || 'Không thể kết nối máy chủ để tạo đơn.';
-      updateBookingSubmitStatus(message, 'error');
-      showToast(message);
-      return;
-    } finally {
-      if (submitBtn) {
-        submitBtn.disabled = false;
-        submitBtn.removeAttribute('aria-busy');
-        submitBtn.innerHTML = originalButtonText;
+      let cust = getActiveCustomerProfile();
+      if (!state.activeCustomerId && cust) {
+        state.activeCustomerId = cust.customer_id;
       }
+      if (!state.activeCustomerId) {
+        showToast("Vui lòng hoàn tất thông tin hồ sơ khách hàng trước.");
+        go("0.2");
+        return;
+      }
+
+      const svc = (db.services || []).find(
+        (s) =>
+          String(s.service_id) === String(state.selectedServiceId) &&
+          s.is_active,
+      );
+      if (!svc) {
+        showToast("Vui lòng chọn một dịch vụ hợp lệ.");
+        return;
+      }
+      if (!cust || cust.customer_id == null) {
+        showToast("Vui lòng hoàn tất thông tin hồ sơ khách hàng trước.");
+        go("0.2");
+        return;
+      }
+
+      const schedEl = document.getElementById("wizScheduledTime");
+      const wardEl = document.getElementById("wizWardSelect");
+      const addrEl = document.getElementById("wizAddress");
+      const notesEl = document.getElementById("wizNotes");
+      const latEl = document.getElementById("wizLat");
+      const lngEl = document.getElementById("wizLng");
+
+      const addressVal = addrEl ? addrEl.value.trim() : "";
+      if (!addressVal) {
+        showToast(
+          "Vui lòng lưu địa chỉ mặc định trong hồ sơ trước khi đặt lịch.",
+        );
+        go("1.5");
+        return;
+      }
+
+      const schedRaw = schedEl && schedEl.value ? schedEl.value : "";
+      const schedMs = schedRaw ? Date.parse(schedRaw) : NaN;
+      if (!Number.isFinite(schedMs) || schedMs < Date.now() - 5 * 60 * 1000) {
+        showToast(
+          "Thời gian hẹn phải từ hiện tại trở đi (không thể đặt lịch trong quá khứ).",
+        );
+        if (schedEl) schedEl.focus();
+        return;
+      }
+
+      const totalAmount = Number(
+        svc.pricing_type === "hourly"
+          ? svc.price * state.bookingHours
+          : svc.price,
+      );
+      if (!Number.isFinite(totalAmount) || totalAmount < 0) {
+        showToast("Giá dịch vụ hiện không hợp lệ. Vui lòng chọn dịch vụ khác.");
+        return;
+      }
+
+      const chosenLat =
+        latEl && latEl.value
+          ? Number(latEl.value)
+          : cust && cust.latitude
+            ? Number(cust.latitude)
+            : 10.741205;
+      const chosenLng =
+        lngEl && lngEl.value
+          ? Number(lngEl.value)
+          : cust && cust.longitude
+            ? Number(cust.longitude)
+            : 106.70211;
+
+      const isBroadcast = state.wizardProviderMode !== "direct";
+      const chosenProviderId = isBroadcast ? null : state.selectedProviderId;
+      if (
+        !isBroadcast &&
+        (chosenProviderId == null || chosenProviderId === "")
+      ) {
+        showToast("Vui lòng chọn thợ hoặc chuyển sang điều phối tự động.");
+        return;
+      }
+
+      const wardVal = wardEl && wardEl.value ? String(wardEl.value).trim() : "";
+      if (!wardVal) {
+        showToast("Vui lòng chọn phường/xã trong hồ sơ trước khi đặt lịch.");
+        go("1.5");
+        return;
+      }
+
+      const newBooking = {
+        customer_id: cust.customer_id,
+        provider_id: chosenProviderId,
+        service_id: svc.service_id,
+        scheduled_time: new Date(schedMs).toISOString(),
+        total_amount: totalAmount,
+        address: addressVal,
+        ward_id: wardVal,
+        latitude: chosenLat,
+        longitude: chosenLng,
+        notes: notesEl ? notesEl.value.trim() : "",
+        changed_by: state.activeUserId || null,
+      };
+
+      const submitBtn = document.querySelector(".v3-wiz-submit-btn");
+      const originalButtonText = submitBtn ? submitBtn.innerHTML : "";
+      updateBookingSubmitStatus("Đang gửi yêu cầu đặt lịch...", "loading");
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.setAttribute("aria-busy", "true");
+        submitBtn.textContent = "Đang gửi yêu cầu...";
+      }
+
+      let res;
+      try {
+        res = await apiRequest("/api/bookings", {
+          method: "POST",
+          body: JSON.stringify(newBooking),
+        });
+        if (
+          !res ||
+          res.ok !== true ||
+          !res.booking ||
+          res.booking.booking_id == null
+        ) {
+          const message =
+            (res && res.error) ||
+            "Máy chủ chưa xác nhận tạo đơn. Vui lòng thử lại.";
+          updateBookingSubmitStatus(message, "error");
+          showToast(message);
+          return;
+        }
+      } catch (err) {
+        const message = err.message || "Không thể kết nối máy chủ để tạo đơn.";
+        updateBookingSubmitStatus(message, "error");
+        showToast(message);
+        return;
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.removeAttribute("aria-busy");
+          submitBtn.innerHTML = originalButtonText;
+        }
+      }
+
+      const realBooking = res.booking;
+      db.bookings = db.bookings || [];
+      db.bookings.unshift(realBooking);
+
+      db.booking_status_history = db.booking_status_history || [];
+      const nowIso = new Date().toISOString();
+      const actorId =
+        state.activeUserId || "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
+      db.booking_status_history.unshift({
+        history_id: Date.now(),
+        booking_id: realBooking.booking_id,
+        previous_status: null,
+        old_status: null,
+        new_status: "pending",
+        changed_by: actorId,
+        reason: "Khách hàng tạo lịch hẹn mới từ giao diện đặt lịch",
+        created_at: nowIso,
+        changed_at: nowIso,
+      });
+
+      state.selectedBookingId = realBooking.booking_id;
+      if (isBroadcast) {
+        showToast(
+          `Đã phát đơn #${realBooking.booking_id} tới Hòm thư nhận việc của tất cả thợ trong khu vực!`,
+        );
+      } else {
+        showToast(
+          `Đã tạo đơn #${realBooking.booking_id} và gửi thông báo trực tiếp tới Đối tác thợ!`,
+        );
+      }
+      go("1.3", { bookingId: realBooking.booking_id });
     }
 
-    const realBooking = res.booking;
-    db.bookings = db.bookings || [];
-    db.bookings.unshift(realBooking);
+    // 1.3: Theo dõi đơn hàng trực tiếp (Live Tracking)
+    function renderScreen_1_3(container, params = {}) {
+      const db = window.GDX_DB;
+      if (params.bookingId) state.selectedBookingId = Number(params.bookingId);
 
-    db.booking_status_history = db.booking_status_history || [];
-    const nowIso = new Date().toISOString();
-    const actorId = state.activeUserId || 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
-    db.booking_status_history.unshift({
-      history_id: Date.now(),
-      booking_id: realBooking.booking_id,
-      previous_status: null,
-      old_status: null,
-      new_status: 'pending',
-      changed_by: actorId,
-      reason: 'Khách hàng tạo lịch hẹn mới từ giao diện đặt lịch',
-      created_at: nowIso,
-      changed_at: nowIso
-    });
+      const custBookings = (db.bookings || []).filter(
+        (b) => b.customer_id === state.activeCustomerId,
+      );
+      const bk =
+        (db.bookings || []).find(
+          (b) => b.booking_id === state.selectedBookingId,
+        ) ||
+        custBookings[0] ||
+        (db.bookings || [])[0];
 
-    state.selectedBookingId = realBooking.booking_id;
-    if (isBroadcast) {
-      showToast(`Đã phát đơn #${realBooking.booking_id} tới Hòm thư nhận việc của tất cả thợ trong khu vực!`);
-    } else {
-      showToast(`Đã tạo đơn #${realBooking.booking_id} và gửi thông báo trực tiếp tới Đối tác thợ!`);
-    }
-    go('1.3', { bookingId: realBooking.booking_id });
-  }
-
-  // 1.3: Theo dõi đơn hàng trực tiếp (Live Tracking)
-  function renderScreen_1_3(container, params = {}) {
-    const db = window.GDX_DB;
-    if (params.bookingId) state.selectedBookingId = Number(params.bookingId);
-
-    const custBookings = (db.bookings || []).filter((b) => b.customer_id === state.activeCustomerId);
-    const bk =
-      (db.bookings || []).find((b) => b.booking_id === state.selectedBookingId) ||
-      custBookings[0] ||
-      (db.bookings || [])[0];
-
-    if (!bk) {
-      container.innerHTML = `
+      if (!bk) {
+        container.innerHTML = `
         <div class="screen-header">
           <div>
             <h1 class="screen-title">1.3. Theo dõi tiến độ ca làm việc</h1>
@@ -4723,115 +6074,154 @@ window.GDXApp = (() => {
           </button>
         </div>
       `;
-      return;
-    }
+        return;
+      }
 
-    const svc = (db.services || []).find((s) => s.service_id === bk.service_id);
-    const prov = (db.provider_public_profiles || []).find((p) => p.provider_id === bk.provider_id);
-    const fullProv = (db.provider_profiles || []).find((p) => p.provider_id === bk.provider_id);
-    const history = (db.booking_status_history || []).filter((h) => h.booking_id === bk.booking_id);
-    const distKm =
-      fullProv && bk.latitude
-        ? calcDistanceKm(bk.latitude, bk.longitude, fullProv.lattitude, fullProv.longtitude)
-        : '0';
+      const svc = (db.services || []).find(
+        (s) => s.service_id === bk.service_id,
+      );
+      const prov = (db.provider_public_profiles || []).find(
+        (p) => p.provider_id === bk.provider_id,
+      );
+      const fullProv = (db.provider_profiles || []).find(
+        (p) => p.provider_id === bk.provider_id,
+      );
+      const history = (db.booking_status_history || []).filter(
+        (h) => h.booking_id === bk.booking_id,
+      );
+      const distKm =
+        fullProv && bk.latitude
+          ? calcDistanceKm(
+              bk.latitude,
+              bk.longitude,
+              fullProv.lattitude,
+              fullProv.longtitude,
+            )
+          : "0";
 
-    const statusOrder = ['pending', 'confirmed', 'in_progress', 'completed'];
-    const currentStepIdx = statusOrder.indexOf(bk.status);
+      const statusOrder = ["pending", "confirmed", "in_progress", "completed"];
+      const currentStepIdx = statusOrder.indexOf(bk.status);
 
-    const statusMetaMap = {
-      pending: {
-        pillClass: 'is-pending',
-        label: 'Chờ xác nhận',
-        headline: 'Đang tìm thợ phù hợp gần bạn',
-      },
-      confirmed: {
-        pillClass: 'is-confirmed',
-        label: 'Đã nhận lịch',
-        headline: 'Thợ đã nhận lịch & đang di chuyển',
-      },
-      in_progress: {
-        pillClass: 'is-progress',
-        label: 'Đang thực hiện',
-        headline: 'Thợ đang làm việc tại nhà bạn',
-      },
-      completed: {
-        pillClass: 'is-completed',
-        label: 'Hoàn thành',
-        headline: 'Ca dịch vụ đã hoàn tất',
-      },
-      cancelled: {
-        pillClass: 'is-cancelled',
-        label: 'Đã hủy',
-        headline: 'Lịch hẹn đã được hủy',
-      },
-    };
-    const statusMeta = statusMetaMap[bk.status] || statusMetaMap.pending;
+      const statusMetaMap = {
+        pending: {
+          pillClass: "is-pending",
+          label: "Chờ xác nhận",
+          headline: "Đang tìm thợ phù hợp gần bạn",
+        },
+        confirmed: {
+          pillClass: "is-confirmed",
+          label: "Đã nhận lịch",
+          headline: "Thợ đã nhận lịch & đang di chuyển",
+        },
+        in_progress: {
+          pillClass: "is-progress",
+          label: "Đang thực hiện",
+          headline: "Thợ đang làm việc tại nhà bạn",
+        },
+        completed: {
+          pillClass: "is-completed",
+          label: "Hoàn thành",
+          headline: "Ca dịch vụ đã hoàn tất",
+        },
+        cancelled: {
+          pillClass: "is-cancelled",
+          label: "Đã hủy",
+          headline: "Lịch hẹn đã được hủy",
+        },
+      };
+      const statusMeta = statusMetaMap[bk.status] || statusMetaMap.pending;
 
-    const getStepTime = (targetStatus, fallbackTime) => {
-      const match = history.find((h) => h.new_status === targetStatus);
-      const raw = match && (match.changed_at || match.created_at);
-      if (!raw) return fallbackTime;
-      const d = new Date(raw);
-      if (Number.isNaN(d.getTime())) return fallbackTime;
-      return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
-    };
+      const getStepTime = (targetStatus, fallbackTime) => {
+        const match = history.find((h) => h.new_status === targetStatus);
+        const raw = match && (match.changed_at || match.created_at);
+        if (!raw) return fallbackTime;
+        const d = new Date(raw);
+        if (Number.isNaN(d.getTime())) return fallbackTime;
+        return d.toLocaleTimeString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        });
+      };
 
-    const scheduledDate = bk.scheduled_time ? new Date(bk.scheduled_time) : null;
-    const endTimeStr =
-      scheduledDate && !Number.isNaN(scheduledDate.getTime())
-        ? new Date(scheduledDate.getTime() + 2 * 3600 * 1000).toLocaleTimeString('vi-VN', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false,
-          })
-        : '11:00';
+      const scheduledDate = bk.scheduled_time
+        ? new Date(bk.scheduled_time)
+        : null;
+      const endTimeStr =
+        scheduledDate && !Number.isNaN(scheduledDate.getTime())
+          ? new Date(
+              scheduledDate.getTime() + 2 * 3600 * 1000,
+            ).toLocaleTimeString("vi-VN", {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: false,
+            })
+          : "11:00";
 
-    const timelineSteps = [
-      {
-        title: 'Đã nhận việc',
-        time: getStepTime('confirmed', '08:40'),
-        state: currentStepIdx >= 1 ? 'is-done' : currentStepIdx === 0 ? 'is-current' : 'is-upcoming',
-      },
-      {
-        title: 'Đã đến địa điểm',
-        time: getStepTime('confirmed', '08:55'),
-        state: currentStepIdx >= 2 ? 'is-done' : currentStepIdx === 1 ? 'is-current' : 'is-upcoming',
-      },
-      {
-        title:
-          bk.status === 'in_progress'
-            ? `Đang thực hiện (${formatTimer(state.liveTimerSeconds || state.timerSeconds || 4365)})`
-            : 'Đang thực hiện',
-        time: getStepTime('in_progress', '09:02'),
-        state: currentStepIdx > 2 ? 'is-done' : currentStepIdx === 2 ? 'is-current' : 'is-upcoming',
-      },
-      {
-        title: 'Nghiệm thu & Đánh giá',
-        time: getStepTime('completed', endTimeStr),
-        state: currentStepIdx === 3 ? 'is-done' : 'is-upcoming',
-      },
-    ];
+      const timelineSteps = [
+        {
+          title: "Đã nhận việc",
+          time: getStepTime("confirmed", "08:40"),
+          state:
+            currentStepIdx >= 1
+              ? "is-done"
+              : currentStepIdx === 0
+                ? "is-current"
+                : "is-upcoming",
+        },
+        {
+          title: "Đã đến địa điểm",
+          time: getStepTime("confirmed", "08:55"),
+          state:
+            currentStepIdx >= 2
+              ? "is-done"
+              : currentStepIdx === 1
+                ? "is-current"
+                : "is-upcoming",
+        },
+        {
+          title:
+            bk.status === "in_progress"
+              ? `Đang thực hiện (${formatTimer(state.liveTimerSeconds || state.timerSeconds || 4365)})`
+              : "Đang thực hiện",
+          time: getStepTime("in_progress", "09:02"),
+          state:
+            currentStepIdx > 2
+              ? "is-done"
+              : currentStepIdx === 2
+                ? "is-current"
+                : "is-upcoming",
+        },
+        {
+          title: "Nghiệm thu & Đánh giá",
+          time: getStepTime("completed", endTimeStr),
+          state: currentStepIdx === 3 ? "is-done" : "is-upcoming",
+        },
+      ];
 
-    const stepIcon = (st) => {
-      if (st === 'is-done') return '&#10003;';
-      if (st === 'is-current') return '&#9679;';
-      return '&#9675;';
-    };
+      const stepIcon = (st) => {
+        if (st === "is-done") return "&#10003;";
+        if (st === "is-current") return "&#9679;";
+        return "&#9675;";
+      };
 
-    const distNum = parseFloat(distKm);
-    const distLabel =
-      !prov
-        ? 'Đang định vị thợ gần bạn'
+      const distNum = parseFloat(distKm);
+      const distLabel = !prov
+        ? "Đang định vị thợ gần bạn"
         : Number.isFinite(distNum) && distNum <= 0.05
-          ? 'Cách 0m (Tại nhà)'
+          ? "Cách 0m (Tại nhà)"
           : `Cách ${distKm} km`;
 
-    const provName = prov ? prov.full_name : 'Đang điều phối thợ';
-    const provPhone = (prov && prov.phone) || (fullProv && fullProv.phone) || '0912 345 678';
-    const totalPay = (bk.total_amount || 0) + (bk.total_incidental || 0);
-    const showPayPrimary = bk.payment_status === 'unpaid' && bk.status !== 'cancelled' && bk.status !== 'completed';
+      const provName = prov ? prov.full_name : "Đang điều phối thợ";
+      const provPhone =
+        (prov && prov.phone) || (fullProv && fullProv.phone) || "0912 345 678";
+      const totalPay = (bk.total_amount || 0) + (bk.total_incidental || 0);
+      const showPayPrimary =
+        bk.payment_status === "unpaid" &&
+        bk.status !== "cancelled" &&
+        bk.status !== "completed";
 
-    container.innerHTML = `
+      container.innerHTML = `
       <div class="v3-tracking-stage">
         <!-- Subtle Map Roads & Grid Layer -->
         <div class="v3-tracking-map-grid" aria-hidden="true"></div>
@@ -4843,12 +6233,14 @@ window.GDXApp = (() => {
               ? `<select class="v3-track-select" onchange="GDXApp.go('1.3', {bookingId: Number(this.value)})" aria-label="Chọn đơn hàng cần xem">
                   ${custBookings
                     .map((b) => {
-                      const s = db.services.find((x) => x.service_id === b.service_id);
-                      return `<option value="${b.booking_id}" ${b.booking_id === bk.booking_id ? 'selected' : ''}>#${shortCode(b.booking_id)} · ${s ? s.title : ''}</option>`;
+                      const s = db.services.find(
+                        (x) => x.service_id === b.service_id,
+                      );
+                      return `<option value="${b.booking_id}" ${b.booking_id === bk.booking_id ? "selected" : ""}>#${shortCode(b.booking_id)} · ${s ? s.title : ""}</option>`;
                     })
-                    .join('')}
+                    .join("")}
                 </select>`
-              : ''
+              : ""
           }
           <button type="button" class="v3-track-chip-btn" onclick="document.getElementById('v3TrackDetailsDrawer').classList.toggle('is-open')">
             Chi tiết đơn &amp; Hóa đơn
@@ -4874,20 +6266,20 @@ window.GDXApp = (() => {
               <div class="v3-track-step ${step.state}" role="listitem">
                 <span class="v3-track-step-icon" aria-hidden="true">${stepIcon(step.state)}</span>
                 <span class="v3-track-step-text">${step.time} &middot; ${step.title}</span>
-              </div>`
+              </div>`,
               )
-              .join('')}
+              .join("")}
           </div>
 
-          <div class="v3-track-provider-card" ${prov ? `onclick="GDXApp.openModal('1.7', {providerId: ${prov.provider_id}})" role="button" tabindex="0"` : ''}>
-            <img src="${prov ? prov.avatar_url : '/assets/provider-lan.jpg'}" alt="${provName}" class="v3-track-provider-avatar">
+          <div class="v3-track-provider-card" ${prov ? `onclick="GDXApp.openModal('1.7', {providerId: ${prov.provider_id}})" role="button" tabindex="0"` : ""}>
+            <img src="${prov ? prov.avatar_url : "/assets/provider-lan.jpg"}" alt="${provName}" class="v3-track-provider-avatar">
             <div class="v3-track-provider-info">
               <div class="v3-track-provider-name">${provName}</div>
               <div class="v3-track-provider-meta">
                 ${
                   prov
                     ? `<span class="v3-track-star">&#9733;</span> <span class="num">${prov.average_rating}</span> &middot; <span class="num">${provPhone}</span>`
-                    : 'Hệ thống đang gửi thông báo tới thợ trong khu vực'
+                    : "Hệ thống đang gửi thông báo tới thợ trong khu vực"
                 }
               </div>
             </div>
@@ -4909,11 +6301,11 @@ window.GDXApp = (() => {
           </div>
 
           ${
-            bk.status === 'pending' || bk.status === 'confirmed'
+            bk.status === "pending" || bk.status === "confirmed"
               ? `<button type="button" class="v3-track-cancel-link" onclick="GDXApp.openModal('1.10', {bookingId: ${bk.booking_id}})">
                   Yêu cầu hủy lịch hẹn này
                 </button>`
-              : ''
+              : ""
           }
         </aside>
 
@@ -4937,7 +6329,7 @@ window.GDXApp = (() => {
             <div class="slip-row">
               <span class="field-hint">Gói dịch vụ</span>
               <span class="slip-dots"></span>
-              <strong>${svc ? svc.title : ''}</strong>
+              <strong>${svc ? svc.title : ""}</strong>
             </div>
             <div class="slip-row">
               <span class="field-hint">Phí cơ bản</span>
@@ -4963,83 +6355,93 @@ window.GDXApp = (() => {
                     <strong>${h.old_status || h.previous_status ? `${h.old_status || h.previous_status} &rarr; ${h.new_status}` : `Khởi tạo (${h.new_status})`}</strong>
                     <span class="field-hint num">${formatDateTime(h.changed_at || h.created_at)}</span>
                   </div>
-                  <div class="field-hint">${h.reason || 'Cập nhật trạng thái lịch hẹn'}</div>
-                </div>`
+                  <div class="field-hint">${h.reason || "Cập nhật trạng thái lịch hẹn"}</div>
+                </div>`,
                 )
-                .join('')}
+                .join("")}
             </div>
           </div>
         </div>
       </div>
     `;
-  }
+    }
 
-  // 1.4: Quản lý lịch hẹn dịch vụ
-  function renderScreen_1_4(container) {
-    const db = window.GDX_DB;
-    const allBookings = (db.bookings || []).filter((b) => b.customer_id === state.activeCustomerId);
-    const activeCount = allBookings.filter((b) => b.status === 'in_progress' || b.status === 'confirmed').length;
-    const pendingCount = allBookings.filter((b) => b.status === 'pending').length;
-    const completedCount = allBookings.filter((b) => b.status === 'completed').length;
-    const cancelledCount = allBookings.filter((b) => b.status === 'cancelled').length;
+    // 1.4: Quản lý lịch hẹn dịch vụ
+    function renderScreen_1_4(container) {
+      const db = window.GDX_DB;
+      const allBookings = (db.bookings || []).filter(
+        (b) => b.customer_id === state.activeCustomerId,
+      );
+      const activeCount = allBookings.filter(
+        (b) => b.status === "in_progress" || b.status === "confirmed",
+      ).length;
+      const pendingCount = allBookings.filter(
+        (b) => b.status === "pending",
+      ).length;
+      const completedCount = allBookings.filter(
+        (b) => b.status === "completed",
+      ).length;
+      const cancelledCount = allBookings.filter(
+        (b) => b.status === "cancelled",
+      ).length;
 
-    const filtered = allBookings.filter((b) => {
-      if (state.bookingListFilter === 'all') return true;
-      if (state.bookingListFilter === 'in_progress') {
-        return b.status === 'in_progress' || b.status === 'confirmed';
-      }
-      return b.status === state.bookingListFilter;
-    });
+      const filtered = allBookings.filter((b) => {
+        if (state.bookingListFilter === "all") return true;
+        if (state.bookingListFilter === "in_progress") {
+          return b.status === "in_progress" || b.status === "confirmed";
+        }
+        return b.status === state.bookingListFilter;
+      });
 
-    const getPillMeta = (status) => {
-      switch (status) {
-        case 'in_progress':
-          return { cls: 'is-progress', dot: '●', text: 'Đang thực hiện' };
-        case 'confirmed':
-          return { cls: 'is-progress', dot: '●', text: 'Đã nhận lịch' };
-        case 'pending':
-          return { cls: 'is-pending', dot: '●', text: 'Chờ xác nhận' };
-        case 'completed':
-          return { cls: 'is-completed', dot: '✓', text: 'Hoàn thành' };
-        case 'cancelled':
-          return { cls: 'is-cancelled', dot: '✕', text: 'Đã hủy' };
-        default:
-          return { cls: 'is-pending', dot: '●', text: status };
-      }
-    };
+      const getPillMeta = (status) => {
+        switch (status) {
+          case "in_progress":
+            return { cls: "is-progress", dot: "●", text: "Đang thực hiện" };
+          case "confirmed":
+            return { cls: "is-progress", dot: "●", text: "Đã nhận lịch" };
+          case "pending":
+            return { cls: "is-pending", dot: "●", text: "Chờ xác nhận" };
+          case "completed":
+            return { cls: "is-completed", dot: "✓", text: "Hoàn thành" };
+          case "cancelled":
+            return { cls: "is-cancelled", dot: "✕", text: "Đã hủy" };
+          default:
+            return { cls: "is-pending", dot: "●", text: status };
+        }
+      };
 
-    const getPrimaryAction = (b, existingReview) => {
-      if (b.status === 'in_progress' || b.status === 'confirmed') {
-        return {
-          label: 'Theo dõi ca &rarr;',
-          onclick: `GDXApp.go('1.3', {bookingId: ${b.booking_id}})`,
-        };
-      }
-      if (b.status === 'pending') {
-        if (b.payment_status === 'unpaid') {
+      const getPrimaryAction = (b, existingReview) => {
+        if (b.status === "in_progress" || b.status === "confirmed") {
           return {
-            label: 'Thanh toán &rarr;',
-            onclick: `GDXApp.openModal('1.8', {bookingId: ${b.booking_id}})`,
+            label: "Theo dõi ca &rarr;",
+            onclick: `GDXApp.go('1.3', {bookingId: ${b.booking_id}})`,
+          };
+        }
+        if (b.status === "pending") {
+          if (b.payment_status === "unpaid") {
+            return {
+              label: "Thanh toán &rarr;",
+              onclick: `GDXApp.openModal('1.8', {bookingId: ${b.booking_id}})`,
+            };
+          }
+          return {
+            label: "Hủy lịch",
+            onclick: `GDXApp.openModal('1.10', {bookingId: ${b.booking_id}})`,
+          };
+        }
+        if (b.status === "completed" && !existingReview) {
+          return {
+            label: "Đánh giá &#9733;",
+            onclick: `GDXApp.openModal('1.9', {bookingId: ${b.booking_id}})`,
           };
         }
         return {
-          label: 'Hủy lịch',
-          onclick: `GDXApp.openModal('1.10', {bookingId: ${b.booking_id}})`,
+          label: "Đặt lại",
+          onclick: `GDXApp.go('1.2', {serviceId: ${b.service_id}})`,
         };
-      }
-      if (b.status === 'completed' && !existingReview) {
-        return {
-          label: 'Đánh giá &#9733;',
-          onclick: `GDXApp.openModal('1.9', {bookingId: ${b.booking_id}})`,
-        };
-      }
-      return {
-        label: 'Đặt lại',
-        onclick: `GDXApp.go('1.2', {serviceId: ${b.service_id}})`,
       };
-    };
 
-    container.innerHTML = `
+      container.innerHTML = `
       <div class="v3-appointments-page">
         <div class="v3-appointments-header">
           <h1 class="v3-appointments-title">Lịch hẹn dịch vụ của bạn</h1>
@@ -5049,28 +6451,28 @@ window.GDXApp = (() => {
         </div>
 
         <div class="v3-appointments-filters" role="tablist" aria-label="Lọc lịch hẹn">
-          <button type="button" class="v3-appt-filter-pill ${state.bookingListFilter === 'all' ? 'is-active' : ''}" onclick="GDXApp.setBookingListFilter('all')">
+          <button type="button" class="v3-appt-filter-pill ${state.bookingListFilter === "all" ? "is-active" : ""}" onclick="GDXApp.setBookingListFilter('all')">
             Tất cả (${allBookings.length})
           </button>
-          <button type="button" class="v3-appt-filter-pill ${state.bookingListFilter === 'in_progress' ? 'is-active' : ''}" onclick="GDXApp.setBookingListFilter('in_progress')">
+          <button type="button" class="v3-appt-filter-pill ${state.bookingListFilter === "in_progress" ? "is-active" : ""}" onclick="GDXApp.setBookingListFilter('in_progress')">
             Đang làm (${activeCount})
           </button>
           ${
             pendingCount > 0
-              ? `<button type="button" class="v3-appt-filter-pill ${state.bookingListFilter === 'pending' ? 'is-active' : ''}" onclick="GDXApp.setBookingListFilter('pending')">
+              ? `<button type="button" class="v3-appt-filter-pill ${state.bookingListFilter === "pending" ? "is-active" : ""}" onclick="GDXApp.setBookingListFilter('pending')">
                   Chờ xác nhận (${pendingCount})
                 </button>`
-              : ''
+              : ""
           }
-          <button type="button" class="v3-appt-filter-pill ${state.bookingListFilter === 'completed' ? 'is-active' : ''}" onclick="GDXApp.setBookingListFilter('completed')">
+          <button type="button" class="v3-appt-filter-pill ${state.bookingListFilter === "completed" ? "is-active" : ""}" onclick="GDXApp.setBookingListFilter('completed')">
             Hoàn thành (${completedCount})
           </button>
           ${
             cancelledCount > 0
-              ? `<button type="button" class="v3-appt-filter-pill ${state.bookingListFilter === 'cancelled' ? 'is-active' : ''}" onclick="GDXApp.setBookingListFilter('cancelled')">
+              ? `<button type="button" class="v3-appt-filter-pill ${state.bookingListFilter === "cancelled" ? "is-active" : ""}" onclick="GDXApp.setBookingListFilter('cancelled')">
                   Đã hủy (${cancelledCount})
                 </button>`
-              : ''
+              : ""
           }
         </div>
 
@@ -5079,11 +6481,11 @@ window.GDXApp = (() => {
             filtered.length === 0
               ? `
               <div class="panel empty-state-card" style="text-align:center; padding:48px 24px; border-radius:20px;">
-                <h3 style="margin-bottom:8px;">${allBookings.length === 0 ? 'Bạn chưa có lịch hẹn dịch vụ nào' : 'Không có lịch hẹn phù hợp bộ lọc'}</h3>
+                <h3 style="margin-bottom:8px;">${allBookings.length === 0 ? "Bạn chưa có lịch hẹn dịch vụ nào" : "Không có lịch hẹn phù hợp bộ lọc"}</h3>
                 <p class="field-hint" style="max-width:440px; margin:0 auto 20px;">
                   ${
                     allBookings.length === 0
-                      ? 'Hãy khám phá danh mục dịch vụ Gia Đình Xanh và đặt lịch hẹn đầu tiên của bạn.'
+                      ? "Hãy khám phá danh mục dịch vụ Gia Đình Xanh và đặt lịch hẹn đầu tiên của bạn."
                       : 'Thử chuyển sang bộ lọc "Tất cả" để xem toàn bộ lịch hẹn.'
                   }
                 </p>
@@ -5094,27 +6496,33 @@ window.GDXApp = (() => {
               `
               : filtered
                   .map((b) => {
-                    const svc = (db.services || []).find((s) => s.service_id === b.service_id);
-                    const prov = (db.provider_public_profiles || []).find((p) => p.provider_id === b.provider_id);
-                    const existingReview = (db.reviews || []).find((r) => r.booking_id === b.booking_id);
+                    const svc = (db.services || []).find(
+                      (s) => s.service_id === b.service_id,
+                    );
+                    const prov = (db.provider_public_profiles || []).find(
+                      (p) => p.provider_id === b.provider_id,
+                    );
+                    const existingReview = (db.reviews || []).find(
+                      (r) => r.booking_id === b.booking_id,
+                    );
                     const pill = getPillMeta(b.status);
                     const action = getPrimaryAction(b, existingReview);
 
                     return `
               <article class="v3-booking-row">
                 <img
-                  src="${svc ? svc.image_url : '/assets/service-cleaning.jpg'}"
-                  alt="${svc ? svc.title : 'Dịch vụ'}"
+                  src="${svc ? svc.image_url : "/assets/service-cleaning.jpg"}"
+                  alt="${svc ? svc.title : "Dịch vụ"}"
                   class="v3-booking-thumb"
                   onclick="GDXApp.go('1.3', {bookingId: ${b.booking_id}})"
                 >
                 <div class="v3-booking-info" onclick="GDXApp.go('1.3', {bookingId: ${b.booking_id}})">
                   <div class="v3-booking-title">
-                    <span class="num">#${shortCode(b.booking_id)}</span> &middot; ${svc ? svc.title : 'Dịch vụ'}
+                    <span class="num">#${shortCode(b.booking_id)}</span> &middot; ${svc ? svc.title : "Dịch vụ"}
                   </div>
                   <div class="v3-booking-meta">
                     <span class="num">${formatDateTime(b.scheduled_time)}</span> &middot;
-                    Thợ: ${prov ? `${prov.full_name} (&#9733; ${prov.average_rating})` : 'Đang tìm thợ'}
+                    Thợ: ${prov ? `${prov.full_name} (&#9733; ${prov.average_rating})` : "Đang tìm thợ"}
                   </div>
                 </div>
 
@@ -5132,45 +6540,61 @@ window.GDXApp = (() => {
                 </div>
               </article>`;
                   })
-                  .join('')
+                  .join("")
           }
         </div>
       </div>
     `;
-  }
+    }
 
-  function setBookingListFilter(filter) {
-    state.bookingListFilter = filter;
-    go('1.4');
-  }
+    function setBookingListFilter(filter) {
+      state.bookingListFilter = filter;
+      go("1.4");
+    }
 
-  // 1.5: Hồ sơ cá nhân & Sổ địa chỉ
-  function renderScreen_1_5(container) {
-    const db = window.GDX_DB;
-    const u = (db.users || []).find((x) => x.user_id === state.activeUserId) || (db.users && db.users[1]) || {
-      full_name: 'Khách hàng mới',
-      phone_number: '',
-      email: '',
-      user_id: state.activeUserId || 'guest'
-    };
-    const cust = (db.customer_profiles || []).find((c) => c.customer_id === state.activeCustomerId) || (db.customer_profiles && db.customer_profiles[0]) || {
-      customer_id: state.activeCustomerId || 0,
-      default_address: '',
-      ward_id: (db.ward && db.ward[0] && db.ward[0].ward_id) || '70101063',
-      latitude: 10.7769,
-      longitude: 106.7009
-    };
-    const provinces = db.province || db.provinces || [];
-    const allWards = db.ward || db.wards || [];
-    const currentWard = allWards.find((w) => String(w.ward_id) === String(cust.ward_id));
-    const currentProvId = currentWard ? String(currentWard.provinceId) : (provinces.find((p) => p.provinceId === '29' || p.provinceId === '79')?.provinceId || '29');
-    const wardsForProv = allWards.filter((w) => !w.provinceId || String(w.provinceId) === String(currentProvId));
-    const wardsToRender = wardsForProv.length > 0 ? wardsForProv : allWards.slice(0, 100);
-    const savedAddrs = (db.customer_addresses || []).filter((a) => Number(a.customer_id) === cust.customer_id);
-    const totalPinned = (cust.default_address ? 1 : 0) + savedAddrs.length;
-    const pinnedLabel = cust.default_address || '14 Nội Khu Cảnh Đồi, Q.7';
+    // 1.5: Hồ sơ cá nhân & Sổ địa chỉ
+    function renderScreen_1_5(container) {
+      const db = window.GDX_DB;
+      const u = (db.users || []).find(
+        (x) => x.user_id === state.activeUserId,
+      ) ||
+        (db.users && db.users[1]) || {
+          full_name: "Khách hàng mới",
+          phone_number: "",
+          email: "",
+          user_id: state.activeUserId || "guest",
+        };
+      const cust = (db.customer_profiles || []).find(
+        (c) => c.customer_id === state.activeCustomerId,
+      ) ||
+        (db.customer_profiles && db.customer_profiles[0]) || {
+          customer_id: state.activeCustomerId || 0,
+          default_address: "",
+          ward_id: (db.ward && db.ward[0] && db.ward[0].ward_id) || "70101063",
+          latitude: 10.7769,
+          longitude: 106.7009,
+        };
+      const provinces = db.province || db.provinces || [];
+      const allWards = db.ward || db.wards || [];
+      const currentWard = allWards.find(
+        (w) => String(w.ward_id) === String(cust.ward_id),
+      );
+      const currentProvId = currentWard
+        ? String(currentWard.provinceId)
+        : provinces.find((p) => p.provinceId === "29" || p.provinceId === "79")
+            ?.provinceId || "29";
+      const wardsForProv = allWards.filter(
+        (w) => !w.provinceId || String(w.provinceId) === String(currentProvId),
+      );
+      const wardsToRender =
+        wardsForProv.length > 0 ? wardsForProv : allWards.slice(0, 100);
+      const savedAddrs = (db.customer_addresses || []).filter(
+        (a) => Number(a.customer_id) === cust.customer_id,
+      );
+      const totalPinned = (cust.default_address ? 1 : 0) + savedAddrs.length;
+      const pinnedLabel = cust.default_address || "14 Nội Khu Cảnh Đồi, Q.7";
 
-    container.innerHTML = `
+      container.innerHTML = `
       <div class="v3-profile-page">
         <h1 class="v3-profile-page-title">Hồ sơ cá nhân &amp; Sổ địa chỉ</h1>
 
@@ -5178,9 +6602,9 @@ window.GDXApp = (() => {
           <!-- Left Card: Profile Info (Figma 1.5 1:1) -->
           <section class="v3-profile-card">
             <div class="v3-profile-identity">
-              <img src="${u.avatar_url || '/assets/provider-lan.jpg'}" alt="${u.full_name || 'Khách hàng'}" class="v3-profile-avatar">
+              <img src="${u.avatar_url || "/assets/provider-lan.jpg"}" alt="${u.full_name || "Khách hàng"}" class="v3-profile-avatar">
               <div>
-                <div class="v3-profile-name">${u.full_name || 'Nguyễn Minh Thảo'}</div>
+                <div class="v3-profile-name">${u.full_name || "Nguyễn Minh Thảo"}</div>
                 <span class="v3-profile-tier-pill">Khách hàng thân thiết</span>
               </div>
             </div>
@@ -5188,15 +6612,15 @@ window.GDXApp = (() => {
             <div class="v3-profile-fields">
               <div class="v3-profile-field">
                 <label for="profFullName">Họ và tên</label>
-                <input type="text" id="profFullName" name="full_name" class="v3-profile-input" value="${u.full_name || ''}" required>
+                <input type="text" id="profFullName" name="full_name" class="v3-profile-input" value="${u.full_name || ""}" required>
               </div>
               <div class="v3-profile-field">
                 <label for="profPhone">Số điện thoại</label>
-                <input type="tel" id="profPhone" name="phone_number" class="v3-profile-input num" value="${u.phone_number || ''}" required pattern="0[0-9]{9,10}">
+                <input type="tel" id="profPhone" name="phone_number" class="v3-profile-input num" value="${u.phone_number || ""}" required pattern="0[0-9]{9,10}">
               </div>
               <div class="v3-profile-field">
                 <label for="profEmail">Email</label>
-                <input type="email" id="profEmail" name="email" class="v3-profile-input" value="${u.email || 'minhthao@giadinhxanh.vn'}">
+                <input type="email" id="profEmail" name="email" class="v3-profile-input" value="${u.email || "minhthao@giadinhxanh.vn"}">
               </div>
             </div>
 
@@ -5221,15 +6645,15 @@ window.GDXApp = (() => {
               ${savedAddrs
                 .map(
                   (a) => `
-                <div class="v3-address-pill ${a.is_default ? 'is-default' : ''}" onclick="document.getElementById('v3PinnedMapLabel').textContent = ${JSON.stringify(a.street_address)}">
+                <div class="v3-address-pill ${a.is_default ? "is-default" : ""}" onclick="document.getElementById('v3PinnedMapLabel').textContent = ${JSON.stringify(a.street_address)}">
                   <span class="v3-address-pill-text">&#128205; ${a.tag} &mdash; ${a.street_address}</span>
                   <span class="v3-address-pill-actions" onclick="event.stopPropagation()">
-                    ${!a.is_default ? `<button type="button" class="v3-addr-mini-btn" onclick="GDXApp.setDefaultCustomerAddress('${a.address_id}')">Mặc định</button>` : ''}
+                    ${!a.is_default ? `<button type="button" class="v3-addr-mini-btn" onclick="GDXApp.setDefaultCustomerAddress('${a.address_id}')">Mặc định</button>` : ""}
                     <button type="button" class="v3-addr-mini-btn is-del" onclick="GDXApp.deleteCustomerAddress('${a.address_id}')">Xóa</button>
                   </span>
-                </div>`
+                </div>`,
                 )
-                .join('')}
+                .join("")}
             </div>
 
             <!-- Sage-Green Map Preview (matching Figma 1.5) -->
@@ -5250,19 +6674,19 @@ window.GDXApp = (() => {
                 <div class="field-group">
                   <label class="field-label" for="profProv">Tỉnh / Thành phố</label>
                   <select id="profProv" class="select" onchange="GDXApp.handleProvinceChange('profProv', 'profWard')">
-                    ${provinces.map((p) => `<option value="${p.provinceId}" ${String(p.provinceId) === String(currentProvId) ? 'selected' : ''}>${p.name}</option>`).join('')}
+                    ${provinces.map((p) => `<option value="${p.provinceId}" ${String(p.provinceId) === String(currentProvId) ? "selected" : ""}>${p.name}</option>`).join("")}
                   </select>
                 </div>
                 <div class="field-group">
                   <label class="field-label" for="profWard">Phường / Xã mặc định</label>
                   <select id="profWard" name="ward_id" class="select" required>
-                    ${wardsToRender.map((w) => `<option value="${w.ward_id}" ${String(w.ward_id) === String(cust.ward_id) ? 'selected' : ''}>${w.name}</option>`).join('')}
+                    ${wardsToRender.map((w) => `<option value="${w.ward_id}" ${String(w.ward_id) === String(cust.ward_id) ? "selected" : ""}>${w.name}</option>`).join("")}
                   </select>
                 </div>
               </div>
               <div class="field-group">
                 <label class="field-label" for="profAddress">Địa chỉ mặc định</label>
-                <input type="text" id="profAddress" name="default_address" class="input" value="${cust.default_address || ''}" required>
+                <input type="text" id="profAddress" name="default_address" class="input" value="${cust.default_address || ""}" required>
               </div>
               <div class="geo-map-card">
                 <div id="customerProfileMap" class="geo-map-container" style="height:220px;" tabindex="0"></div>
@@ -5292,106 +6716,122 @@ window.GDXApp = (() => {
       </div>
     `;
 
-    // Khởi tạo bản đồ tương tác cho màn hình hồ sơ
-    initCustomerLocationPicker({
-      containerId: 'customerProfileMap',
-      lat: Number(cust.latitude || 10.7769),
-      lng: Number(cust.longitude || 106.7009),
-      zoom: 15,
-      latInputId: 'profLat',
-      lngInputId: 'profLng',
-      coordTextId: 'profCoordText',
-      addrInputId: 'profAddress',
-      provSelectId: 'profProv',
-      wardSelectId: 'profWard'
-    });
-  }
-
-  async function saveCustomerProfile(form) {
-    const u = (window.GDX_DB.users || []).find((x) => String(x.user_id) === String(state.activeUserId));
-    let cust = getActiveCustomerProfile();
-    const wardId = form.ward_id.value;
-    const defaultAddress = form.default_address.value.trim();
-    const lat = Number(form.latitude.value);
-    const lng = Number(form.longitude.value);
-
-    if (u) {
-      u.full_name = form.full_name.value.trim();
-      u.phone_number = form.phone_number.value.trim();
-    }
-    if (cust) {
-      cust.ward_id = wardId;
-      cust.default_address = defaultAddress;
-      cust.latitude = lat;
-      cust.longitude = lng;
-    } else {
-      cust = {
-        customer_id: state.activeCustomerId || 101,
-        user_id: state.activeUserId,
-        ward_id: wardId,
-        default_address: defaultAddress,
-        latitude: lat,
-        longitude: lng,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      };
-      window.GDX_DB.customer_profiles = window.GDX_DB.customer_profiles || [];
-      window.GDX_DB.customer_profiles.push(cust);
+      // Khởi tạo bản đồ tương tác cho màn hình hồ sơ
+      initCustomerLocationPicker({
+        containerId: "customerProfileMap",
+        lat: Number(cust.latitude || 10.7769),
+        lng: Number(cust.longitude || 106.7009),
+        zoom: 15,
+        latInputId: "profLat",
+        lngInputId: "profLng",
+        coordTextId: "profCoordText",
+        addrInputId: "profAddress",
+        provSelectId: "profProv",
+        wardSelectId: "profWard",
+      });
     }
 
-    // Đồng bộ ngay lập tức vào state.wizardDraft
-    state.wizardDraft.ward_id = wardId;
-    state.wizardDraft.address = defaultAddress;
-    state.wizardDraft.latitude = lat;
-    state.wizardDraft.longitude = lng;
+    async function saveCustomerProfile(form) {
+      const u = (window.GDX_DB.users || []).find(
+        (x) => String(x.user_id) === String(state.activeUserId),
+      );
+      let cust = getActiveCustomerProfile();
+      const wardId = form.ward_id.value;
+      const defaultAddress = form.default_address.value.trim();
+      const lat = Number(form.latitude.value);
+      const lng = Number(form.longitude.value);
 
-    const res = await apiRequest('/api/customer/profile', {
-      method: 'PUT',
-      body: JSON.stringify({
-        user_id: state.activeUserId,
-        customer_id: state.activeCustomerId || (cust && cust.customer_id),
-        full_name: form.full_name.value.trim(),
-        phone_number: form.phone_number.value.trim(),
-        ward_id: wardId,
-        default_address: defaultAddress,
-        latitude: lat,
-        longitude: lng
-      })
-    });
+      if (u) {
+        u.full_name = form.full_name.value.trim();
+        u.phone_number = form.phone_number.value.trim();
+      }
+      if (cust) {
+        cust.ward_id = wardId;
+        cust.default_address = defaultAddress;
+        cust.latitude = lat;
+        cust.longitude = lng;
+      } else {
+        cust = {
+          customer_id: state.activeCustomerId || 101,
+          user_id: state.activeUserId,
+          ward_id: wardId,
+          default_address: defaultAddress,
+          latitude: lat,
+          longitude: lng,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        window.GDX_DB.customer_profiles = window.GDX_DB.customer_profiles || [];
+        window.GDX_DB.customer_profiles.push(cust);
+      }
 
-    if (res && res.customer_profile) {
-      if (cust) Object.assign(cust, res.customer_profile);
-      state.activeCustomerId = res.customer_profile.customer_id;
+      // Đồng bộ ngay lập tức vào state.wizardDraft
+      state.wizardDraft.ward_id = wardId;
+      state.wizardDraft.address = defaultAddress;
+      state.wizardDraft.latitude = lat;
+      state.wizardDraft.longitude = lng;
+
+      const res = await apiRequest("/api/customer/profile", {
+        method: "PUT",
+        body: JSON.stringify({
+          user_id: state.activeUserId,
+          customer_id: state.activeCustomerId || (cust && cust.customer_id),
+          full_name: form.full_name.value.trim(),
+          phone_number: form.phone_number.value.trim(),
+          ward_id: wardId,
+          default_address: defaultAddress,
+          latitude: lat,
+          longitude: lng,
+        }),
+      });
+
+      if (res && res.customer_profile) {
+        if (cust) Object.assign(cust, res.customer_profile);
+        state.activeCustomerId = res.customer_profile.customer_id;
+        state.bookingAddressSelection = null;
+      }
+
+      showToast("Đã cập nhật hồ sơ & địa chỉ mặc định!");
+      go("1.5");
     }
 
-    showToast('Đã cập nhật hồ sơ & địa chỉ mặc định!');
-    go('1.5');
-  }
+    function openAddAddressModal() {
+      const tag = prompt(
+        "Nhập nhãn địa chỉ (VD: Nhà riêng, Văn phòng, Nhà bố mẹ):",
+        "Văn phòng",
+      );
+      if (!tag) return;
+      const street = prompt(
+        "Nhập địa chỉ chi tiết (Số nhà, tên đường, tòa nhà):",
+        "",
+      );
+      if (!street || !street.trim()) return;
+      const cust = getActiveCustomerProfile();
+      addCustomerAddress(
+        tag.trim(),
+        street.trim(),
+        cust ? cust.ward_id : "27403",
+        false,
+      );
+    }
 
-  function openAddAddressModal() {
-    const tag = prompt('Nhập nhãn địa chỉ (VD: Nhà riêng, Văn phòng, Nhà bố mẹ):', 'Văn phòng');
-    if (!tag) return;
-    const street = prompt('Nhập địa chỉ chi tiết (Số nhà, tên đường, tòa nhà):', '');
-    if (!street || !street.trim()) return;
-    const cust = getActiveCustomerProfile();
-    addCustomerAddress(tag.trim(), street.trim(), (cust ? cust.ward_id : '27403'), false);
-  }
+    // 1.6: Danh sách Dịch vụ & Thợ yêu thích (FR-FAV-001)
+    function renderScreen_1_6(container) {
+      const db = window.GDX_DB;
+      const favs = (db.favorites || []).filter(
+        (f) => Number(f.customer_id) === state.activeCustomerId,
+      );
+      const serviceFavs = favs.filter((f) => f.service_id);
+      const providerFavs = favs.filter((f) => f.provider_id);
 
-  // 1.6: Danh sách Dịch vụ & Thợ yêu thích (FR-FAV-001)
-  function renderScreen_1_6(container) {
-    const db = window.GDX_DB;
-    const favs = (db.favorites || []).filter((f) => Number(f.customer_id) === state.activeCustomerId);
-    const serviceFavs = favs.filter((f) => f.service_id);
-    const providerFavs = favs.filter((f) => f.provider_id);
-
-    container.innerHTML = `
+      container.innerHTML = `
       <div class="v3-fav-page">
         <div class="v3-fav-header">
           <h1 class="v3-fav-page-title">Dịch vụ yêu thích của bạn</h1>
           ${
             serviceFavs.length === 0
               ? `<button type="button" class="v3-fav-explore-btn" onclick="GDXApp.go('1.1')">Khám phá dịch vụ &rarr;</button>`
-              : ''
+              : ""
           }
         </div>
 
@@ -5407,7 +6847,7 @@ window.GDXApp = (() => {
               Khám phá dịch vụ ngay &rarr;
             </button>
           </div>`
-            : ''
+            : ""
         }
 
         ${
@@ -5416,13 +6856,20 @@ window.GDXApp = (() => {
           <div class="v3-fav-grid">
             ${serviceFavs
               .map((f) => {
-                const s = (db.services || []).find((x) => String(x.service_id) === String(f.service_id));
-                if (!s) return '';
-                const unitLabel = s.pricing_type === 'hourly' ? '/giờ' : s.unit_label ? `/${s.unit_label}` : '/lần';
+                const s = (db.services || []).find(
+                  (x) => String(x.service_id) === String(f.service_id),
+                );
+                if (!s) return "";
+                const unitLabel =
+                  s.pricing_type === "hourly"
+                    ? "/giờ"
+                    : s.unit_label
+                      ? `/${s.unit_label}`
+                      : "/lần";
                 return `
                   <article class="v3-fav-card">
                     <div class="v3-fav-card-media">
-                      <img src="${s.image_url || '/assets/service-cleaning.jpg'}" alt="${s.title}">
+                      <img src="${s.image_url || "/assets/service-cleaning.jpg"}" alt="${s.title}">
                       <button type="button" class="v3-fav-saved-pill" onclick="GDXApp.toggleFavorite(${inlineIdentifier(s.service_id)})" title="Bỏ lưu khỏi yêu thích">
                         <span class="v3-fav-heart" aria-hidden="true">&#10084;</span>
                         <span>Đã lưu</span>
@@ -5440,9 +6887,9 @@ window.GDXApp = (() => {
                   </article>
                 `;
               })
-              .join('')}
+              .join("")}
           </div>`
-            : ''
+            : ""
         }
 
         ${
@@ -5453,8 +6900,10 @@ window.GDXApp = (() => {
             <div class="v3-fav-grid">
               ${providerFavs
                 .map((f) => {
-                  const p = (db.provider_public_profiles || []).find((x) => Number(x.provider_id) === Number(f.provider_id));
-                  if (!p) return '';
+                  const p = (db.provider_public_profiles || []).find(
+                    (x) => Number(x.provider_id) === Number(f.provider_id),
+                  );
+                  if (!p) return "";
                   return `
                     <article class="v3-fav-card">
                       <div style="display:flex; gap:12px; align-items:center; padding:8px 4px;">
@@ -5471,66 +6920,84 @@ window.GDXApp = (() => {
                     </article>
                   `;
                 })
-                .join('')}
+                .join("")}
             </div>
           </div>`
-            : ''
+            : ""
         }
       </div>
     `;
-  }
+    }
 
-  // =====================================================================
-  // SCREEN RENDERERS: PHÂN HỆ 2 (PROVIDER PORTAL: 2.1 – 2.4)
-  // =====================================================================
+    // =====================================================================
+    // SCREEN RENDERERS: PHÂN HỆ 2 (PROVIDER PORTAL: 2.1 – 2.4)
+    // =====================================================================
 
-  // 2.1: Hòm thư nhận việc làm (Job Inbox & Dispatch Board)
-  function renderScreen_2_1(container) {
-    const db = window.GDX_DB;
-    const prov = (db.provider_profiles || []).find((p) => p.provider_id === state.activeProviderId) || (db.provider_profiles || [])[0] || {
-      provider_id: 201,
-      full_name: 'Đặng Thị Mai Lan',
-      lattitude: 10.7412,
-      longtitude: 106.7021,
-      is_available_online: true
-    };
+    // 2.1: Hòm thư nhận việc làm (Job Inbox & Dispatch Board)
+    function renderScreen_2_1(container) {
+      const db = window.GDX_DB;
+      const prov = (db.provider_profiles || []).find(
+        (p) => p.provider_id === state.activeProviderId,
+      ) ||
+        (db.provider_profiles || [])[0] || {
+          provider_id: 201,
+          full_name: "Đặng Thị Mai Lan",
+          lattitude: 10.7412,
+          longtitude: 106.7021,
+          is_available_online: true,
+        };
 
-    state.inboxTab = state.inboxTab || 'available';
-    state.expiredJobIds = state.expiredJobIds || [];
-    state.dismissedJobIds = state.dismissedJobIds || [];
+      state.inboxTab = state.inboxTab || "available";
+      state.expiredJobIds = state.expiredJobIds || [];
+      state.dismissedJobIds = state.dismissedJobIds || [];
 
-    const activeJob = (db.bookings || []).find(
-      (b) => b.provider_id === prov.provider_id && (b.status === 'in_progress' || b.status === 'confirmed')
-    );
+      const activeJob = (db.bookings || []).find(
+        (b) =>
+          b.provider_id === prov.provider_id &&
+          (b.status === "in_progress" || b.status === "confirmed"),
+      );
 
-    // Việc khả dụng trong hộp thư
-    const availableJobs = (db.bookings || []).filter((b) => {
-      if (b.status !== 'pending') return false;
-      if (state.expiredJobIds.includes(b.booking_id)) return false;
-      if (state.dismissedJobIds.includes(b.booking_id)) return false;
-      if (b.provider_id !== null && b.provider_id !== undefined && b.provider_id !== prov.provider_id && b.dispatch_type !== 'broadcast') {
-        return false;
-      }
-      if (state.jobBoardFilter.wardId !== 'all' && b.ward_id !== state.jobBoardFilter.wardId) return false;
-      return true;
-    });
-
-    // Việc đã hết hạn (do đối tác khác nhận trước hoặc bị hết hiệu lực)
-    const expiredJobs = (db.bookings || []).filter((b) => {
-      if (state.expiredJobIds.includes(b.booking_id)) return true;
-      if (b.status === 'confirmed' && b.provider_id && b.provider_id !== prov.provider_id) {
+      // Việc khả dụng trong hộp thư
+      const availableJobs = (db.bookings || []).filter((b) => {
+        if (b.status !== "pending") return false;
+        if (state.expiredJobIds.includes(b.booking_id)) return false;
+        if (state.dismissedJobIds.includes(b.booking_id)) return false;
+        if (
+          b.provider_id !== null &&
+          b.provider_id !== undefined &&
+          b.provider_id !== prov.provider_id &&
+          b.dispatch_type !== "broadcast"
+        ) {
+          return false;
+        }
+        if (
+          state.jobBoardFilter.wardId !== "all" &&
+          b.ward_id !== state.jobBoardFilter.wardId
+        )
+          return false;
         return true;
-      }
-      return false;
-    });
+      });
 
-    container.innerHTML = `
+      // Việc đã hết hạn (do đối tác khác nhận trước hoặc bị hết hiệu lực)
+      const expiredJobs = (db.bookings || []).filter((b) => {
+        if (state.expiredJobIds.includes(b.booking_id)) return true;
+        if (
+          b.status === "confirmed" &&
+          b.provider_id &&
+          b.provider_id !== prov.provider_id
+        ) {
+          return true;
+        }
+        return false;
+      });
+
+      container.innerHTML = `
       <div class="v3-jobs-page">
         <div class="v3-jobs-header">
           <h1 class="v3-jobs-title">Việc làm mới quanh khu vực của bạn</h1>
-          <button type="button" class="v3-jobs-status-pill ${prov.is_available_online ? 'is-online' : 'is-offline'}" onclick="GDXApp.openModal('2.5')" style="border:none; cursor:pointer;" title="Cập nhật trạng thái nhận việc & GPS">
+          <button type="button" class="v3-jobs-status-pill ${prov.is_available_online ? "is-online" : "is-offline"}" onclick="GDXApp.openModal('2.5')" style="border:none; cursor:pointer;" title="Cập nhật trạng thái nhận việc & GPS">
             <span class="v3-jobs-status-dot" aria-hidden="true"></span>
-            <span>${prov.is_available_online ? 'Đang bật nhận việc' : 'Đang tạm nghỉ'}</span>
+            <span>${prov.is_available_online ? "Đang bật nhận việc" : "Đang tạm nghỉ"}</span>
           </button>
         </div>
 
@@ -5541,7 +7008,7 @@ window.GDXApp = (() => {
             <div class="active-booking-banner-info">
               <span class="status-dot is-online"></span>
               <div>
-                <strong>Ca làm hiện tại: Đơn #${shortCode(activeJob.booking_id)} (${activeJob.status === 'in_progress' ? 'Đang thực hiện' : 'Đã xác nhận'})</strong>
+                <strong>Ca làm hiện tại: Đơn #${shortCode(activeJob.booking_id)} (${activeJob.status === "in_progress" ? "Đang thực hiện" : "Đã xác nhận"})</strong>
                 <div class="field-hint">${activeJob.address} &middot; <strong class="num">${formatMoney(activeJob.total_amount + activeJob.total_incidental)}</strong></div>
               </div>
             </div>
@@ -5549,7 +7016,7 @@ window.GDXApp = (() => {
               Mở ca đang làm &rarr;
             </button>
           </div>`
-            : ''
+            : ""
         }
 
         <div class="v3-jobs-list">
@@ -5565,30 +7032,39 @@ window.GDXApp = (() => {
               </div>`
               : availableJobs
                   .map((b) => {
-                    const svc = (db.services || []).find((s) => s.service_id === b.service_id);
-                    const w = (db.ward || []).find((x) => x.ward_id === b.ward_id);
+                    const svc = (db.services || []).find(
+                      (s) => s.service_id === b.service_id,
+                    );
+                    const w = (db.ward || []).find(
+                      (x) => x.ward_id === b.ward_id,
+                    );
                     const distKm = calcDistanceKm(
                       prov.lattitude || 10.7412,
                       prov.longtitude || 106.7021,
                       b.latitude || 10.7412,
-                      b.longitude || 106.7021
+                      b.longitude || 106.7021,
                     );
-                    const isBroadcast = !b.provider_id || b.dispatch_type === 'broadcast' || (b.notes && b.notes.includes('[BROADCAST'));
-                    const locationLabel = w ? `${b.address ? b.address + ', ' : ''}${w.name}` : b.address;
+                    const isBroadcast =
+                      !b.provider_id ||
+                      b.dispatch_type === "broadcast" ||
+                      (b.notes && b.notes.includes("[BROADCAST"));
+                    const locationLabel = w
+                      ? `${b.address ? b.address + ", " : ""}${w.name}`
+                      : b.address;
 
                     return `
                   <article class="v3-job-card">
-                    <img src="${getServiceImage(svc)}" alt="${svc ? svc.title : 'Dịch vụ'}" class="v3-job-thumb">
+                    <img src="${getServiceImage(svc)}" alt="${svc ? svc.title : "Dịch vụ"}" class="v3-job-thumb">
 
                     <div class="v3-job-main">
-                      <span class="v3-job-badge ${isBroadcast ? 'is-broadcast' : 'is-direct'}">
+                      <span class="v3-job-badge ${isBroadcast ? "is-broadcast" : "is-direct"}">
                         ${
                           isBroadcast
                             ? `&#9889; Đơn khu vực &middot; Cách ${distKm} km`
                             : `&#9733; Khách chỉ định đích danh`
                         }
                       </span>
-                      <h2 class="v3-job-title">${svc ? svc.title : 'Dịch vụ'} (~${svc ? svc.estimated_duration : 120} phút)</h2>
+                      <h2 class="v3-job-title">${svc ? svc.title : "Dịch vụ"} (~${svc ? svc.estimated_duration : 120} phút)</h2>
                       <div class="v3-job-meta">
                         <span class="num">${formatDateTime(b.scheduled_time)}</span> &middot; ${locationLabel}
                       </div>
@@ -5607,126 +7083,150 @@ window.GDXApp = (() => {
                     </div>
                   </article>`;
                   })
-                  .join('')
+                  .join("")
           }
         </div>
       </div>
     `;
-  }
-
-  function setJobBoardWard(wardId) {
-    state.jobBoardFilter.wardId = wardId;
-    go('2.1');
-  }
-
-  function setInboxTab(tab) {
-    state.inboxTab = tab;
-    go('2.1');
-  }
-
-  function dismissJob(bookingId) {
-    if (!state.dismissedJobIds) state.dismissedJobIds = [];
-    state.dismissedJobIds.push(bookingId);
-    showToast(`Đã tạm ẩn đơn #${bookingId} khỏi hộp thư.`);
-    go('2.1');
-  }
-
-  function simulateJobExpired(bookingId) {
-    if (!state.expiredJobIds) state.expiredJobIds = [];
-    if (!state.expiredJobIds.includes(bookingId)) state.expiredJobIds.push(bookingId);
-    const db = window.GDX_DB;
-    const bk = (db.bookings || []).find((b) => b.booking_id === bookingId);
-    if (bk) {
-      bk.status = 'confirmed';
-      bk.provider_id = 202; // Nguyen Van Tuan took it
     }
-    showToast(`Mô phỏng: Đơn #${bookingId} vừa được đối tác Nguyễn Văn Tuấn nhận trước! Đơn đã chuyển sang tab Expired.`);
-    state.inboxTab = 'expired';
-    go('2.1');
-  }
 
-  async function acceptJob(bookingId) {
-    const db = window.GDX_DB;
-    const bk = (db.bookings || []).find((b) => b.booking_id === bookingId);
-    if (!bk) return;
+    function setJobBoardWard(wardId) {
+      state.jobBoardFilter.wardId = wardId;
+      go("2.1");
+    }
 
-    const provId = state.activeProviderId || 201;
-    const activeProv = (db.provider_profiles || []).find((p) => p.provider_id === provId);
-    const provUserId = state.activeUserId || (activeProv && activeProv.user_id) || 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b21';
+    function setInboxTab(tab) {
+      state.inboxTab = tab;
+      go("2.1");
+    }
 
-    // Concurrency check via API
-    const res = await apiRequest(`/api/bookings/${bookingId}/accept`, {
-      method: 'POST',
-      body: JSON.stringify({
-        provider_id: provId,
-        user_id: provUserId
-      })
-    });
+    function dismissJob(bookingId) {
+      if (!state.dismissedJobIds) state.dismissedJobIds = [];
+      state.dismissedJobIds.push(bookingId);
+      showToast(`Đã tạm ẩn đơn #${bookingId} khỏi hộp thư.`);
+      go("2.1");
+    }
 
-    if (res && res.expired) {
+    function simulateJobExpired(bookingId) {
       if (!state.expiredJobIds) state.expiredJobIds = [];
-      if (!state.expiredJobIds.includes(bookingId)) state.expiredJobIds.push(bookingId);
-      bk.status = 'confirmed';
-      bk.provider_id = 202; // Taken by another provider
-      showToast('Rất tiếc! Đơn này vừa được một đối tác khác nhận trước ít giây hoặc đã hết hạn.');
-      state.inboxTab = 'expired';
-      go('2.1');
-      return;
+      if (!state.expiredJobIds.includes(bookingId))
+        state.expiredJobIds.push(bookingId);
+      const db = window.GDX_DB;
+      const bk = (db.bookings || []).find((b) => b.booking_id === bookingId);
+      if (bk) {
+        bk.status = "confirmed";
+        bk.provider_id = 202; // Nguyen Van Tuan took it
+      }
+      showToast(
+        `Mô phỏng: Đơn #${bookingId} vừa được đối tác Nguyễn Văn Tuấn nhận trước! Đơn đã chuyển sang tab Expired.`,
+      );
+      state.inboxTab = "expired";
+      go("2.1");
     }
 
-    if (!res || !res.ok) {
-      showToast(res && res.error ? res.error : 'Không thể nhận đơn lúc này.');
-      return;
+    async function acceptJob(bookingId) {
+      const db = window.GDX_DB;
+      const bk = (db.bookings || []).find((b) => b.booking_id === bookingId);
+      if (!bk) return;
+
+      const provId = state.activeProviderId || 201;
+      const activeProv = (db.provider_profiles || []).find(
+        (p) => p.provider_id === provId,
+      );
+      const provUserId =
+        state.activeUserId ||
+        (activeProv && activeProv.user_id) ||
+        "b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b21";
+
+      // Concurrency check via API
+      const res = await apiRequest(`/api/bookings/${bookingId}/accept`, {
+        method: "POST",
+        body: JSON.stringify({
+          provider_id: provId,
+          user_id: provUserId,
+        }),
+      });
+
+      if (res && res.expired) {
+        if (!state.expiredJobIds) state.expiredJobIds = [];
+        if (!state.expiredJobIds.includes(bookingId))
+          state.expiredJobIds.push(bookingId);
+        bk.status = "confirmed";
+        bk.provider_id = 202; // Taken by another provider
+        showToast(
+          "Rất tiếc! Đơn này vừa được một đối tác khác nhận trước ít giây hoặc đã hết hạn.",
+        );
+        state.inboxTab = "expired";
+        go("2.1");
+        return;
+      }
+
+      if (!res || !res.ok) {
+        showToast(res && res.error ? res.error : "Không thể nhận đơn lúc này.");
+        return;
+      }
+
+      const nowIso = new Date().toISOString();
+      bk.provider_id = provId;
+      bk.status = "confirmed";
+      bk.dispatch_type = "direct";
+      db.booking_status_history.unshift({
+        history_id: Date.now(),
+        booking_id: bookingId,
+        previous_status: "pending",
+        old_status: "pending",
+        new_status: "confirmed",
+        changed_by: provUserId,
+        reason: "Đối tác đã xác nhận nhận việc từ Hòm thư việc làm",
+        created_at: nowIso,
+        changed_at: nowIso,
+      });
+      state.selectedBookingId = bookingId;
+      showToast(
+        `Đã nhận đơn #${bookingId} thành công! Chuyển sang màn hình Ca làm việc.`,
+      );
+      go("2.2", { bookingId });
     }
 
-    const nowIso = new Date().toISOString();
-    bk.provider_id = provId;
-    bk.status = 'confirmed';
-    bk.dispatch_type = 'direct';
-    db.booking_status_history.unshift({
-      history_id: Date.now(),
-      booking_id: bookingId,
-      previous_status: 'pending',
-      old_status: 'pending',
-      new_status: 'confirmed',
-      changed_by: provUserId,
-      reason: 'Đối tác đã xác nhận nhận việc từ Hòm thư việc làm',
-      created_at: nowIso,
-      changed_at: nowIso
-    });
-    state.selectedBookingId = bookingId;
-    showToast(`Đã nhận đơn #${bookingId} thành công! Chuyển sang màn hình Ca làm việc.`);
-    go('2.2', { bookingId });
-  }
+    // 2.2: Ca làm việc hiện tại (Live Timer)
+    function renderScreen_2_2(container, params = {}) {
+      const db = window.GDX_DB;
+      const bk =
+        (params.bookingId &&
+          db.bookings.find((b) => b.booking_id === Number(params.bookingId))) ||
+        db.bookings.find((b) => b.booking_id === 1042) ||
+        db.bookings[0];
+      const svc = db.services.find((s) => s.service_id === bk.service_id);
+      const cust = db.customer_profiles.find(
+        (c) => c.customer_id === bk.customer_id,
+      );
+      const custUser = cust
+        ? db.users.find((u) => u.user_id === cust.user_id)
+        : null;
+      const estSeconds = ((svc && svc.estimated_duration) || 120) * 60;
+      const shiftPct = Math.min(
+        100,
+        Math.max(
+          5,
+          Math.round(((state.liveTimerSeconds || 0) / estSeconds) * 100),
+        ),
+      );
+      const ringCircumference = 603.19;
+      const ringOffset = (ringCircumference * (1 - shiftPct / 100)).toFixed(2);
+      const statusLabelMap = {
+        pending: "Chờ bắt đầu",
+        confirmed: "Đã nhận ca",
+        in_progress: "Ca đang thực hiện",
+        completed: "Đã hoàn thành",
+        cancelled: "Đã hủy",
+      };
+      const shiftStatusLabel = statusLabelMap[bk.status] || "Ca đang thực hiện";
+      const customerName = custUser ? custUser.full_name : "Nguyễn Minh Thảo";
 
-  // 2.2: Ca làm việc hiện tại (Live Timer)
-  function renderScreen_2_2(container, params = {}) {
-    const db = window.GDX_DB;
-    const bk =
-      (params.bookingId && db.bookings.find((b) => b.booking_id === Number(params.bookingId))) ||
-      db.bookings.find((b) => b.booking_id === 1042) ||
-      db.bookings[0];
-    const svc = db.services.find((s) => s.service_id === bk.service_id);
-    const cust = db.customer_profiles.find((c) => c.customer_id === bk.customer_id);
-    const custUser = cust ? db.users.find((u) => u.user_id === cust.user_id) : null;
-    const estSeconds = ((svc && svc.estimated_duration) || 120) * 60;
-    const shiftPct = Math.min(100, Math.max(5, Math.round(((state.liveTimerSeconds || 0) / estSeconds) * 100)));
-    const ringCircumference = 603.19;
-    const ringOffset = (ringCircumference * (1 - shiftPct / 100)).toFixed(2);
-    const statusLabelMap = {
-      pending: 'Chờ bắt đầu',
-      confirmed: 'Đã nhận ca',
-      in_progress: 'Ca đang thực hiện',
-      completed: 'Đã hoàn thành',
-      cancelled: 'Đã hủy',
-    };
-    const shiftStatusLabel = statusLabelMap[bk.status] || 'Ca đang thực hiện';
-    const customerName = custUser ? custUser.full_name : 'Nguyễn Minh Thảo';
-
-    container.innerHTML = `
+      container.innerHTML = `
       <div class="v3-shift-wrap">
         <div class="v3-shift-card">
-          <div class="v3-shift-status-pill ${bk.status === 'completed' ? 'is-done' : ''}">
+          <div class="v3-shift-status-pill ${bk.status === "completed" ? "is-done" : ""}">
             <span class="v3-shift-status-dot" aria-hidden="true"></span>
             <span>${shiftStatusLabel} &middot; #${shortCode(bk.booking_id)}</span>
           </div>
@@ -5754,7 +7254,7 @@ window.GDXApp = (() => {
           </div>
 
           <div class="v3-shift-summary">
-            ${svc ? svc.title : 'Dọn dẹp nhà cửa theo giờ'} &middot; KH: ${customerName} &middot; ${bk.address}
+            ${svc ? svc.title : "Dọn dẹp nhà cửa theo giờ"} &middot; KH: ${customerName} &middot; ${bk.address}
           </div>
 
           <div class="v3-shift-dock">
@@ -5765,7 +7265,7 @@ window.GDXApp = (() => {
               Báo cáo sự cố
             </button>
             ${
-              bk.status === 'confirmed'
+              bk.status === "confirmed"
                 ? `<button type="button" class="v3-shift-btn-primary" onclick="GDXApp.startShiftWork(${bk.booking_id})">
                     Bắt đầu làm việc &rarr;
                   </button>`
@@ -5778,50 +7278,73 @@ window.GDXApp = (() => {
           <div class="v3-shift-sub-meta">
             <span>Thu nhập dự kiến: <strong class="num">${formatMoney((bk.total_amount || 0) + (bk.total_incidental || 0))}</strong></span>
             <span>&middot;</span>
-            <span>${state.liveTimerInterval ? 'Đồng hồ đang chạy' : 'Đồng hồ đang tạm dừng (bấm vòng tròn để chạy)'}</span>
+            <span>${state.liveTimerInterval ? "Đồng hồ đang chạy" : "Đồng hồ đang tạm dừng (bấm vòng tròn để chạy)"}</span>
           </div>
         </div>
       </div>
     `;
-  }
-
-  function toggleShiftTimer() {
-    if (state.liveTimerInterval) {
-      clearInterval(state.liveTimerInterval);
-      state.liveTimerInterval = null;
-      showToast('Đã tạm dừng đồng hồ ca làm');
-    } else {
-      state.liveTimerInterval = setInterval(() => {
-        state.liveTimerSeconds += 1;
-        const el = document.getElementById('liveShiftTimerDisplay');
-        if (el) el.textContent = formatTimer(state.liveTimerSeconds);
-      }, 1000);
-      showToast('Đang tính giờ ca làm việc');
     }
-    if (state.currentScreen === '2.2') go('2.2');
-  }
 
-  function startShiftWork(bookingId) {
-    const bk = window.GDX_DB.bookings.find((b) => b.booking_id === bookingId);
-    if (bk) bk.status = 'in_progress';
-    showToast(`Đã bắt đầu thực hiện ca làm #${bookingId}`);
-    go('2.2', { bookingId });
-  }
+    function toggleShiftTimer() {
+      if (state.liveTimerInterval) {
+        clearInterval(state.liveTimerInterval);
+        state.liveTimerInterval = null;
+        showToast("Đã tạm dừng đồng hồ ca làm");
+      } else {
+        state.liveTimerInterval = setInterval(() => {
+          state.liveTimerSeconds += 1;
+          const el = document.getElementById("liveShiftTimerDisplay");
+          if (el) el.textContent = formatTimer(state.liveTimerSeconds);
+        }, 1000);
+        showToast("Đang tính giờ ca làm việc");
+      }
+      if (state.currentScreen === "2.2") go("2.2");
+    }
 
-  // 2.3: Ví Thu Nhập & Lịch Ca
-  function renderScreen_2_3(container) {
-    const db = window.GDX_DB;
-    const prov = db.provider_profiles.find((p) => p.provider_id === state.activeProviderId) || db.provider_profiles[0];
-    const completedPaid = db.bookings.filter(
-      (b) => b.provider_id === state.activeProviderId && b.status === 'completed' && b.payment_status === 'paid'
-    );
-    const totalEarned = completedPaid.reduce((acc, b) => acc + b.total_amount + b.total_incidental, 0);
-    const schedules = db.availability_schedules.filter((s) => s.provider_id === state.activeProviderId);
-    const exceptions = db.availability_exceptions.filter((e) => e.provider_id === state.activeProviderId);
-    const myReviews = db.reviews.filter((r) => r.provider_id === state.activeProviderId);
-    const dayNames = ['Chủ nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+    function startShiftWork(bookingId) {
+      const bk = window.GDX_DB.bookings.find((b) => b.booking_id === bookingId);
+      if (bk) bk.status = "in_progress";
+      showToast(`Đã bắt đầu thực hiện ca làm #${bookingId}`);
+      go("2.2", { bookingId });
+    }
 
-    const miniBarsHtml = `
+    // 2.3: Ví Thu Nhập & Lịch Ca
+    function renderScreen_2_3(container) {
+      const db = window.GDX_DB;
+      const prov =
+        db.provider_profiles.find(
+          (p) => p.provider_id === state.activeProviderId,
+        ) || db.provider_profiles[0];
+      const completedPaid = db.bookings.filter(
+        (b) =>
+          b.provider_id === state.activeProviderId &&
+          b.status === "completed" &&
+          b.payment_status === "paid",
+      );
+      const totalEarned = completedPaid.reduce(
+        (acc, b) => acc + b.total_amount + b.total_incidental,
+        0,
+      );
+      const schedules = db.availability_schedules.filter(
+        (s) => s.provider_id === state.activeProviderId,
+      );
+      const exceptions = db.availability_exceptions.filter(
+        (e) => e.provider_id === state.activeProviderId,
+      );
+      const myReviews = db.reviews.filter(
+        (r) => r.provider_id === state.activeProviderId,
+      );
+      const dayNames = [
+        "Chủ nhật",
+        "Thứ Hai",
+        "Thứ Ba",
+        "Thứ Tư",
+        "Thứ Năm",
+        "Thứ Sáu",
+        "Thứ Bảy",
+      ];
+
+      const miniBarsHtml = `
       <div class="v3-kpi-bars" aria-hidden="true">
         <span style="height:10px;"></span>
         <span style="height:16px;"></span>
@@ -5831,7 +7354,7 @@ window.GDXApp = (() => {
       </div>
     `;
 
-    container.innerHTML = `
+      container.innerHTML = `
       <div class="v3-wallet-page">
         <div class="v3-wallet-header">
           <h1 class="v3-wallet-title">Ví thu nhập &amp; Lịch ca làm việc</h1>
@@ -5863,7 +7386,7 @@ window.GDXApp = (() => {
             <div>
               <div class="v3-kpi-label">Tổng ca hoàn thành</div>
               <div class="v3-kpi-value num">${completedPaid.length} ca</div>
-              <div class="v3-kpi-sub">&#9733; ${prov.average_rating || '4.95'} đánh giá</div>
+              <div class="v3-kpi-sub">&#9733; ${prov.average_rating || "4.95"} đánh giá</div>
             </div>
             ${miniBarsHtml}
           </div>
@@ -5887,17 +7410,19 @@ window.GDXApp = (() => {
                 <tbody>
                   ${completedPaid
                     .map((b) => {
-                      const s = db.services.find((x) => x.service_id === b.service_id);
+                      const s = db.services.find(
+                        (x) => x.service_id === b.service_id,
+                      );
                       return `
                       <tr>
                         <td class="num"><strong>#${shortCode(b.booking_id)}</strong></td>
-                        <td>${s ? s.title : ''}</td>
+                        <td>${s ? s.title : ""}</td>
                         <td class="num">${formatDateTime(b.scheduled_time)}</td>
                         <td class="num"><strong>${formatMoney(b.total_amount + b.total_incidental)}</strong></td>
                         <td>${paymentBadge(b.payment_status)}</td>
                       </tr>`;
                     })
-                    .join('')}
+                    .join("")}
                 </tbody>
               </table>
             </div>
@@ -5914,9 +7439,9 @@ window.GDXApp = (() => {
                   <div style="margin-top:4px; font-size:13.5px;">"${r.comment}"</div>
                 </div>
                 <span class="field-hint num">Đơn #${shortCode(r.booking_id)}</span>
-              </div>`
+              </div>`,
               )
-              .join('')}
+              .join("")}
           </div>
         </div>
 
@@ -5933,9 +7458,9 @@ window.GDXApp = (() => {
                 <strong>${dayNames[s.day_of_week]}</strong>
                 <span class="slip-dots"></span>
                 <span class="badge badge-positive num">${s.start_time} – ${s.end_time}</span>
-              </div>`
+              </div>`,
               )
-              .join('')}
+              .join("")}
           </div>
 
           <div class="panel form-stack">
@@ -5952,33 +7477,48 @@ window.GDXApp = (() => {
                   <span class="badge badge-warning">${e.start_time} – ${e.end_time}</span>
                 </div>
                 <div class="field-hint" style="margin-top:4px;">Lý do: ${e.reason}</div>
-              </div>`
+              </div>`,
               )
-              .join('')}
+              .join("")}
           </div>
         </div>
       </div>
       </div>
     `;
-  }
+    }
 
-  // 2.4: Cấu hình Năng lực & Khu vực
-  function renderScreen_2_4(container) {
-    const db = window.GDX_DB;
-    const prov = db.provider_profiles.find((p) => p.provider_id === state.activeProviderId) || db.provider_profiles[0];
-    const mySvcIds = db.provider_services
-      .filter((ps) => ps.provider_id === state.activeProviderId)
-      .map((ps) => ps.service_id);
-    const myWardIds = db.provider_areas
-      .filter((pa) => pa.provider_id === state.activeProviderId)
-      .map((pa) => pa.ward_id);
-    const comp = (db.company_profiles || []).find((c) => Number(c.company_id) === Number(prov.company_id));
-    const assignedServices = (db.services || []).filter((s) => mySvcIds.includes(s.service_id));
+    // 2.4: Cấu hình Năng lực & Khu vực
+    function renderScreen_2_4(container) {
+      const db = window.GDX_DB;
+      const prov =
+        db.provider_profiles.find(
+          (p) => p.provider_id === state.activeProviderId,
+        ) || db.provider_profiles[0];
+      const mySvcIds = db.provider_services
+        .filter((ps) => ps.provider_id === state.activeProviderId)
+        .map((ps) => ps.service_id);
+      const myWardIds = db.provider_areas
+        .filter((pa) => pa.provider_id === state.activeProviderId)
+        .map((pa) => pa.ward_id);
+      const comp = (db.company_profiles || []).find(
+        (c) => Number(c.company_id) === Number(prov.company_id),
+      );
+      const assignedServices = (db.services || []).filter((s) =>
+        mySvcIds.includes(s.service_id),
+      );
 
-    const areaWards = (db.ward || []).filter((w) => myWardIds.includes(w.ward_id));
-    const areaLabel = areaWards.length > 0 ? areaWards.map((w) => w.name.replace('Phường ', 'P. ')).slice(0, 2).join(', ') : 'Quận 7';
+      const areaWards = (db.ward || []).filter((w) =>
+        myWardIds.includes(w.ward_id),
+      );
+      const areaLabel =
+        areaWards.length > 0
+          ? areaWards
+              .map((w) => w.name.replace("Phường ", "P. "))
+              .slice(0, 2)
+              .join(", ")
+          : "Quận 7";
 
-    container.innerHTML = `
+      container.innerHTML = `
       <div class="v3-skills-page">
         <div class="v3-skills-header">
           <h1 class="v3-skills-title">Năng lực chuyên môn &amp; Khu vực hoạt động</h1>
@@ -6001,9 +7541,9 @@ window.GDXApp = (() => {
                       <span class="v3-skill-status-pill">&#10003; Đang bật</span>
                     </div>
                     <div class="v3-skill-card-title">${s.title}</div>
-                  </article>`
+                  </article>`,
                     )
-                    .join('')
+                    .join("")
                 : `<div class="panel" style="padding:28px; border-radius:18px;">Chưa có dịch vụ nào được Công ty phân công.</div>`
             }
           </div>
@@ -6021,12 +7561,12 @@ window.GDXApp = (() => {
         <!-- Expandable Provider Bio & Ward Config Form -->
         <form id="v3ProviderConfigPanel" class="v3-skills-config-panel form-stack" onsubmit="event.preventDefault(); GDXApp.saveProviderConfig(this);">
           <div style="display:flex; align-items:center; gap:14px;">
-            <img src="${prov.avatar_url || '/assets/provider-lan.jpg'}" onerror="this.onerror=null; this.src='/assets/provider-lan.jpg';" alt="Avatar" class="provider-avatar-lg">
+            <img src="${prov.avatar_url || "/assets/provider-lan.jpg"}" onerror="this.onerror=null; this.src='/assets/provider-lan.jpg';" alt="Avatar" class="provider-avatar-lg">
             <div>
               <h2 class="panel-title" style="margin:0;">Hồ sơ công khai &amp; Giới thiệu kinh nghiệm</h2>
               <div class="field-hint">
                 Trạng thái: <strong style="color:var(--positive);">${prov.verification_status}</strong> &middot; CCCD: <span class="num">${formatCccd(prov.id_card_number)}</span>
-                ${comp ? ` &middot; Công ty: <strong>${comp.company_name}</strong>` : ''}
+                ${comp ? ` &middot; Công ty: <strong>${comp.company_name}</strong>` : ""}
               </div>
             </div>
           </div>
@@ -6040,18 +7580,18 @@ window.GDXApp = (() => {
             <div class="field-label" style="margin-bottom:8px;">Phường / Xã đăng ký hoạt động</div>
             <div class="choice-grid-3">
               ${db.ward
-                .filter((w) => w.provinceId === '79')
+                .filter((w) => w.provinceId === "79")
                 .map(
                   (w) => `
                 <label class="choice-card">
-                  <input type="checkbox" name="wardIds" value="${w.ward_id}" ${myWardIds.includes(w.ward_id) ? 'checked' : ''}>
+                  <input type="checkbox" name="wardIds" value="${w.ward_id}" ${myWardIds.includes(w.ward_id) ? "checked" : ""}>
                   <div>
                     <div style="font-weight:600;">${w.name}</div>
                     <div class="field-hint num">Mã: ${w.ward_id}</div>
                   </div>
-                </label>`
+                </label>`,
                 )
-                .join('')}
+                .join("")}
             </div>
           </div>
 
@@ -6061,54 +7601,70 @@ window.GDXApp = (() => {
         </form>
       </div>
     `;
-  }
-
-  async function saveProviderConfig(form) {
-    const db = window.GDX_DB;
-    const prov = db.provider_profiles.find((p) => p.provider_id === state.activeProviderId);
-    const wardIds = Array.from(form.querySelectorAll('input[name="wardIds"]:checked')).map((el) => el.value);
-    if (prov && form.info) prov.info = form.info.value;
-    if (wardIds.length > 0) {
-      db.provider_areas = db.provider_areas.filter((pa) => Number(pa.provider_id) !== Number(state.activeProviderId));
-      wardIds.forEach((wid) => {
-        db.provider_areas.push({ provider_id: state.activeProviderId, ward_id: wid });
-      });
     }
-    await apiRequest('/api/provider/capabilities', {
-      method: 'PUT',
-      body: JSON.stringify({
-        provider_id: state.activeProviderId,
-        info: form.info ? form.info.value : '',
-        ward_ids: wardIds
-      })
-    });
-    showToast('Đã lưu thông tin mô tả và khu vực nhận việc!');
-    go('2.4');
-  }
 
+    async function saveProviderConfig(form) {
+      const db = window.GDX_DB;
+      const prov = db.provider_profiles.find(
+        (p) => p.provider_id === state.activeProviderId,
+      );
+      const wardIds = Array.from(
+        form.querySelectorAll('input[name="wardIds"]:checked'),
+      ).map((el) => el.value);
+      if (prov && form.info) prov.info = form.info.value;
+      if (wardIds.length > 0) {
+        db.provider_areas = db.provider_areas.filter(
+          (pa) => Number(pa.provider_id) !== Number(state.activeProviderId),
+        );
+        wardIds.forEach((wid) => {
+          db.provider_areas.push({
+            provider_id: state.activeProviderId,
+            ward_id: wid,
+          });
+        });
+      }
+      await apiRequest("/api/provider/capabilities", {
+        method: "PUT",
+        body: JSON.stringify({
+          provider_id: state.activeProviderId,
+          info: form.info ? form.info.value : "",
+          ward_ids: wardIds,
+        }),
+      });
+      showToast("Đã lưu thông tin mô tả và khu vực nhận việc!");
+      go("2.4");
+    }
 
-  // =====================================================================
-  // SCREEN RENDERERS: PHÂN HỆ 3 (ADMIN PORTAL: 3.1 – 3.4)
-  // =====================================================================
+    // =====================================================================
+    // SCREEN RENDERERS: PHÂN HỆ 3 (ADMIN PORTAL: 3.1 – 3.4)
+    // =====================================================================
 
-  // 3.1: Tổng quan Vận hành & Điều phối Đơn hàng
-  function renderScreen_3_1(container) {
-    const db = window.GDX_DB;
-    const totalRevenue = db.bookings
-      .filter((b) => b.payment_status === 'paid')
-      .reduce((sum, b) => sum + b.total_amount + b.total_incidental, 0);
-    const pendingKycCount = db.provider_profiles.filter((p) => p.verification_status === 'pending').length;
-    const openTicketsCount = db.support_tickets.filter((t) => t.status !== 'resolved' && t.status !== 'closed').length;
+    // 3.1: Tổng quan Vận hành & Điều phối Đơn hàng
+    function renderScreen_3_1(container) {
+      const db = window.GDX_DB;
+      const totalRevenue = db.bookings
+        .filter((b) => b.payment_status === "paid")
+        .reduce((sum, b) => sum + b.total_amount + b.total_incidental, 0);
+      const pendingKycCount = db.provider_profiles.filter(
+        (p) => p.verification_status === "pending",
+      ).length;
+      const openTicketsCount = db.support_tickets.filter(
+        (t) => t.status !== "resolved" && t.status !== "closed",
+      ).length;
 
-    const filteredBookings =
-      state.adminDispatchFilter === 'all'
-        ? db.bookings
-        : db.bookings.filter((b) => b.status === state.adminDispatchFilter);
+      const filteredBookings =
+        state.adminDispatchFilter === "all"
+          ? db.bookings
+          : db.bookings.filter((b) => b.status === state.adminDispatchFilter);
 
-    const inProgressCount = db.bookings.filter((b) => b.status === 'in_progress').length;
-    const pendingCount = db.bookings.filter((b) => b.status === 'pending').length;
+      const inProgressCount = db.bookings.filter(
+        (b) => b.status === "in_progress",
+      ).length;
+      const pendingCount = db.bookings.filter(
+        (b) => b.status === "pending",
+      ).length;
 
-    const miniBarsHtml = `
+      const miniBarsHtml = `
       <div class="v3-kpi-bars" aria-hidden="true">
         <span style="height:10px;"></span>
         <span style="height:16px;"></span>
@@ -6118,24 +7674,24 @@ window.GDXApp = (() => {
       </div>
     `;
 
-    const getAdminPill = (status) => {
-      switch (status) {
-        case 'in_progress':
-          return { cls: 'is-progress', dot: '●', text: 'Đang thực hiện' };
-        case 'confirmed':
-          return { cls: 'is-progress', dot: '●', text: 'Đã nhận việc' };
-        case 'pending':
-          return { cls: 'is-pending', dot: '●', text: 'Chờ xác nhận' };
-        case 'completed':
-          return { cls: 'is-completed', dot: '✓', text: 'Hoàn thành' };
-        case 'cancelled':
-          return { cls: 'is-cancelled', dot: '✕', text: 'Đã hủy' };
-        default:
-          return { cls: 'is-pending', dot: '●', text: status };
-      }
-    };
+      const getAdminPill = (status) => {
+        switch (status) {
+          case "in_progress":
+            return { cls: "is-progress", dot: "●", text: "Đang thực hiện" };
+          case "confirmed":
+            return { cls: "is-progress", dot: "●", text: "Đã nhận việc" };
+          case "pending":
+            return { cls: "is-pending", dot: "●", text: "Chờ xác nhận" };
+          case "completed":
+            return { cls: "is-completed", dot: "✓", text: "Hoàn thành" };
+          case "cancelled":
+            return { cls: "is-cancelled", dot: "✕", text: "Đã hủy" };
+          default:
+            return { cls: "is-pending", dot: "●", text: status };
+        }
+      };
 
-    container.innerHTML = `
+      container.innerHTML = `
       <div class="v3-admin-page">
         <h1 class="v3-admin-title">Trung tâm Điều phối &amp; Vận hành</h1>
 
@@ -6181,10 +7737,10 @@ window.GDXApp = (() => {
           <div class="v3-admin-dispatch-head">
             <h2 class="v3-admin-dispatch-title">Điều phối lịch hẹn thời gian thực</h2>
             <div class="v3-appointments-filters">
-              <button type="button" class="v3-appt-filter-pill ${state.adminDispatchFilter === 'all' ? 'is-active' : ''}" onclick="GDXApp.setAdminDispatchFilter('all')">Tất cả</button>
-              <button type="button" class="v3-appt-filter-pill ${state.adminDispatchFilter === 'pending' ? 'is-active' : ''}" onclick="GDXApp.setAdminDispatchFilter('pending')">Chờ nhận</button>
-              <button type="button" class="v3-appt-filter-pill ${state.adminDispatchFilter === 'in_progress' ? 'is-active' : ''}" onclick="GDXApp.setAdminDispatchFilter('in_progress')">Đang làm</button>
-              <button type="button" class="v3-appt-filter-pill ${state.adminDispatchFilter === 'completed' ? 'is-active' : ''}" onclick="GDXApp.setAdminDispatchFilter('completed')">Hoàn thành</button>
+              <button type="button" class="v3-appt-filter-pill ${state.adminDispatchFilter === "all" ? "is-active" : ""}" onclick="GDXApp.setAdminDispatchFilter('all')">Tất cả</button>
+              <button type="button" class="v3-appt-filter-pill ${state.adminDispatchFilter === "pending" ? "is-active" : ""}" onclick="GDXApp.setAdminDispatchFilter('pending')">Chờ nhận</button>
+              <button type="button" class="v3-appt-filter-pill ${state.adminDispatchFilter === "in_progress" ? "is-active" : ""}" onclick="GDXApp.setAdminDispatchFilter('in_progress')">Đang làm</button>
+              <button type="button" class="v3-appt-filter-pill ${state.adminDispatchFilter === "completed" ? "is-active" : ""}" onclick="GDXApp.setAdminDispatchFilter('completed')">Hoàn thành</button>
             </div>
           </div>
 
@@ -6194,10 +7750,18 @@ window.GDXApp = (() => {
                 ? `<div class="field-hint" style="text-align:center; padding:28px;">Không có đơn hàng nào trong trạng thái này.</div>`
                 : filteredBookings
                     .map((b) => {
-                      const cust = db.customer_profiles.find((c) => c.customer_id === b.customer_id);
-                      const custU = cust ? db.users.find((u) => u.user_id === cust.user_id) : null;
-                      const svc = db.services.find((s) => s.service_id === b.service_id);
-                      const prov = db.provider_public_profiles.find((p) => p.provider_id === b.provider_id);
+                      const cust = db.customer_profiles.find(
+                        (c) => c.customer_id === b.customer_id,
+                      );
+                      const custU = cust
+                        ? db.users.find((u) => u.user_id === cust.user_id)
+                        : null;
+                      const svc = db.services.find(
+                        (s) => s.service_id === b.service_id,
+                      );
+                      const prov = db.provider_public_profiles.find(
+                        (p) => p.provider_id === b.provider_id,
+                      );
                       const pill = getAdminPill(b.status);
 
                       return `
@@ -6205,10 +7769,10 @@ window.GDXApp = (() => {
                       <div class="v3-dispatch-code num">#${shortCode(b.booking_id)}</div>
 
                       <div class="v3-dispatch-info">
-                        <div class="v3-dispatch-svc">${svc ? svc.title : 'Dịch vụ'}</div>
+                        <div class="v3-dispatch-svc">${svc ? svc.title : "Dịch vụ"}</div>
                         <div class="v3-dispatch-meta">
-                          KH: ${custU ? custU.full_name : 'Khách #' + b.customer_id} &middot;
-                          Thợ: ${prov ? prov.full_name : 'Chưa gán thợ'}
+                          KH: ${custU ? custU.full_name : "Khách #" + b.customer_id} &middot;
+                          Thợ: ${prov ? prov.full_name : "Chưa gán thợ"}
                         </div>
                       </div>
 
@@ -6228,25 +7792,27 @@ window.GDXApp = (() => {
                       </div>
                     </div>`;
                     })
-                    .join('')
+                    .join("")
             }
           </div>
         </section>
       </div>
     `;
-  }
+    }
 
-  function setAdminDispatchFilter(f) {
-    state.adminDispatchFilter = f;
-    go('3.1');
-  }
+    function setAdminDispatchFilter(f) {
+      state.adminDispatchFilter = f;
+      go("3.1");
+    }
 
-  // 3.2: Quản lý Danh mục Gốc & Giám sát Dịch vụ Công ty
-  function renderScreen_3_2(container) {
-    const db = window.GDX_DB;
-    const rootCats = db.service_categories.filter((c) => c.parent_id === null);
+    // 3.2: Quản lý Danh mục Gốc & Giám sát Dịch vụ Công ty
+    function renderScreen_3_2(container) {
+      const db = window.GDX_DB;
+      const rootCats = db.service_categories.filter(
+        (c) => c.parent_id === null,
+      );
 
-    container.innerHTML = `
+      container.innerHTML = `
       <div class="v3-svc-admin-page">
         <div class="v3-svc-admin-header">
           <h1 class="v3-svc-admin-title">Danh mục dịch vụ &amp; Cấu hình biểu giá</h1>
@@ -6263,10 +7829,10 @@ window.GDXApp = (() => {
         <div class="v3-svc-admin-list">
           ${db.services
             .map((s) => {
-              const unit = s.pricing_type === 'hourly' ? '/giờ' : '/lần';
+              const unit = s.pricing_type === "hourly" ? "/giờ" : "/lần";
               return `
               <article class="v3-svc-admin-row">
-                <img src="${s.image_url || '/assets/service-cleaning.jpg'}" alt="${s.title}" class="v3-svc-admin-thumb">
+                <img src="${s.image_url || "/assets/service-cleaning.jpg"}" alt="${s.title}" class="v3-svc-admin-thumb">
                 <div class="v3-svc-admin-info">
                   <div class="v3-svc-admin-name">${s.title}</div>
                   <div class="v3-svc-admin-price num">Đơn giá niêm yết: ${formatMoney(s.price)}${unit}</div>
@@ -6276,7 +7842,7 @@ window.GDXApp = (() => {
                 </button>
               </article>`;
             })
-            .join('')}
+            .join("")}
         </div>
 
         <div>
@@ -6286,7 +7852,9 @@ window.GDXApp = (() => {
           <div id="v3AdminCatTree" class="v3-skills-config-panel form-stack" style="margin-top:12px;">
             ${rootCats
               .map((rc) => {
-                const children = db.service_categories.filter((c) => c.parent_id === rc.category_id);
+                const children = db.service_categories.filter(
+                  (c) => c.parent_id === rc.category_id,
+                );
                 return `
                 <div class="panel-subtle" style="padding:12px;">
                   <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -6302,44 +7870,55 @@ window.GDXApp = (() => {
                             <div style="display:flex; justify-content:space-between; font-size:13px;">
                               <span>&#8627; ${ch.name}</span>
                               <span class="field-hint num">#${shortCode(ch.category_id)}</span>
-                            </div>`
+                            </div>`,
                             )
-                            .join('')}
+                            .join("")}
                         </div>`
-                      : ''
+                      : ""
                   }
                 </div>`;
               })
-              .join('')}
+              .join("")}
           </div>
         </div>
       </div>
     `;
-  }
+    }
 
-  function toggleServiceActive(serviceId) {
-    return companyToggleService(serviceId);
-  }
+    function toggleServiceActive(serviceId) {
+      return companyToggleService(serviceId);
+    }
 
-  // 3.3: Xét duyệt Hồ sơ Công ty Đối tác (Company Verification)
-  function renderScreen_3_3(container) {
-    const db = window.GDX_DB;
-    const companies = db.company_profiles || [];
-    const pendingCount = companies.filter((c) => c.verification_status === 'pending').length;
+    // 3.3: Xét duyệt Hồ sơ Công ty Đối tác (Company Verification)
+    function renderScreen_3_3(container) {
+      const db = window.GDX_DB;
+      const companies = db.company_profiles || [];
+      const pendingCount = companies.filter(
+        (c) => c.verification_status === "pending",
+      ).length;
 
-    const getKycPill = (status, isActive) => {
-      if (!isActive) return { cls: 'is-cancelled', dot: '✕', text: 'Đã khóa tài khoản' };
-      if (status === 'verified') return { cls: 'is-completed', dot: '✓', text: 'Đã xác minh' };
-      if (status === 'pending') return { cls: 'is-pending', dot: '●', text: 'Chờ thẩm định' };
-      return { cls: 'is-cancelled', dot: '✕', text: 'Đã từ chối' };
-    };
+      const getKycPill = (status, isActive) => {
+        if (!isActive)
+          return { cls: "is-cancelled", dot: "✕", text: "Đã khóa tài khoản" };
+        if (status === "verified")
+          return { cls: "is-completed", dot: "✓", text: "Đã xác minh" };
+        if (status === "pending")
+          return { cls: "is-pending", dot: "●", text: "Chờ thẩm định" };
+        return { cls: "is-cancelled", dot: "✕", text: "Đã từ chối" };
+      };
 
-    const getInitials = (name) => {
-      const words = String(name || 'DN').trim().split(/\s+/);
-      return words.slice(-2).map((w) => w[0]).join('').toUpperCase();
-    };
+      const getInitials = (name) => {
+        const words = String(name || "DN")
+          .trim()
+          .split(/\s+/);
+        return words
+          .slice(-2)
+          .map((w) => w[0])
+          .join("")
+          .toUpperCase();
+      };
 
-    container.innerHTML = `
+      container.innerHTML = `
       <div class="v3-kyc-page">
         <div class="v3-kyc-header">
           <h1 class="v3-kyc-title">Hàng chờ xét duyệt hồ sơ Công ty Đối tác (${pendingCount > 0 ? pendingCount : companies.length})</h1>
@@ -6348,9 +7927,15 @@ window.GDXApp = (() => {
         <div class="v3-kyc-list">
           ${companies
             .map((c) => {
-              const u = db.users.find((x) => String(x.user_id) === String(c.user_id));
-              const staffCount = (db.provider_profiles || []).filter((p) => Number(p.company_id) === Number(c.company_id)).length;
-              const svcCount = (db.services || []).filter((s) => Number(s.company_id) === Number(c.company_id)).length;
+              const u = db.users.find(
+                (x) => String(x.user_id) === String(c.user_id),
+              );
+              const staffCount = (db.provider_profiles || []).filter(
+                (p) => Number(p.company_id) === Number(c.company_id),
+              ).length;
+              const svcCount = (db.services || []).filter(
+                (s) => Number(s.company_id) === Number(c.company_id),
+              ).length;
               const isActive = u ? u.is_active !== false : true;
               const pill = getKycPill(c.verification_status, isActive);
 
@@ -6363,8 +7948,8 @@ window.GDXApp = (() => {
                     ${c.company_name} &middot; <span class="num">MST: ${c.tax_code}</span>
                   </div>
                   <div class="v3-kyc-meta">
-                    ${c.address || 'Chưa cập nhật địa chỉ'} &middot;
-                    SĐT: <span class="num">${c.phone_number || (u ? u.phone_number : '—')}</span> &middot;
+                    ${c.address || "Chưa cập nhật địa chỉ"} &middot;
+                    SĐT: <span class="num">${c.phone_number || (u ? u.phone_number : "—")}</span> &middot;
                     ${staffCount} thợ &middot; ${svcCount} dịch vụ
                   </div>
                 </div>
@@ -6378,142 +7963,164 @@ window.GDXApp = (() => {
 
                 <div class="v3-kyc-actions">
                   ${
-                    c.verification_status !== 'verified'
+                    c.verification_status !== "verified"
                       ? `<button type="button" class="v3-kyc-btn-primary" onclick="GDXApp.verifyCompanyKyc(${c.company_id}, 'verified')">Phê duyệt</button>`
-                      : ''
+                      : ""
                   }
                   ${
-                    c.verification_status !== 'rejected'
+                    c.verification_status !== "rejected"
                       ? `<button type="button" class="v3-kyc-btn-danger" onclick="GDXApp.verifyCompanyKyc(${c.company_id}, 'rejected')">Từ chối</button>`
-                      : ''
+                      : ""
                   }
                   <button type="button" class="v3-kyc-btn-light" onclick="GDXApp.toggleCompanyActive(${c.company_id})">
-                    ${isActive ? 'Khóa' : 'Mở khóa'}
+                    ${isActive ? "Khóa" : "Mở khóa"}
                   </button>
                 </div>
               </article>`;
             })
-            .join('')}
+            .join("")}
         </div>
       </div>
     `;
-  }
-
-  function refreshClientPublicProviders() {
-    const db = window.GDX_DB;
-    if (!db) return;
-    const users = db.users || [];
-    const companies = db.company_profiles || [];
-    db.provider_public_profiles = (db.provider_profiles || [])
-      .filter((p) => p.verification_status === 'verified')
-      .filter((p) => {
-        const u = users.find((x) => String(x.user_id) === String(p.user_id));
-        if (u && u.is_active === false) return false;
-        if (p.company_id != null) {
-          const comp = companies.find((c) => Number(c.company_id) === Number(p.company_id));
-          if (!comp || comp.verification_status !== 'verified') return false;
-          const compUser = users.find((x) => String(x.user_id) === String(comp.user_id));
-          if (compUser && compUser.is_active === false) return false;
-        }
-        return true;
-      })
-      .map((p) => {
-        const u = users.find((x) => String(x.user_id) === String(p.user_id));
-        const comp = companies.find((c) => Number(c.company_id) === Number(p.company_id));
-        return {
-          provider_id: p.provider_id,
-          user_id: p.user_id,
-          company_id: p.company_id || null,
-          company_name: comp ? comp.company_name : null,
-          full_name: u ? u.full_name : 'Đối tác',
-          avatar_url: p.avatar_url,
-          info: p.info,
-          average_rating: p.average_rating,
-          total_reviews: p.total_reviews,
-          is_available_online: p.is_available_online,
-          verification_status: p.verification_status
-        };
-      });
-  }
-
-  async function verifyCompanyKyc(companyId, newStatus) {
-    const db = window.GDX_DB;
-    const comp = (db.company_profiles || []).find((c) => Number(c.company_id) === Number(companyId));
-    if (!comp) return;
-    comp.verification_status = newStatus;
-    refreshClientPublicProviders();
-    await apiRequest(`/api/admin/companies/${companyId}/verify`, {
-      method: 'PATCH',
-      body: JSON.stringify({ verification_status: newStatus })
-    });
-    showToast(`Đã cập nhật Công ty #${companyId} (${comp.company_name}) sang trạng thái: ${newStatus}`);
-    if (state.currentScreen === '3.3') go('3.3');
-  }
-
-  async function toggleCompanyActive(companyId) {
-    const db = window.GDX_DB;
-    const comp = (db.company_profiles || []).find((c) => Number(c.company_id) === Number(companyId));
-    if (!comp) return;
-    const u = (db.users || []).find((x) => String(x.user_id) === String(comp.user_id));
-    if (u) {
-      u.is_active = !u.is_active;
     }
-    refreshClientPublicProviders();
-    await apiRequest(`/api/admin/companies/${companyId}/toggle-active`, { method: 'PATCH' });
-    showToast(`Công ty ${comp.company_name}: ${!u || u.is_active ? 'Đã mở khóa' : 'Đã tạm khóa'}`);
-    if (state.currentScreen === '3.3') go('3.3');
-  }
 
-  function updateProviderKyc(providerId, newStatus) {
-    const db = window.GDX_DB;
-    const prov = db.provider_profiles.find((p) => p.provider_id === providerId);
-    if (!prov) return;
-    prov.verification_status = newStatus;
-    refreshClientPublicProviders();
-    apiRequest(`/api/admin/kyc/${providerId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ verification_status: newStatus })
-    });
-    showToast(`Đã cập nhật hồ sơ #${providerId} sang trạng thái: ${newStatus}`);
-    closeModal();
-    if (state.currentScreen === '3.3') go('3.3');
-  }
+    function refreshClientPublicProviders() {
+      const db = window.GDX_DB;
+      if (!db) return;
+      const users = db.users || [];
+      const companies = db.company_profiles || [];
+      db.provider_public_profiles = (db.provider_profiles || [])
+        .filter((p) => p.verification_status === "verified")
+        .filter((p) => {
+          const u = users.find((x) => String(x.user_id) === String(p.user_id));
+          if (u && u.is_active === false) return false;
+          if (p.company_id != null) {
+            const comp = companies.find(
+              (c) => Number(c.company_id) === Number(p.company_id),
+            );
+            if (!comp || comp.verification_status !== "verified") return false;
+            const compUser = users.find(
+              (x) => String(x.user_id) === String(comp.user_id),
+            );
+            if (compUser && compUser.is_active === false) return false;
+          }
+          return true;
+        })
+        .map((p) => {
+          const u = users.find((x) => String(x.user_id) === String(p.user_id));
+          const comp = companies.find(
+            (c) => Number(c.company_id) === Number(p.company_id),
+          );
+          return {
+            provider_id: p.provider_id,
+            user_id: p.user_id,
+            company_id: p.company_id || null,
+            company_name: comp ? comp.company_name : null,
+            full_name: u ? u.full_name : "Đối tác",
+            avatar_url: p.avatar_url,
+            info: p.info,
+            average_rating: p.average_rating,
+            total_reviews: p.total_reviews,
+            is_available_online: p.is_available_online,
+            verification_status: p.verification_status,
+          };
+        });
+    }
 
-  // 3.4: Quản lý Người dùng, Khiếu nại & Đánh giá
-  function renderScreen_3_4(container) {
-    const db = window.GDX_DB;
-    state.admin34Tab = state.admin34Tab || 'tickets';
-    const activeTab = state.admin34Tab;
+    async function verifyCompanyKyc(companyId, newStatus) {
+      const db = window.GDX_DB;
+      const comp = (db.company_profiles || []).find(
+        (c) => Number(c.company_id) === Number(companyId),
+      );
+      if (!comp) return;
+      comp.verification_status = newStatus;
+      refreshClientPublicProviders();
+      await apiRequest(`/api/admin/companies/${companyId}/verify`, {
+        method: "PATCH",
+        body: JSON.stringify({ verification_status: newStatus }),
+      });
+      showToast(
+        `Đã cập nhật Công ty #${companyId} (${comp.company_name}) sang trạng thái: ${newStatus}`,
+      );
+      if (state.currentScreen === "3.3") go("3.3");
+    }
 
-    const getTicketPill = (status) => {
-      if (status === 'resolved' || status === 'closed') {
-        return { cls: 'is-completed', dot: '✓', text: 'Đã giải quyết' };
+    async function toggleCompanyActive(companyId) {
+      const db = window.GDX_DB;
+      const comp = (db.company_profiles || []).find(
+        (c) => Number(c.company_id) === Number(companyId),
+      );
+      if (!comp) return;
+      const u = (db.users || []).find(
+        (x) => String(x.user_id) === String(comp.user_id),
+      );
+      if (u) {
+        u.is_active = !u.is_active;
       }
-      if (status === 'in_progress') {
-        return { cls: 'is-progress', dot: '●', text: 'Đang xử lý' };
-      }
-      return { cls: 'is-progress', dot: '●', text: 'Đang xử lý' };
-    };
+      refreshClientPublicProviders();
+      await apiRequest(`/api/admin/companies/${companyId}/toggle-active`, {
+        method: "PATCH",
+      });
+      showToast(
+        `Công ty ${comp.company_name}: ${!u || u.is_active ? "Đã mở khóa" : "Đã tạm khóa"}`,
+      );
+      if (state.currentScreen === "3.3") go("3.3");
+    }
 
-    container.innerHTML = `
+    function updateProviderKyc(providerId, newStatus) {
+      const db = window.GDX_DB;
+      const prov = db.provider_profiles.find(
+        (p) => p.provider_id === providerId,
+      );
+      if (!prov) return;
+      prov.verification_status = newStatus;
+      refreshClientPublicProviders();
+      apiRequest(`/api/admin/kyc/${providerId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ verification_status: newStatus }),
+      });
+      showToast(
+        `Đã cập nhật hồ sơ #${providerId} sang trạng thái: ${newStatus}`,
+      );
+      closeModal();
+      if (state.currentScreen === "3.3") go("3.3");
+    }
+
+    // 3.4: Quản lý Người dùng, Khiếu nại & Đánh giá
+    function renderScreen_3_4(container) {
+      const db = window.GDX_DB;
+      state.admin34Tab = state.admin34Tab || "tickets";
+      const activeTab = state.admin34Tab;
+
+      const getTicketPill = (status) => {
+        if (status === "resolved" || status === "closed") {
+          return { cls: "is-completed", dot: "✓", text: "Đã giải quyết" };
+        }
+        if (status === "in_progress") {
+          return { cls: "is-progress", dot: "●", text: "Đang xử lý" };
+        }
+        return { cls: "is-progress", dot: "●", text: "Đang xử lý" };
+      };
+
+      container.innerHTML = `
       <div class="v3-admin-users-page">
         <div class="v3-admin-users-header">
           <h1 class="v3-admin-users-title">Quản lý Người dùng &amp; Phiếu khiếu nại</h1>
           <div class="v3-seg-tabs" role="tablist" aria-label="Phân mục quản trị">
-            <button type="button" class="v3-seg-tab ${activeTab === 'tickets' ? 'is-active' : ''}" onclick="GDXApp.setAdmin34Tab('tickets')">
+            <button type="button" class="v3-seg-tab ${activeTab === "tickets" ? "is-active" : ""}" onclick="GDXApp.setAdmin34Tab('tickets')">
               Phiếu khiếu nại (${db.support_tickets.length})
             </button>
-            <button type="button" class="v3-seg-tab ${activeTab === 'users' ? 'is-active' : ''}" onclick="GDXApp.setAdmin34Tab('users')">
+            <button type="button" class="v3-seg-tab ${activeTab === "users" ? "is-active" : ""}" onclick="GDXApp.setAdmin34Tab('users')">
               Tài khoản (${db.users.length})
             </button>
-            <button type="button" class="v3-seg-tab ${activeTab === 'reviews' ? 'is-active' : ''}" onclick="GDXApp.setAdmin34Tab('reviews')">
+            <button type="button" class="v3-seg-tab ${activeTab === "reviews" ? "is-active" : ""}" onclick="GDXApp.setAdmin34Tab('reviews')">
               Đánh giá &amp; Nhật ký
             </button>
           </div>
         </div>
 
         ${
-          activeTab === 'tickets'
+          activeTab === "tickets"
             ? `
           <div class="v3-ticket-admin-list">
             ${
@@ -6530,8 +8137,8 @@ window.GDXApp = (() => {
                           Phiếu <span class="num">#${shortCode(t.ticket_id)}</span> &middot; ${t.subject}
                         </div>
                         <div class="v3-ticket-admin-meta">
-                          Khách: ${u ? u.full_name : 'Người dùng'}
-                          ${t.booking_id ? ` &middot; Đơn <span class="num">#${shortCode(t.booking_id)}</span>` : ''}
+                          Khách: ${u ? u.full_name : "Người dùng"}
+                          ${t.booking_id ? ` &middot; Đơn <span class="num">#${shortCode(t.booking_id)}</span>` : ""}
                         </div>
                       </div>
 
@@ -6549,10 +8156,10 @@ window.GDXApp = (() => {
                       </div>
                     </article>`;
                     })
-                    .join('')
+                    .join("")
             }
           </div>`
-            : activeTab === 'users'
+            : activeTab === "users"
               ? `
           <div class="panel form-stack" style="border-radius:24px;">
             <h2 class="panel-title">Danh sách Tài khoản hệ thống (users)</h2>
@@ -6578,13 +8185,13 @@ window.GDXApp = (() => {
                       <td><span class="badge badge-info">${u.role}</span></td>
                       <td>
                         <label class="toggle-switch">
-                          <input type="checkbox" ${u.is_active ? 'checked' : ''} onchange="GDXApp.toggleUserActive('${u.user_id}')">
-                          <span>${u.is_active ? 'Hoạt động' : 'Đang khóa'}</span>
+                          <input type="checkbox" ${u.is_active ? "checked" : ""} onchange="GDXApp.toggleUserActive('${u.user_id}')">
+                          <span>${u.is_active ? "Hoạt động" : "Đang khóa"}</span>
                         </label>
                       </td>
-                    </tr>`
+                    </tr>`,
                     )
-                    .join('')}
+                    .join("")}
                 </tbody>
               </table>
             </div>
@@ -6595,16 +8202,16 @@ window.GDXApp = (() => {
               <h2 class="panel-title">Kiểm duyệt Nhận xét &amp; Đánh giá (reviews)</h2>
               ${db.reviews
                 .map((r) => {
-                  const isHidden = r.status === 'hidden';
+                  const isHidden = r.status === "hidden";
                   return `
-                <div class="panel-subtle" style="display:flex; justify-content:space-between; align-items:center; gap:12px; opacity:${isHidden ? '0.75' : '1'}; border-left: 3px solid ${isHidden ? 'var(--color-danger, #ef4444)' : 'var(--color-success, #10b981)'};">
+                <div class="panel-subtle" style="display:flex; justify-content:space-between; align-items:center; gap:12px; opacity:${isHidden ? "0.75" : "1"}; border-left: 3px solid ${isHidden ? "var(--color-danger, #ef4444)" : "var(--color-success, #10b981)"};">
                   <div>
                     <div style="display:flex; align-items:center; gap:8px;">
                       ${Icons.starRow(r.rating)}
                       <span class="field-hint num">Đơn #${shortCode(r.booking_id)} &middot; Thợ #${shortCode(r.provider_id)}</span>
                       ${
                         isHidden
-                          ? `<span class="badge badge-negative" style="font-size:11px;">Đã ẩn (${r.moderation_reason || 'Vi phạm'})</span>`
+                          ? `<span class="badge badge-negative" style="font-size:11px;">Đã ẩn (${r.moderation_reason || "Vi phạm"})</span>`
                           : `<span class="badge badge-positive" style="font-size:11px;">Đang hiển thị</span>`
                       }
                     </div>
@@ -6619,7 +8226,7 @@ window.GDXApp = (() => {
                   </div>
                 </div>`;
                 })
-                .join('')}
+                .join("")}
             </div>
 
             <div class="panel form-stack" style="border-radius:24px;">
@@ -6645,22 +8252,31 @@ window.GDXApp = (() => {
                     ${(db.audit_logs || [])
                       .slice(0, 15)
                       .map((al) => {
-                        const actor = (db.users || []).find((u) => u.user_id === al.actor_id || String(u.user_id) === String(al.actor_id));
-                        const actorName = actor ? actor.full_name : `#${shortCode(al.actor_id)}`;
-                        const detailsStr = typeof al.details === 'object' ? JSON.stringify(al.details) : String(al.details || '');
+                        const actor = (db.users || []).find(
+                          (u) =>
+                            u.user_id === al.actor_id ||
+                            String(u.user_id) === String(al.actor_id),
+                        );
+                        const actorName = actor
+                          ? actor.full_name
+                          : `#${shortCode(al.actor_id)}`;
+                        const detailsStr =
+                          typeof al.details === "object"
+                            ? JSON.stringify(al.details)
+                            : String(al.details || "");
                         return `
                         <tr>
                           <td class="num" style="white-space:nowrap; font-size:12px;">${formatDateTime(al.created_at)}</td>
                           <td><strong>${actorName}</strong></td>
                           <td><code>${al.action}</code></td>
-                          <td><span class="badge badge-subtle">${al.target_entity} ${al.target_id ? `#${shortCode(al.target_id)}` : ''}</span></td>
+                          <td><span class="badge badge-subtle">${al.target_entity} ${al.target_id ? `#${shortCode(al.target_id)}` : ""}</span></td>
                           <td style="font-size:12px; color:var(--color-muted); max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${detailsStr}">
                             ${detailsStr}
                           </td>
                         </tr>`;
                       })
-                      .join('')}
-                    ${!db.audit_logs || db.audit_logs.length === 0 ? `<tr><td colspan="5" class="empty-cell">Chưa có nhật ký ghi nhận</td></tr>` : ''}
+                      .join("")}
+                    ${!db.audit_logs || db.audit_logs.length === 0 ? `<tr><td colspan="5" class="empty-cell">Chưa có nhật ký ghi nhận</td></tr>` : ""}
                   </tbody>
                 </table>
               </div>
@@ -6669,62 +8285,89 @@ window.GDXApp = (() => {
         }
       </div>
     `;
-  }
+    }
 
-  function setAdmin34Tab(tab) {
-    state.admin34Tab = tab;
-    go('3.4');
-  }
+    function setAdmin34Tab(tab) {
+      state.admin34Tab = tab;
+      go("3.4");
+    }
 
-  function toggleUserActive(userId) {
-    const u = window.GDX_DB.users.find((x) => String(x.user_id) === String(userId));
-    if (!u) return;
-    u.is_active = !u.is_active;
-    refreshClientPublicProviders();
-    apiRequest(`/api/admin/users/${userId}/toggle-active`, { method: 'PATCH' });
-    showToast(`Tài khoản ${u.full_name}: ${u.is_active ? 'Đã mở khóa' : 'Đã tạm khóa'}`);
-    go('3.4');
-  }
+    function toggleUserActive(userId) {
+      const u = window.GDX_DB.users.find(
+        (x) => String(x.user_id) === String(userId),
+      );
+      if (!u) return;
+      u.is_active = !u.is_active;
+      refreshClientPublicProviders();
+      apiRequest(`/api/admin/users/${userId}/toggle-active`, {
+        method: "PATCH",
+      });
+      showToast(
+        `Tài khoản ${u.full_name}: ${u.is_active ? "Đã mở khóa" : "Đã tạm khóa"}`,
+      );
+      go("3.4");
+    }
 
-  function deleteReview(reviewId) {
-    const db = window.GDX_DB;
-    db.reviews = db.reviews.filter((r) => r.review_id !== reviewId);
-    apiRequest(`/api/admin/reviews/${reviewId}`, { method: 'DELETE' });
-    showToast(`Đã gỡ đánh giá #${reviewId} và cập nhật lại điểm trung bình thợ`);
-    go('3.4');
-  }
+    function deleteReview(reviewId) {
+      const db = window.GDX_DB;
+      db.reviews = db.reviews.filter((r) => r.review_id !== reviewId);
+      apiRequest(`/api/admin/reviews/${reviewId}`, { method: "DELETE" });
+      showToast(
+        `Đã gỡ đánh giá #${reviewId} và cập nhật lại điểm trung bình thợ`,
+      );
+      go("3.4");
+    }
 
-  // =====================================================================
-  // SCREEN RENDERERS: PHÂN HỆ 4 (COMPANY PORTAL: 4.1 – 4.3)
-  // =====================================================================
+    // =====================================================================
+    // SCREEN RENDERERS: PHÂN HỆ 4 (COMPANY PORTAL: 4.1 – 4.3)
+    // =====================================================================
 
-  function getActiveCompanyProfile() {
-    const db = window.GDX_DB;
-    const companies = db.company_profiles || [];
-    return (
-      companies.find((c) => String(c.company_id) === String(state.activeCompanyId)) ||
-      companies.find((c) => c.verification_status === 'verified') ||
-      companies[0] ||
-      { company_id: 501, company_name: 'Công ty An Bình Home Care', tax_code: '0316123456', verification_status: 'verified', address: 'TP.HCM', phone_number: '0909100501' }
-    );
-  }
+    function getActiveCompanyProfile() {
+      const db = window.GDX_DB;
+      const companies = db.company_profiles || [];
+      return (
+        companies.find(
+          (c) => String(c.company_id) === String(state.activeCompanyId),
+        ) ||
+        companies.find((c) => c.verification_status === "verified") ||
+        companies[0] || {
+          company_id: 501,
+          company_name: "Công ty An Bình Home Care",
+          tax_code: "0316123456",
+          verification_status: "verified",
+          address: "TP.HCM",
+          phone_number: "0909100501",
+        }
+      );
+    }
 
-  // 4.1: Tổng quan Công ty Đối tác & Đơn hàng
-  function renderScreen_4_1(container) {
-    const db = window.GDX_DB;
-    const comp = getActiveCompanyProfile();
-    const myStaff = (db.provider_profiles || []).filter((p) => Number(p.company_id) === Number(comp.company_id));
-    const myStaffIds = myStaff.map((p) => Number(p.provider_id));
-    const myServices = (db.services || []).filter((s) => Number(s.company_id) === Number(comp.company_id));
-    const mySvcIds = myServices.map((s) => Number(s.service_id));
-    const myBookings = (db.bookings || []).filter(
-      (b) => Number(b.company_id) === Number(comp.company_id) || myStaffIds.includes(Number(b.provider_id)) || mySvcIds.includes(Number(b.service_id))
-    );
-    const revenue = myBookings
-      .filter((b) => b.payment_status === 'paid' || b.status === 'completed')
-      .reduce((sum, b) => sum + Number(b.total_amount || 0) + Number(b.total_incidental || 0), 0);
+    // 4.1: Tổng quan Công ty Đối tác & Đơn hàng
+    function renderScreen_4_1(container) {
+      const db = window.GDX_DB;
+      const comp = getActiveCompanyProfile();
+      const myStaff = (db.provider_profiles || []).filter(
+        (p) => Number(p.company_id) === Number(comp.company_id),
+      );
+      const myStaffIds = myStaff.map((p) => Number(p.provider_id));
+      const myServices = (db.services || []).filter(
+        (s) => Number(s.company_id) === Number(comp.company_id),
+      );
+      const mySvcIds = myServices.map((s) => Number(s.service_id));
+      const myBookings = (db.bookings || []).filter(
+        (b) =>
+          Number(b.company_id) === Number(comp.company_id) ||
+          myStaffIds.includes(Number(b.provider_id)) ||
+          mySvcIds.includes(Number(b.service_id)),
+      );
+      const revenue = myBookings
+        .filter((b) => b.payment_status === "paid" || b.status === "completed")
+        .reduce(
+          (sum, b) =>
+            sum + Number(b.total_amount || 0) + Number(b.total_incidental || 0),
+          0,
+        );
 
-    const miniBarsHtml = `
+      const miniBarsHtml = `
       <div class="v3-kpi-bars" aria-hidden="true">
         <span style="height:10px;"></span>
         <span style="height:16px;"></span>
@@ -6734,31 +8377,31 @@ window.GDXApp = (() => {
       </div>
     `;
 
-    const getBookingPill = (status) => {
-      switch (status) {
-        case 'in_progress':
-          return { cls: 'is-progress', dot: '●', text: 'Đang thực hiện' };
-        case 'confirmed':
-          return { cls: 'is-progress', dot: '●', text: 'Đã nhận việc' };
-        case 'pending':
-          return { cls: 'is-pending', dot: '●', text: 'Chờ xác nhận' };
-        case 'completed':
-          return { cls: 'is-completed', dot: '✓', text: 'Hoàn thành' };
-        case 'cancelled':
-          return { cls: 'is-cancelled', dot: '✕', text: 'Đã hủy' };
-        default:
-          return { cls: 'is-pending', dot: '●', text: status };
-      }
-    };
+      const getBookingPill = (status) => {
+        switch (status) {
+          case "in_progress":
+            return { cls: "is-progress", dot: "●", text: "Đang thực hiện" };
+          case "confirmed":
+            return { cls: "is-progress", dot: "●", text: "Đã nhận việc" };
+          case "pending":
+            return { cls: "is-pending", dot: "●", text: "Chờ xác nhận" };
+          case "completed":
+            return { cls: "is-completed", dot: "✓", text: "Hoàn thành" };
+          case "cancelled":
+            return { cls: "is-cancelled", dot: "✕", text: "Đã hủy" };
+          default:
+            return { cls: "is-pending", dot: "●", text: status };
+        }
+      };
 
-    container.innerHTML = `
+      container.innerHTML = `
       <div class="v3-admin-page">
         <div class="v3-svc-admin-header">
           <div>
             <h1 class="v3-admin-title">${comp.company_name}</h1>
             <div class="field-hint num" style="margin-top:4px;">
-              MST: <strong>${comp.tax_code}</strong> &middot; ${comp.address || 'TP.HCM'} &middot;
-              <span style="color:#1B4332; font-weight:700;">${comp.verification_status === 'verified' ? '&#10003; Đã xác minh' : comp.verification_status}</span>
+              MST: <strong>${comp.tax_code}</strong> &middot; ${comp.address || "TP.HCM"} &middot;
+              <span style="color:#1B4332; font-weight:700;">${comp.verification_status === "verified" ? "&#10003; Đã xác minh" : comp.verification_status}</span>
             </div>
           </div>
           <div class="v3-svc-admin-actions">
@@ -6816,9 +8459,17 @@ window.GDXApp = (() => {
                 ? `<div class="field-hint" style="text-align:center; padding:28px;">Chưa có đơn hàng nào thuộc Công ty.</div>`
                 : myBookings
                     .map((b) => {
-                      const svc = (db.services || []).find((s) => Number(s.service_id) === Number(b.service_id));
-                      const prov = (db.provider_profiles || []).find((p) => Number(p.provider_id) === Number(b.provider_id));
-                      const provUser = prov ? (db.users || []).find((u) => String(u.user_id) === String(prov.user_id)) : null;
+                      const svc = (db.services || []).find(
+                        (s) => Number(s.service_id) === Number(b.service_id),
+                      );
+                      const prov = (db.provider_profiles || []).find(
+                        (p) => Number(p.provider_id) === Number(b.provider_id),
+                      );
+                      const provUser = prov
+                        ? (db.users || []).find(
+                            (u) => String(u.user_id) === String(prov.user_id),
+                          )
+                        : null;
                       const pill = getBookingPill(b.status);
                       return `
                     <div class="v3-dispatch-row" style="grid-template-columns: 120px minmax(0, 1.5fr) 160px 130px;">
@@ -6826,7 +8477,7 @@ window.GDXApp = (() => {
                       <div class="v3-dispatch-info">
                         <div class="v3-dispatch-svc">${svc ? svc.title : `Dịch vụ #${b.service_id}`}</div>
                         <div class="v3-dispatch-meta">
-                          Thợ: ${provUser ? provUser.full_name : (b.provider_id ? `Thợ #${b.provider_id}` : 'Chờ nhận (Pool)')} &middot;
+                          Thợ: ${provUser ? provUser.full_name : b.provider_id ? `Thợ #${b.provider_id}` : "Chờ nhận (Pool)"} &middot;
                           <span class="num">${formatDateTime(b.scheduled_time)}</span>
                         </div>
                       </div>
@@ -6839,30 +8490,34 @@ window.GDXApp = (() => {
                       <div class="v3-dispatch-amount num">${formatMoney(b.total_amount)}</div>
                     </div>`;
                     })
-                    .join('')
+                    .join("")
             }
           </div>
         </section>
       </div>
     `;
-  }
+    }
 
-  // 4.2: Quản lý Nhân viên Thợ (Company Staff Management)
-  function renderScreen_4_2(container) {
-    const db = window.GDX_DB;
-    const comp = getActiveCompanyProfile();
-    const allStaff = (db.provider_profiles || []).filter((p) => Number(p.company_id) === Number(comp.company_id));
-    const kw = (state.companyStaffFilter || '').trim().toLowerCase();
-    const staffList = allStaff.filter((p) => {
-      if (!kw) return true;
-      const u = (db.users || []).find((x) => String(x.user_id) === String(p.user_id));
-      const nameMatch = u && (u.full_name || '').toLowerCase().includes(kw);
-      const phoneMatch = u && (u.phone_number || '').includes(kw);
-      const cccdMatch = (p.id_card_number || '').includes(kw);
-      return Boolean(nameMatch || phoneMatch || cccdMatch);
-    });
+    // 4.2: Quản lý Nhân viên Thợ (Company Staff Management)
+    function renderScreen_4_2(container) {
+      const db = window.GDX_DB;
+      const comp = getActiveCompanyProfile();
+      const allStaff = (db.provider_profiles || []).filter(
+        (p) => Number(p.company_id) === Number(comp.company_id),
+      );
+      const kw = (state.companyStaffFilter || "").trim().toLowerCase();
+      const staffList = allStaff.filter((p) => {
+        if (!kw) return true;
+        const u = (db.users || []).find(
+          (x) => String(x.user_id) === String(p.user_id),
+        );
+        const nameMatch = u && (u.full_name || "").toLowerCase().includes(kw);
+        const phoneMatch = u && (u.phone_number || "").includes(kw);
+        const cccdMatch = (p.id_card_number || "").includes(kw);
+        return Boolean(nameMatch || phoneMatch || cccdMatch);
+      });
 
-    container.innerHTML = `
+      container.innerHTML = `
       <div class="v3-kyc-page">
         <div class="v3-svc-admin-header">
           <div>
@@ -6874,7 +8529,7 @@ window.GDXApp = (() => {
               id="companyStaffSearchInput"
               class="v3-profile-input"
               style="height:42px; width:280px; background:#FFFFFF;"
-              value="${escapeQuotes(state.companyStaffFilter || '')}"
+              value="${escapeQuotes(state.companyStaffFilter || "")}"
               placeholder="Tìm theo tên, SĐT, CCCD..."
               oninput="GDXApp.setCompanyStaffFilter(this.value)"
             >
@@ -6885,14 +8540,22 @@ window.GDXApp = (() => {
         <div class="v3-kyc-list">
           ${staffList
             .map((p) => {
-              const u = (db.users || []).find((x) => String(x.user_id) === String(p.user_id));
+              const u = (db.users || []).find(
+                (x) => String(x.user_id) === String(p.user_id),
+              );
               const isActive = u ? u.is_active !== false : true;
-              const assignedIds = (db.provider_services || []).filter((ps) => Number(ps.provider_id) === Number(p.provider_id)).map((ps) => Number(ps.service_id));
-              const assignedSvcs = (db.services || []).filter((s) => assignedIds.includes(Number(s.service_id)));
+              const assignedIds = (db.provider_services || [])
+                .filter(
+                  (ps) => Number(ps.provider_id) === Number(p.provider_id),
+                )
+                .map((ps) => Number(ps.service_id));
+              const assignedSvcs = (db.services || []).filter((s) =>
+                assignedIds.includes(Number(s.service_id)),
+              );
 
               return `
               <article class="v3-kyc-row">
-                <img src="${p.avatar_url || '/assets/provider-lan.jpg'}" onerror="this.onerror=null; this.src='/assets/provider-lan.jpg';" alt="${u ? u.full_name : 'Thợ'}" class="v3-kyc-avatar" style="object-fit:cover;">
+                <img src="${p.avatar_url || "/assets/provider-lan.jpg"}" onerror="this.onerror=null; this.src='/assets/provider-lan.jpg';" alt="${u ? u.full_name : "Thợ"}" class="v3-kyc-avatar" style="object-fit:cover;">
 
                 <div class="v3-kyc-info">
                   <div class="v3-kyc-name">
@@ -6900,16 +8563,16 @@ window.GDXApp = (() => {
                     <span class="num" style="font-weight:600; color:#64748B;">&#9733; ${Number(p.average_rating || 5).toFixed(2)}</span>
                   </div>
                   <div class="v3-kyc-meta">
-                    SĐT: <span class="num">${u ? u.phone_number : '—'}</span> &middot;
+                    SĐT: <span class="num">${u ? u.phone_number : "—"}</span> &middot;
                     CCCD: <span class="num">${formatCccd(p.id_card_number)}</span> &middot;
-                    ${assignedSvcs.length > 0 ? assignedSvcs.map((s) => s.title).join(', ') : 'Chưa phân công dịch vụ'}
+                    ${assignedSvcs.length > 0 ? assignedSvcs.map((s) => s.title).join(", ") : "Chưa phân công dịch vụ"}
                   </div>
                 </div>
 
                 <div>
-                  <span class="v3-booking-pill ${isActive ? 'is-completed' : 'is-cancelled'}">
-                    <span class="v3-booking-pill-icon" aria-hidden="true">${isActive ? '✓' : '✕'}</span>
-                    <span>${isActive ? 'Đang hoạt động' : 'Đã khóa'}</span>
+                  <span class="v3-booking-pill ${isActive ? "is-completed" : "is-cancelled"}">
+                    <span class="v3-booking-pill-icon" aria-hidden="true">${isActive ? "✓" : "✕"}</span>
+                    <span>${isActive ? "Đang hoạt động" : "Đã khóa"}</span>
                   </span>
                 </div>
 
@@ -6917,57 +8580,65 @@ window.GDXApp = (() => {
                   <button type="button" class="v3-kyc-btn-light" onclick="GDXApp.openModal('4.4', {providerId: ${p.provider_id}})">
                     Phân công
                   </button>
-                  <button type="button" class="${isActive ? 'v3-kyc-btn-danger' : 'v3-kyc-btn-primary'}" onclick="GDXApp.companyToggleProviderBan(${p.provider_id})">
-                    ${isActive ? 'Khóa (Ban)' : 'Mở khóa'}
+                  <button type="button" class="${isActive ? "v3-kyc-btn-danger" : "v3-kyc-btn-primary"}" onclick="GDXApp.companyToggleProviderBan(${p.provider_id})">
+                    ${isActive ? "Khóa (Ban)" : "Mở khóa"}
                   </button>
                 </div>
               </article>`;
             })
-            .join('')}
-          ${staffList.length === 0 ? '<div class="panel empty-state-card" style="border-radius:20px;">Chưa có nhân viên Thợ nào khớp với tìm kiếm.</div>' : ''}
+            .join("")}
+          ${staffList.length === 0 ? '<div class="panel empty-state-card" style="border-radius:20px;">Chưa có nhân viên Thợ nào khớp với tìm kiếm.</div>' : ""}
         </div>
       </div>
     `;
-  }
+    }
 
-  function setCompanyStaffFilter(val) {
-    state.companyStaffFilter = val || '';
-    const activeId = document.activeElement && document.activeElement.id;
-    go('4.2');
-    if (activeId === 'companyStaffSearchInput') {
-      const inp = document.getElementById('companyStaffSearchInput');
-      if (inp) {
-        inp.focus();
-        const len = inp.value.length;
-        inp.setSelectionRange(len, len);
+    function setCompanyStaffFilter(val) {
+      state.companyStaffFilter = val || "";
+      const activeId = document.activeElement && document.activeElement.id;
+      go("4.2");
+      if (activeId === "companyStaffSearchInput") {
+        const inp = document.getElementById("companyStaffSearchInput");
+        if (inp) {
+          inp.focus();
+          const len = inp.value.length;
+          inp.setSelectionRange(len, len);
+        }
       }
     }
-  }
 
-  async function companyToggleProviderBan(providerId) {
-    const db = window.GDX_DB;
-    const prov = (db.provider_profiles || []).find((p) => Number(p.provider_id) === Number(providerId));
-    if (!prov) return;
-    const u = (db.users || []).find((x) => String(x.user_id) === String(prov.user_id));
-    if (u) {
-      u.is_active = !u.is_active;
+    async function companyToggleProviderBan(providerId) {
+      const db = window.GDX_DB;
+      const prov = (db.provider_profiles || []).find(
+        (p) => Number(p.provider_id) === Number(providerId),
+      );
+      if (!prov) return;
+      const u = (db.users || []).find(
+        (x) => String(x.user_id) === String(prov.user_id),
+      );
+      if (u) {
+        u.is_active = !u.is_active;
+      }
+      refreshClientPublicProviders();
+      await apiRequest(`/api/company/providers/${providerId}/toggle-ban`, {
+        method: "PATCH",
+        body: JSON.stringify({ company_id: prov.company_id }),
+      });
+      showToast(
+        `Nhân viên ${u ? u.full_name : `#${providerId}`}: ${!u || u.is_active ? "Đã mở khóa tài khoản" : "Đã khóa tài khoản"}`,
+      );
+      if (state.currentScreen === "4.2") go("4.2");
     }
-    refreshClientPublicProviders();
-    await apiRequest(`/api/company/providers/${providerId}/toggle-ban`, {
-      method: 'PATCH',
-      body: JSON.stringify({ company_id: prov.company_id })
-    });
-    showToast(`Nhân viên ${u ? u.full_name : `#${providerId}`}: ${!u || u.is_active ? 'Đã mở khóa tài khoản' : 'Đã khóa tài khoản'}`);
-    if (state.currentScreen === '4.2') go('4.2');
-  }
 
-  // 4.3: Quản lý Dịch vụ & Bảng giá Công ty
-  function renderScreen_4_3(container) {
-    const db = window.GDX_DB;
-    const comp = getActiveCompanyProfile();
-    const myServices = (db.services || []).filter((s) => Number(s.company_id) === Number(comp.company_id));
+    // 4.3: Quản lý Dịch vụ & Bảng giá Công ty
+    function renderScreen_4_3(container) {
+      const db = window.GDX_DB;
+      const comp = getActiveCompanyProfile();
+      const myServices = (db.services || []).filter(
+        (s) => Number(s.company_id) === Number(comp.company_id),
+      );
 
-    container.innerHTML = `
+      container.innerHTML = `
       <div class="v3-svc-admin-page">
         <div class="v3-svc-admin-header">
           <h1 class="v3-svc-admin-title">Dịch vụ &amp; Bảng giá (${comp.company_name})</h1>
@@ -6980,148 +8651,226 @@ window.GDXApp = (() => {
               ? `<div class="panel empty-state-card" style="border-radius:20px; text-align:center; padding:42px 24px;">Công ty chưa tạo dịch vụ nào.</div>`
               : myServices
                   .map((s) => {
-                    const cat = (db.service_categories || []).find((c) => Number(c.category_id) === Number(s.category_id));
-                    const unit = s.pricing_type === 'hourly' ? '/giờ' : '/lần';
+                    const cat = (db.service_categories || []).find(
+                      (c) => Number(c.category_id) === Number(s.category_id),
+                    );
+                    const unit = s.pricing_type === "hourly" ? "/giờ" : "/lần";
                     return `
                   <article class="v3-svc-admin-row" style="grid-template-columns: 112px minmax(0, 1fr) auto auto;">
-                    <img src="${s.image_url || '/assets/cleaning-livingroom.jpg'}" alt="${s.title}" class="v3-svc-admin-thumb">
+                    <img src="${s.image_url || "/assets/cleaning-livingroom.jpg"}" alt="${s.title}" class="v3-svc-admin-thumb">
                     <div class="v3-svc-admin-info">
                       <div class="v3-svc-admin-name">${s.title}</div>
                       <div class="v3-svc-admin-price num">
                         Đơn giá: ${formatMoney(s.price)}${unit} &middot; ~${s.estimated_duration} phút
-                        ${cat ? ` &middot; ${cat.name}` : ''}
+                        ${cat ? ` &middot; ${cat.name}` : ""}
                       </div>
                     </div>
-                    <button type="button" class="v3-booking-pill ${s.is_active ? 'is-completed' : 'is-cancelled'}" style="border:none; cursor:pointer;" onclick="GDXApp.companyToggleService(${s.service_id})" title="Bấm để bật/tắt dịch vụ">
-                      <span class="v3-booking-pill-icon" aria-hidden="true">${s.is_active ? '✓' : '✕'}</span>
-                      <span>${s.is_active ? 'Đang mở' : 'Tạm ẩn'}</span>
+                    <button type="button" class="v3-booking-pill ${s.is_active ? "is-completed" : "is-cancelled"}" style="border:none; cursor:pointer;" onclick="GDXApp.companyToggleService(${s.service_id})" title="Bấm để bật/tắt dịch vụ">
+                      <span class="v3-booking-pill-icon" aria-hidden="true">${s.is_active ? "✓" : "✕"}</span>
+                      <span>${s.is_active ? "Đang mở" : "Tạm ẩn"}</span>
                     </button>
                     <button type="button" class="v3-svc-admin-edit-btn" onclick="GDXApp.openModal('4.5', {serviceId: ${s.service_id}})">
                       Chỉnh sửa
                     </button>
                   </article>`;
                   })
-                  .join('')
+                  .join("")
           }
         </div>
       </div>
     `;
-  }
-
-  async function companyToggleService(serviceId) {
-    const db = window.GDX_DB;
-    const svc = (db.services || []).find((s) => Number(s.service_id) === Number(serviceId));
-    if (!svc) return;
-    svc.is_active = !svc.is_active;
-    await apiRequest(`/api/company/services/${serviceId}/toggle`, {
-      method: 'PATCH',
-      body: JSON.stringify({ company_id: svc.company_id })
-    });
-    showToast(`Dịch vụ "${svc.title}": ${svc.is_active ? 'Đã mở bán' : 'Đã tạm ẩn'}`);
-    if (state.currentScreen === '4.3') go('4.3');
-    else if (state.currentScreen === '3.2') go('3.2');
-  }
-
-  // =====================================================================
-  // 15 MODALS & DRAWERS (1.7 – 1.11, 2.6 – 2.9, 3.5 – 3.9, SUPABASE_STATUS, CATALOG)
-  // =====================================================================
-  function openModal(modalId, params = {}) {
-    const dialog = document.getElementById('appModal');
-    const content = document.getElementById('modalInnerContent');
-    if (!dialog || !content) return;
-
-    dialog.className = 'modal-dialog';
-    if (modalId === '1.7' || modalId === '1.11' || modalId === '2.9' || modalId === '3.5') {
-      dialog.classList.add('is-drawer');
     }
 
-    switch (modalId) {
-      case '1.7': renderModal_1_7(content, params); break;
-      case '1.8': renderModal_1_8(content, params); break;
-      case '1.9': renderModal_1_9(content, params); break;
-      case '1.10': renderModal_1_10(content, params); break;
-      case '1.11': renderModal_1_11(content, params); break;
-
-      case '2.5': renderModal_2_5(content, params); break;
-      case '2.6': renderModal_2_6(content, params); break;
-      case '2.7': renderModal_2_7(content, params); break;
-      case '2.8': renderModal_2_8(content, params); break;
-      case '2.9': renderModal_2_9(content, params); break;
-
-      case '3.5': renderModal_3_5(content, params); break;
-      case '3.6': renderModal_3_6(content, params); break;
-      case '3.7': renderModal_3_7(content, params); break;
-      case '3.8': renderModal_3_8(content, params); break;
-      case '3.9': renderModal_3_9(content, params); break;
-
-      case '4.4': renderModal_4_4(content, params); break;
-      case '4.5': renderModal_4_5(content, params); break;
-
-      case 'SUPABASE_STATUS': renderModal_SupabaseStatus(content); break;
-      case 'CATALOG': renderModal_Catalog(content); break;
-      default:
-        content.innerHTML = `<div class="modal-body"><p>Hộp thoại ${modalId}</p></div>`;
+    async function companyToggleService(serviceId) {
+      const db = window.GDX_DB;
+      const svc = (db.services || []).find(
+        (s) => Number(s.service_id) === Number(serviceId),
+      );
+      if (!svc) return;
+      svc.is_active = !svc.is_active;
+      await apiRequest(`/api/company/services/${serviceId}/toggle`, {
+        method: "PATCH",
+        body: JSON.stringify({ company_id: svc.company_id }),
+      });
+      showToast(
+        `Dịch vụ "${svc.title}": ${svc.is_active ? "Đã mở bán" : "Đã tạm ẩn"}`,
+      );
+      if (state.currentScreen === "4.3") go("4.3");
+      else if (state.currentScreen === "3.2") go("3.2");
     }
 
-    applyUserModeCleanups(content, modalId);
-    if (!dialog.open) {
-      dialog.showModal();
-    }
-  }
+    // =====================================================================
+    // 15 MODALS & DRAWERS (1.7 – 1.11, 2.6 – 2.9, 3.5 – 3.9, SUPABASE_STATUS, CATALOG)
+    // =====================================================================
+    function openModal(modalId, params = {}) {
+      const dialog = document.getElementById("appModal");
+      const content = document.getElementById("modalInnerContent");
+      if (!dialog || !content) return;
 
-  function closeModal() {
-    const dialog = document.getElementById('appModal');
-    if (!dialog) return;
-    state.activeModal = null;
-    try {
-      if (dialog.open) {
-        closeTopLayer(dialog);
-      } else {
-        if (typeof dialog.close === 'function') dialog.close();
-        dialog.removeAttribute('open');
+      dialog.className = "modal-dialog";
+      if (
+        modalId === "1.7" ||
+        modalId === "1.11" ||
+        modalId === "2.9" ||
+        modalId === "3.5"
+      ) {
+        dialog.classList.add("is-drawer");
       }
-    } catch (_e) {
-      dialog.removeAttribute('open');
+
+      switch (modalId) {
+        case "1.7":
+          renderModal_1_7(content, params);
+          break;
+        case "1.8":
+          renderModal_1_8(content, params);
+          break;
+        case "1.9":
+          renderModal_1_9(content, params);
+          break;
+        case "1.10":
+          renderModal_1_10(content, params);
+          break;
+        case "1.11":
+          renderModal_1_11(content, params);
+          break;
+
+        case "2.5":
+          renderModal_2_5(content, params);
+          break;
+        case "2.6":
+          renderModal_2_6(content, params);
+          break;
+        case "2.7":
+          renderModal_2_7(content, params);
+          break;
+        case "2.8":
+          renderModal_2_8(content, params);
+          break;
+        case "2.9":
+          renderModal_2_9(content, params);
+          break;
+
+        case "3.5":
+          renderModal_3_5(content, params);
+          break;
+        case "3.6":
+          renderModal_3_6(content, params);
+          break;
+        case "3.7":
+          renderModal_3_7(content, params);
+          break;
+        case "3.8":
+          renderModal_3_8(content, params);
+          break;
+        case "3.9":
+          renderModal_3_9(content, params);
+          break;
+
+        case "4.4":
+          renderModal_4_4(content, params);
+          break;
+        case "4.5":
+          renderModal_4_5(content, params);
+          break;
+
+        case "SUPABASE_STATUS":
+          renderModal_SupabaseStatus(content);
+          break;
+        case "CATALOG":
+          renderModal_Catalog(content);
+          break;
+        default:
+          content.innerHTML = `<div class="modal-body"><p>Hộp thoại ${modalId}</p></div>`;
+      }
+
+      applyUserModeCleanups(content, modalId);
+      if (!dialog.open) {
+        dialog.showModal();
+      }
     }
-  }
 
-  // 1.7: Hồ sơ công khai của Thợ & Lịch rảnh tuần (Drawer / Schedule Dialog)
-  function renderModal_1_7(el, params = {}) {
-    const db = window.GDX_DB;
-    const provId = params.providerId || 201;
-    const p = db.provider_public_profiles.find((x) => x.provider_id === provId) || db.provider_public_profiles[0];
-    const isFavProv = (db.favorites || []).some((f) => Number(f.customer_id) === state.activeCustomerId && Number(f.provider_id) === p.provider_id);
-    const revs = db.reviews.filter((r) => r.provider_id === p.provider_id && r.status !== 'hidden');
-    const skillIds = db.provider_services.filter((ps) => ps.provider_id === p.provider_id).map((ps) => ps.service_id);
-    const skills = db.services.filter((s) => skillIds.includes(s.service_id));
-    const schedules = db.availability_schedules.filter((a) => a.provider_id === p.provider_id && a.is_available);
-    const exceptions = db.availability_exceptions.filter((e) => e.provider_id === p.provider_id && !e.is_available);
+    function closeModal() {
+      const dialog = document.getElementById("appModal");
+      if (!dialog) return;
+      state.activeModal = null;
+      try {
+        if (dialog.open) {
+          closeTopLayer(dialog);
+        } else {
+          if (typeof dialog.close === "function") dialog.close();
+          dialog.removeAttribute("open");
+        }
+      } catch (_e) {
+        dialog.removeAttribute("open");
+      }
+    }
 
-    const days = [
-      { dow: 1, label: 'Thứ 2' },
-      { dow: 2, label: 'Thứ 3' },
-      { dow: 3, label: 'Thứ 4' },
-      { dow: 4, label: 'Thứ 5' },
-      { dow: 5, label: 'Thứ 6' },
-      { dow: 6, label: 'Thứ 7' },
-      { dow: 0, label: 'CN' }
-    ];
-    const shifts = [
-      { id: 'morning', name: 'Ca Sáng', sub: '08h - 12h', iso: '2026-10-25T08:30' },
-      { id: 'afternoon', name: 'Ca Chiều', sub: '13h - 17h', iso: '2026-10-25T13:30' },
-      { id: 'evening', name: 'Ca Tối', sub: '17h - 21h', iso: '2026-10-25T18:00' }
-    ];
+    // 1.7: Hồ sơ công khai của Thợ & Lịch rảnh tuần (Drawer / Schedule Dialog)
+    function renderModal_1_7(el, params = {}) {
+      const db = window.GDX_DB;
+      const provId = params.providerId || 201;
+      const p =
+        db.provider_public_profiles.find((x) => x.provider_id === provId) ||
+        db.provider_public_profiles[0];
+      const isFavProv = (db.favorites || []).some(
+        (f) =>
+          Number(f.customer_id) === state.activeCustomerId &&
+          Number(f.provider_id) === p.provider_id,
+      );
+      const revs = db.reviews.filter(
+        (r) => r.provider_id === p.provider_id && r.status !== "hidden",
+      );
+      const skillIds = db.provider_services
+        .filter((ps) => ps.provider_id === p.provider_id)
+        .map((ps) => ps.service_id);
+      const skills = db.services.filter((s) => skillIds.includes(s.service_id));
+      const schedules = db.availability_schedules.filter(
+        (a) => a.provider_id === p.provider_id && a.is_available,
+      );
+      const exceptions = db.availability_exceptions.filter(
+        (e) => e.provider_id === p.provider_id && !e.is_available,
+      );
 
-    const latestReviewText =
-      revs.length > 0
-        ? revs[0].comment
-        : p.info || 'Làm việc rất sạch sẽ, đúng giờ và tinh tế.';
+      const days = [
+        { dow: 1, label: "Thứ 2" },
+        { dow: 2, label: "Thứ 3" },
+        { dow: 3, label: "Thứ 4" },
+        { dow: 4, label: "Thứ 5" },
+        { dow: 5, label: "Thứ 6" },
+        { dow: 6, label: "Thứ 7" },
+        { dow: 0, label: "CN" },
+      ];
+      const shifts = [
+        {
+          id: "morning",
+          name: "Ca Sáng",
+          sub: "08h - 12h",
+          iso: "2026-10-25T08:30",
+        },
+        {
+          id: "afternoon",
+          name: "Ca Chiều",
+          sub: "13h - 17h",
+          iso: "2026-10-25T13:30",
+        },
+        {
+          id: "evening",
+          name: "Ca Tối",
+          sub: "17h - 21h",
+          iso: "2026-10-25T18:00",
+        },
+      ];
 
-    el.innerHTML = `
+      const latestReviewText =
+        revs.length > 0
+          ? revs[0].comment
+          : p.info || "Làm việc rất sạch sẽ, đúng giờ và tinh tế.";
+
+      el.innerHTML = `
       <div class="v3-prov-drawer">
         <div class="v3-prov-drawer-head">
           <div class="v3-prov-identity">
-            <img src="${p.avatar_url || '/assets/provider-lan.jpg'}" onerror="this.onerror=null; this.src='/assets/provider-lan.jpg';" alt="${p.full_name}" class="v3-prov-avatar">
+            <img src="${p.avatar_url || "/assets/provider-lan.jpg"}" onerror="this.onerror=null; this.src='/assets/provider-lan.jpg';" alt="${p.full_name}" class="v3-prov-avatar">
             <div>
               <h2 class="v3-prov-name">${p.full_name}</h2>
               <div class="v3-prov-badge-pill">
@@ -7132,8 +8881,8 @@ window.GDXApp = (() => {
             </div>
           </div>
           <div class="v3-prov-head-actions">
-            <button type="button" class="v3-prov-icon-btn ${isFavProv ? 'is-active' : ''}" onclick="GDXApp.toggleProviderFavorite(${p.provider_id}); GDXApp.openModal('1.7', {providerId: ${p.provider_id}})" title="${isFavProv ? 'Bỏ lưu thợ' : 'Lưu thợ yêu thích'}" aria-label="Lưu thợ">
-              ${isFavProv ? '&#10084;' : '&#9825;'}
+            <button type="button" class="v3-prov-icon-btn ${isFavProv ? "is-active" : ""}" onclick="GDXApp.toggleProviderFavorite(${p.provider_id}); GDXApp.openModal('1.7', {providerId: ${p.provider_id}})" title="${isFavProv ? "Bỏ lưu thợ" : "Lưu thợ yêu thích"}" aria-label="Lưu thợ">
+              ${isFavProv ? "&#10084;" : "&#9825;"}
             </button>
             <button type="button" class="v3-prov-icon-btn" onclick="GDXApp.closeModal()" aria-label="Đóng">&times;</button>
           </div>
@@ -7143,7 +8892,9 @@ window.GDXApp = (() => {
           <div class="v3-prov-tags">
             ${
               skills.length > 0
-                ? skills.map((s) => `<span class="v3-prov-tag">${s.title}</span>`).join('')
+                ? skills
+                    .map((s) => `<span class="v3-prov-tag">${s.title}</span>`)
+                    .join("")
                 : `<span class="v3-prov-tag">Dọn dẹp nhà cửa</span><span class="v3-prov-tag">Tổng vệ sinh</span>`
             }
           </div>
@@ -7162,7 +8913,7 @@ window.GDXApp = (() => {
                 <thead>
                   <tr>
                     <th>Ca / Ngày</th>
-                    ${days.map((d) => `<th>${d.label}</th>`).join('')}
+                    ${days.map((d) => `<th>${d.label}</th>`).join("")}
                   </tr>
                 </thead>
                 <tbody>
@@ -7174,8 +8925,12 @@ window.GDXApp = (() => {
                       ${days
                         .map((d) => {
                           const hasSchedule =
-                            schedules.length === 0 || schedules.some((sc) => Number(sc.day_of_week) === d.dow);
-                          const isEveningOff = sIdx === 2 && (d.dow === 0 || d.dow === 3);
+                            schedules.length === 0 ||
+                            schedules.some(
+                              (sc) => Number(sc.day_of_week) === d.dow,
+                            );
+                          const isEveningOff =
+                            sIdx === 2 && (d.dow === 0 || d.dow === 3);
                           const isAvail = hasSchedule && !isEveningOff;
                           return `
                           <td>
@@ -7186,17 +8941,17 @@ window.GDXApp = (() => {
                             }
                           </td>`;
                         })
-                        .join('')}
-                    </tr>`
+                        .join("")}
+                    </tr>`,
                     )
-                    .join('')}
+                    .join("")}
                 </tbody>
               </table>
             </div>
             ${
               exceptions.length > 0
-                ? `<div class="field-hint">Ngày nghỉ đột xuất: <strong>${exceptions.map((ex) => `${ex.exception_date} (${ex.reason || 'Bận cá nhân'})`).join(', ')}</strong></div>`
-                : ''
+                ? `<div class="field-hint">Ngày nghỉ đột xuất: <strong>${exceptions.map((ex) => `${ex.exception_date} (${ex.reason || "Bận cá nhân"})`).join(", ")}</strong></div>`
+                : ""
             }
             <div class="selected-slot-box" id="modalSelectedSlotBox">
               <span style="font-size:0.875rem; font-weight:600; color:var(--color-primary);">Ca hẹn đã chọn:</span>
@@ -7214,11 +8969,11 @@ window.GDXApp = (() => {
                           <span class="field-hint num">Đơn #${shortCode(r.booking_id)}</span>
                         </div>
                         <div style="margin-top:4px; font-size:0.875rem;">"${r.comment}"</div>
-                      </div>`
+                      </div>`,
                       )
-                      .join('')}
+                      .join("")}
                   </div>`
-                : ''
+                : ""
             }
           </div>
         </div>
@@ -7230,34 +8985,36 @@ window.GDXApp = (() => {
         </div>
       </div>
     `;
-  }
-
-  function selectScheduleSlotInModal(btn, label, isoTime) {
-    const dialog = document.getElementById('appModal');
-    if (dialog) {
-      dialog.querySelectorAll('.slot-btn.is-selected').forEach((b) => {
-        b.classList.remove('is-selected');
-        b.classList.add('is-available');
-        b.textContent = 'Trống';
-      });
     }
-    btn.classList.remove('is-available');
-    btn.classList.add('is-selected');
-    btn.textContent = '✓ Chọn';
-    const labelEl = document.getElementById('modalSelectedSlotLabel');
-    if (labelEl) labelEl.textContent = label;
-    if (isoTime) state.wizardDraft.scheduled_time = isoTime;
-  }
 
-  // 1.8: Cổng Thanh toán hóa đơn (Checkout Modal)
-  function renderModal_1_8(el, params = {}) {
-    const db = window.GDX_DB;
-    const bk = db.bookings.find((b) => b.booking_id === (params.bookingId || 1042)) || db.bookings[0];
-    const svc = db.services.find((s) => s.service_id === bk.service_id);
-    const total = bk.total_amount + bk.total_incidental;
-    state.checkoutSelectedPayMethod = 'bank';
+    function selectScheduleSlotInModal(btn, label, isoTime) {
+      const dialog = document.getElementById("appModal");
+      if (dialog) {
+        dialog.querySelectorAll(".slot-btn.is-selected").forEach((b) => {
+          b.classList.remove("is-selected");
+          b.classList.add("is-available");
+          b.textContent = "Trống";
+        });
+      }
+      btn.classList.remove("is-available");
+      btn.classList.add("is-selected");
+      btn.textContent = "✓ Chọn";
+      const labelEl = document.getElementById("modalSelectedSlotLabel");
+      if (labelEl) labelEl.textContent = label;
+      if (isoTime) state.wizardDraft.scheduled_time = isoTime;
+    }
 
-    el.innerHTML = `
+    // 1.8: Cổng Thanh toán hóa đơn (Checkout Modal)
+    function renderModal_1_8(el, params = {}) {
+      const db = window.GDX_DB;
+      const bk =
+        db.bookings.find((b) => b.booking_id === (params.bookingId || 1042)) ||
+        db.bookings[0];
+      const svc = db.services.find((s) => s.service_id === bk.service_id);
+      const total = bk.total_amount + bk.total_incidental;
+      state.checkoutSelectedPayMethod = "bank";
+
+      el.innerHTML = `
       <div class="modal-header">
         <div>
           <div class="modal-title">1.8. Xác nhận Thanh toán Hóa đơn #${shortCode(bk.booking_id)}</div>
@@ -7270,7 +9027,7 @@ window.GDXApp = (() => {
           <div class="slip-row">
             <span>Gói dịch vụ</span>
             <span class="slip-dots"></span>
-            <strong>${svc ? svc.title : 'Dịch vụ'}</strong>
+            <strong>${svc ? svc.title : "Dịch vụ"}</strong>
           </div>
           <div class="slip-row">
             <span>Phí dịch vụ cơ bản</span>
@@ -7318,69 +9075,84 @@ window.GDXApp = (() => {
         </button>
       </div>
     `;
-  }
+    }
 
-  function setCheckoutPayMethod(method) {
-    state.checkoutSelectedPayMethod = method;
-    const bCard = document.getElementById('payMethodBankCard');
-    const cCard = document.getElementById('payMethodCashCard');
-    if (bCard && cCard) {
-      if (method === 'bank') {
-        bCard.classList.add('is-selected');
-        cCard.classList.remove('is-selected');
-        const r = bCard.querySelector('input[type="radio"]');
-        if (r) r.checked = true;
-      } else {
-        cCard.classList.add('is-selected');
-        bCard.classList.remove('is-selected');
-        const r = cCard.querySelector('input[type="radio"]');
-        if (r) r.checked = true;
+    function setCheckoutPayMethod(method) {
+      state.checkoutSelectedPayMethod = method;
+      const bCard = document.getElementById("payMethodBankCard");
+      const cCard = document.getElementById("payMethodCashCard");
+      if (bCard && cCard) {
+        if (method === "bank") {
+          bCard.classList.add("is-selected");
+          cCard.classList.remove("is-selected");
+          const r = bCard.querySelector('input[type="radio"]');
+          if (r) r.checked = true;
+        } else {
+          cCard.classList.add("is-selected");
+          bCard.classList.remove("is-selected");
+          const r = cCard.querySelector('input[type="radio"]');
+          if (r) r.checked = true;
+        }
       }
     }
-  }
 
-  function submitInvoicePayment(bookingId) {
-    const method = state.checkoutSelectedPayMethod || 'bank';
-    closeModal();
-    if (method === 'bank') {
-      go('1.8', { bookingId, payMethod: 'bank' });
-    } else {
-      confirmBookingPayment(bookingId, 'CASH');
-    }
-  }
-
-  function confirmBookingPayment(bookingId, method = 'CASH') {
-    const bk = window.GDX_DB.bookings.find((b) => String(b.booking_id) === String(bookingId));
-    if (bk) bk.payment_status = 'paid';
-    const actorId = (typeof state.activeUserId === 'string' && /^[0-9a-f-]{36}$/i.test(state.activeUserId))
-      ? state.activeUserId
-      : 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
-    apiRequest(`/api/bookings/${bookingId}/pay`, {
-      method: 'POST',
-      body: JSON.stringify({ booking_id: bookingId, method, changed_by: actorId })
-    });
-    closeModal();
-    showToast(`Đã ghi nhận thanh toán hóa đơn #${bookingId} thành công!`);
-    go(state.currentScreen, { bookingId });
-  }
-
-  let qrTimerInterval = null;
-
-  // 1.8: Trang quét QR Chuyển khoản giả định (VietQR Payment Gateway)
-  function renderScreen_1_8(container, params = {}) {
-    if (qrTimerInterval) {
-      clearInterval(qrTimerInterval);
-      qrTimerInterval = null;
+    function submitInvoicePayment(bookingId) {
+      const method = state.checkoutSelectedPayMethod || "bank";
+      closeModal();
+      if (method === "bank") {
+        go("1.8", { bookingId, payMethod: "bank" });
+      } else {
+        confirmBookingPayment(bookingId, "CASH");
+      }
     }
 
-    const db = window.GDX_DB;
-    const bookingId = params.bookingId != null ? params.bookingId : (db.bookings[0] ? db.bookings[0].booking_id : 1042);
-    const bk = db.bookings.find((b) => String(b.booking_id) === String(bookingId)) || db.bookings[0];
-    const svc = db.services.find((s) => s.service_id === bk.service_id);
-    const total = (bk.total_amount || 0) + (bk.total_incidental || 0);
-    const transferMemo = `GDX ${shortCode(bk.booking_id).replace(/^GDX-?/, '')}`;
+    function confirmBookingPayment(bookingId, method = "CASH") {
+      const bk = window.GDX_DB.bookings.find(
+        (b) => String(b.booking_id) === String(bookingId),
+      );
+      if (bk) bk.payment_status = "paid";
+      const actorId =
+        typeof state.activeUserId === "string" &&
+        /^[0-9a-f-]{36}$/i.test(state.activeUserId)
+          ? state.activeUserId
+          : "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
+      apiRequest(`/api/bookings/${bookingId}/pay`, {
+        method: "POST",
+        body: JSON.stringify({
+          booking_id: bookingId,
+          method,
+          changed_by: actorId,
+        }),
+      });
+      closeModal();
+      showToast(`Đã ghi nhận thanh toán hóa đơn #${bookingId} thành công!`);
+      go(state.currentScreen, { bookingId });
+    }
 
-    container.innerHTML = `
+    let qrTimerInterval = null;
+
+    // 1.8: Trang quét QR Chuyển khoản giả định (VietQR Payment Gateway)
+    function renderScreen_1_8(container, params = {}) {
+      if (qrTimerInterval) {
+        clearInterval(qrTimerInterval);
+        qrTimerInterval = null;
+      }
+
+      const db = window.GDX_DB;
+      const bookingId =
+        params.bookingId != null
+          ? params.bookingId
+          : db.bookings[0]
+            ? db.bookings[0].booking_id
+            : 1042;
+      const bk =
+        db.bookings.find((b) => String(b.booking_id) === String(bookingId)) ||
+        db.bookings[0];
+      const svc = db.services.find((s) => s.service_id === bk.service_id);
+      const total = (bk.total_amount || 0) + (bk.total_incidental || 0);
+      const transferMemo = `GDX ${shortCode(bk.booking_id).replace(/^GDX-?/, "")}`;
+
+      container.innerHTML = `
       <div class="v3-vietqr-wrap">
         <div class="v3-vietqr-card">
           <div class="v3-vietqr-head">
@@ -7438,7 +9210,7 @@ window.GDXApp = (() => {
               <div class="slip-row">
                 <span>Đơn hàng</span>
                 <span class="slip-dots"></span>
-                <strong>#${shortCode(bk.booking_id)} (${svc ? svc.title : ''})</strong>
+                <strong>#${shortCode(bk.booking_id)} (${svc ? svc.title : ""})</strong>
               </div>
               <div class="slip-row">
                 <span>Trạng thái cơ sở dữ liệu</span>
@@ -7454,132 +9226,152 @@ window.GDXApp = (() => {
       </div>
     `;
 
-    // Start 10-second countdown
-    let remaining = 10;
-    const progressEl = document.getElementById('qrProgressBar');
-    const secEl = document.getElementById('qrCountdownSec');
+      // Start 10-second countdown
+      let remaining = 10;
+      const progressEl = document.getElementById("qrProgressBar");
+      const secEl = document.getElementById("qrCountdownSec");
 
-    qrTimerInterval = setInterval(() => {
-      remaining--;
-      if (secEl) secEl.textContent = `${remaining}s`;
-      if (progressEl) {
-        const pct = ((10 - remaining) / 10) * 100;
-        progressEl.style.width = `${pct}%`;
-      }
+      qrTimerInterval = setInterval(() => {
+        remaining--;
+        if (secEl) secEl.textContent = `${remaining}s`;
+        if (progressEl) {
+          const pct = ((10 - remaining) / 10) * 100;
+          progressEl.style.width = `${pct}%`;
+        }
 
-      if (remaining <= 0) {
+        if (remaining <= 0) {
+          clearInterval(qrTimerInterval);
+          qrTimerInterval = null;
+          executeQrPaymentSuccess(bk.booking_id);
+        }
+      }, 1000);
+    }
+
+    async function executeQrPaymentSuccess(bookingId) {
+      if (qrTimerInterval) {
         clearInterval(qrTimerInterval);
         qrTimerInterval = null;
-        executeQrPaymentSuccess(bk.booking_id);
       }
-    }, 1000);
-  }
 
-  async function executeQrPaymentSuccess(bookingId) {
-    if (qrTimerInterval) {
-      clearInterval(qrTimerInterval);
-      qrTimerInterval = null;
-    }
+      const db = window.GDX_DB;
+      const bk =
+        (bookingId != null
+          ? db.bookings.find((b) => String(b.booking_id) === String(bookingId))
+          : null) || db.bookings[0];
+      if (!bk) return;
 
-    const db = window.GDX_DB;
-    const bk = (bookingId != null ? db.bookings.find((b) => String(b.booking_id) === String(bookingId)) : null) || db.bookings[0];
-    if (!bk) return;
+      const actualId = bk.booking_id;
+      const total = (bk.total_amount || 0) + (bk.total_incidental || 0);
+      const txId = "VCB-QR" + Date.now().toString().slice(-7);
+      const nowIso = new Date().toISOString();
 
-    const actualId = bk.booking_id;
-    const total = (bk.total_amount || 0) + (bk.total_incidental || 0);
-    const txId = 'VCB-QR' + Date.now().toString().slice(-7);
-    const nowIso = new Date().toISOString();
+      const mainGrid = document.getElementById("vietqrMainGrid");
+      const successCard = document.getElementById("vietqrSuccessState");
+      const txDisplay = document.getElementById("txIdDisplay");
+      if (mainGrid) mainGrid.style.display = "none";
+      if (successCard) {
+        successCard.style.display = "block";
+        if (txDisplay) txDisplay.textContent = txId;
+      }
 
-    const mainGrid = document.getElementById('vietqrMainGrid');
-    const successCard = document.getElementById('vietqrSuccessState');
-    const txDisplay = document.getElementById('txIdDisplay');
-    if (mainGrid) mainGrid.style.display = 'none';
-    if (successCard) {
-      successCard.style.display = 'block';
-      if (txDisplay) txDisplay.textContent = txId;
-    }
+      bk.payment_status = "paid";
+      bk.paid_at = nowIso;
+      bk.updated_at = nowIso;
 
-    bk.payment_status = 'paid';
-    bk.paid_at = nowIso;
-    bk.updated_at = nowIso;
+      const actorUuid =
+        typeof state.activeUserId === "string" &&
+        /^[0-9a-f-]{36}$/i.test(state.activeUserId)
+          ? state.activeUserId
+          : "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
 
-    const actorUuid = (typeof state.activeUserId === 'string' && /^[0-9a-f-]{36}$/i.test(state.activeUserId))
-      ? state.activeUserId
-      : 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
-
-    if (!Array.isArray(db.booking_status_history)) db.booking_status_history = [];
-    db.booking_status_history.unshift({
-      history_id: Date.now(),
-      booking_id: actualId,
-      previous_status: bk.status,
-      new_status: bk.status,
-      changed_by: actorUuid,
-      reason: `[VIETQR AUTO-CONFIRM] Khách hàng quét mã QR chuyển khoản thành công ${formatMoney(total)} (Mã GD: ${txId})`,
-      created_at: nowIso
-    });
-
-    try {
-      await apiRequest(`/api/bookings/${actualId}/pay`, {
-        method: 'POST',
-        body: JSON.stringify({
-          booking_id: actualId,
-          method: 'VIETQR_BANK_TRANSFER',
-          transaction_id: txId,
-          amount: total,
-          changed_by: actorUuid
-        })
+      if (!Array.isArray(db.booking_status_history))
+        db.booking_status_history = [];
+      db.booking_status_history.unshift({
+        history_id: Date.now(),
+        booking_id: actualId,
+        previous_status: bk.status,
+        new_status: bk.status,
+        changed_by: actorUuid,
+        reason: `[VIETQR AUTO-CONFIRM] Khách hàng quét mã QR chuyển khoản thành công ${formatMoney(total)} (Mã GD: ${txId})`,
+        created_at: nowIso,
       });
-    } catch (err) {
-      console.warn('Payment API record warning:', err);
-    }
 
-    showToast(`🎉 Đã xác nhận thanh toán hóa đơn #${actualId} thành công qua VietQR!`);
-
-    setTimeout(() => {
-      go('1.3', { bookingId: actualId });
-    }, 1800);
-  }
-
-  function cancelQrPayment(bookingId) {
-    if (qrTimerInterval) {
-      clearInterval(qrTimerInterval);
-      qrTimerInterval = null;
-    }
-    go('1.3', { bookingId });
-  }
-
-  function copyText(text, btnEl) {
-    try {
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(String(text));
-      } else {
-        const ta = document.createElement('textarea');
-        ta.value = String(text);
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
+      try {
+        await apiRequest(`/api/bookings/${actualId}/pay`, {
+          method: "POST",
+          body: JSON.stringify({
+            booking_id: actualId,
+            method: "VIETQR_BANK_TRANSFER",
+            transaction_id: txId,
+            amount: total,
+            changed_by: actorUuid,
+          }),
+        });
+      } catch (err) {
+        console.warn("Payment API record warning:", err);
       }
-    } catch (_) {}
-    if (btnEl) {
-      const orig = btnEl.textContent;
-      btnEl.textContent = '✓ Đã chép';
-      btnEl.style.color = '#16a34a';
+
+      showToast(
+        `🎉 Đã xác nhận thanh toán hóa đơn #${actualId} thành công qua VietQR!`,
+      );
+
       setTimeout(() => {
-        btnEl.textContent = orig;
-        btnEl.style.color = '';
-      }, 1500);
+        go("1.3", { bookingId: actualId });
+      }, 1800);
     }
-  }
 
-  // 1.9: Đánh giá & Chấm điểm Thợ
-  function renderModal_1_9(el, params = {}) {
-    const db = window.GDX_DB;
-    const bk = db.bookings.find((b) => String(b.booking_id) === String(params.bookingId || 1040)) || db.bookings[1] || db.bookings[0];
-    const prov = db.provider_public_profiles.find((p) => p.provider_id === bk.provider_id);
-    const quickTags = ['✓ Đúng giờ', '✓ Sạch sẽ tỉ mỉ', '✓ Nhiệt tình', '✓ Thân thiện'];
+    function cancelQrPayment(bookingId) {
+      if (qrTimerInterval) {
+        clearInterval(qrTimerInterval);
+        qrTimerInterval = null;
+      }
+      go("1.3", { bookingId });
+    }
 
-    el.innerHTML = `
+    function copyText(text, btnEl) {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(String(text));
+        } else {
+          const ta = document.createElement("textarea");
+          ta.value = String(text);
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          document.body.removeChild(ta);
+        }
+      } catch (_) {}
+      if (btnEl) {
+        const orig = btnEl.textContent;
+        btnEl.textContent = "✓ Đã chép";
+        btnEl.style.color = "#16a34a";
+        setTimeout(() => {
+          btnEl.textContent = orig;
+          btnEl.style.color = "";
+        }, 1500);
+      }
+    }
+
+    // 1.9: Đánh giá & Chấm điểm Thợ
+    function renderModal_1_9(el, params = {}) {
+      const db = window.GDX_DB;
+      const bk =
+        db.bookings.find(
+          (b) => String(b.booking_id) === String(params.bookingId || 1040),
+        ) ||
+        db.bookings[1] ||
+        db.bookings[0];
+      const prov = db.provider_public_profiles.find(
+        (p) => p.provider_id === bk.provider_id,
+      );
+      const quickTags = [
+        "✓ Đúng giờ",
+        "✓ Sạch sẽ tỉ mỉ",
+        "✓ Nhiệt tình",
+        "✓ Thân thiện",
+      ];
+
+      el.innerHTML = `
       <div class="modal-header">
         <div>
           <div class="modal-title">Đánh giá chất lượng ca làm việc · #${shortCode(bk.booking_id)}</div>
@@ -7589,9 +9381,9 @@ window.GDXApp = (() => {
       <form onsubmit="event.preventDefault(); GDXApp.submitBookingReview('${bk.booking_id}', this);">
         <div class="modal-body form-stack">
           <div style="display:flex; align-items:center; gap:12px;">
-            <img src="${prov ? prov.avatar_url : '/assets/provider-tuan.jpg'}" alt="Thợ" style="width:48px; height:48px; border-radius:50%; object-fit:cover;">
+            <img src="${prov ? prov.avatar_url : "/assets/provider-tuan.jpg"}" alt="Thợ" style="width:48px; height:48px; border-radius:50%; object-fit:cover;">
             <div>
-              <strong>${prov ? prov.full_name : 'Phạm Quốc Tuấn'}</strong>
+              <strong>${prov ? prov.full_name : "Phạm Quốc Tuấn"}</strong>
               <div class="field-hint">Mỗi đánh giá giúp cộng đồng chọn được thợ tận tâm</div>
             </div>
           </div>
@@ -7602,11 +9394,11 @@ window.GDXApp = (() => {
                 ${[1, 2, 3, 4, 5]
                   .map(
                     (n) => `
-                  <button type="button" class="star-btn ${n <= state.reviewRating ? 'is-selected' : ''}" style="color:${n <= state.reviewRating ? '#E07A5F' : '#CBD5E1'};" onclick="GDXApp.setReviewStars(${n}, '${bk.booking_id}')">
+                  <button type="button" class="star-btn ${n <= state.reviewRating ? "is-selected" : ""}" style="color:${n <= state.reviewRating ? "#E07A5F" : "#CBD5E1"};" onclick="GDXApp.setReviewStars(${n}, '${bk.booking_id}')">
                     ${Icons.star(n <= state.reviewRating)}
-                  </button>`
+                  </button>`,
                   )
-                  .join('')}
+                  .join("")}
               </div>
               <strong style="font-size:20px; color:#E07A5F;" class="num">${state.reviewRating}.0 / 5</strong>
             </div>
@@ -7615,9 +9407,10 @@ window.GDXApp = (() => {
           <div style="display:flex; gap:8px; flex-wrap:wrap;">
             ${quickTags
               .map(
-                (tag) => `<button type="button" class="filter-chip" aria-pressed="false" onclick="const pressed=this.getAttribute('aria-pressed')==='true'; this.setAttribute('aria-pressed', pressed?'false':'true'); const ta=document.getElementById('revComment'); if(ta && !pressed && !ta.value.includes('${tag.replace('✓ ', '')}')) ta.value = (ta.value ? ta.value + ', ' : '') + '${tag.replace('✓ ', '')}';">${tag}</button>`
+                (tag) =>
+                  `<button type="button" class="filter-chip" aria-pressed="false" onclick="const pressed=this.getAttribute('aria-pressed')==='true'; this.setAttribute('aria-pressed', pressed?'false':'true'); const ta=document.getElementById('revComment'); if(ta && !pressed && !ta.value.includes('${tag.replace("✓ ", "")}')) ta.value = (ta.value ? ta.value + ', ' : '') + '${tag.replace("✓ ", "")}';">${tag}</button>`,
               )
-              .join('')}
+              .join("")}
           </div>
 
           <div class="field-group">
@@ -7631,48 +9424,52 @@ window.GDXApp = (() => {
         </div>
       </form>
     `;
-  }
+    }
 
-  function setReviewStars(n, bookingId) {
-    state.reviewRating = n;
-    openModal('1.9', { bookingId });
-  }
+    function setReviewStars(n, bookingId) {
+      state.reviewRating = n;
+      openModal("1.9", { bookingId });
+    }
 
-  function submitBookingReview(bookingId, form) {
-    const db = window.GDX_DB;
-    const bk = db.bookings.find((b) => String(b.booking_id) === String(bookingId));
-    if (!bk) return;
+    function submitBookingReview(bookingId, form) {
+      const db = window.GDX_DB;
+      const bk = db.bookings.find(
+        (b) => String(b.booking_id) === String(bookingId),
+      );
+      if (!bk) return;
 
-    db.reviews.unshift({
-      review_id: Date.now(),
-      booking_id: bookingId,
-      customer_id: bk.customer_id,
-      provider_id: bk.provider_id,
-      rating: state.reviewRating,
-      comment: form.comment.value,
-      created_at: new Date().toISOString()
-    });
-
-    apiRequest('/api/reviews', {
-      method: 'POST',
-      body: JSON.stringify({
+      db.reviews.unshift({
+        review_id: Date.now(),
         booking_id: bookingId,
         customer_id: bk.customer_id,
         provider_id: bk.provider_id,
         rating: state.reviewRating,
-        comment: form.comment.value
-      })
-    });
+        comment: form.comment.value,
+        created_at: new Date().toISOString(),
+      });
 
-    closeModal();
-    showToast('Cảm ơn bạn! Đánh giá đã được ghi nhận và cập nhật điểm uy tín của thợ.');
-    go(state.currentScreen);
-  }
+      apiRequest("/api/reviews", {
+        method: "POST",
+        body: JSON.stringify({
+          booking_id: bookingId,
+          customer_id: bk.customer_id,
+          provider_id: bk.provider_id,
+          rating: state.reviewRating,
+          comment: form.comment.value,
+        }),
+      });
 
-  // 1.10: Xác nhận Hủy lịch hẹn
-  function renderModal_1_10(el, params = {}) {
-    const bookingId = params.bookingId || 1043;
-    el.innerHTML = `
+      closeModal();
+      showToast(
+        "Cảm ơn bạn! Đánh giá đã được ghi nhận và cập nhật điểm uy tín của thợ.",
+      );
+      go(state.currentScreen);
+    }
+
+    // 1.10: Xác nhận Hủy lịch hẹn
+    function renderModal_1_10(el, params = {}) {
+      const bookingId = params.bookingId || 1043;
+      el.innerHTML = `
       <div class="modal-header">
         <div>
           <div class="modal-title" style="color:#991B1B;">Xác nhận hủy lịch #${shortCode(bookingId)}</div>
@@ -7692,55 +9489,67 @@ window.GDXApp = (() => {
         </div>
       </form>
     `;
-  }
-
-  function confirmCancelBooking(bookingId, form) {
-    const db = window.GDX_DB;
-    const bk = db.bookings.find((b) => b.booking_id === bookingId);
-    const nowIso = new Date().toISOString();
-    const actorUuid = (typeof state.activeUserId === 'string' && /^[0-9a-f-]{36}$/i.test(state.activeUserId))
-      ? state.activeUserId
-      : 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
-    if (bk) {
-      const oldStatus = bk.status;
-      bk.status = 'cancelled';
-      db.booking_status_history.unshift({
-        history_id: Date.now(),
-        booking_id: bookingId,
-        previous_status: oldStatus,
-        old_status: oldStatus,
-        new_status: 'cancelled',
-        changed_by: actorUuid,
-        reason: form.reason.value,
-        created_at: nowIso,
-        changed_at: nowIso
-      });
     }
-    apiRequest(`/api/bookings/${bookingId}/cancel`, {
-      method: 'POST',
-      body: JSON.stringify({ user_id: actorUuid, reason: form.reason.value })
-    });
-    closeModal();
-    showToast(`Đã hủy lịch hẹn #${bookingId}`);
-    go(state.currentScreen);
-  }
 
-  // 1.11: Trung tâm Hỗ trợ & Gửi khiếu nại
-  function renderModal_1_11(el, params = {}) {
-    const db = window.GDX_DB;
-    const ticketId = params.ticketId;
+    function confirmCancelBooking(bookingId, form) {
+      const db = window.GDX_DB;
+      const bk = db.bookings.find((b) => b.booking_id === bookingId);
+      const nowIso = new Date().toISOString();
+      const actorUuid =
+        typeof state.activeUserId === "string" &&
+        /^[0-9a-f-]{36}$/i.test(state.activeUserId)
+          ? state.activeUserId
+          : "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
+      if (bk) {
+        const oldStatus = bk.status;
+        bk.status = "cancelled";
+        db.booking_status_history.unshift({
+          history_id: Date.now(),
+          booking_id: bookingId,
+          previous_status: oldStatus,
+          old_status: oldStatus,
+          new_status: "cancelled",
+          changed_by: actorUuid,
+          reason: form.reason.value,
+          created_at: nowIso,
+          changed_at: nowIso,
+        });
+      }
+      apiRequest(`/api/bookings/${bookingId}/cancel`, {
+        method: "POST",
+        body: JSON.stringify({ user_id: actorUuid, reason: form.reason.value }),
+      });
+      closeModal();
+      showToast(`Đã hủy lịch hẹn #${bookingId}`);
+      go(state.currentScreen);
+    }
 
-    if (ticketId) {
-      const t = (db.support_tickets || []).find((x) => Number(x.ticket_id) === Number(ticketId)) || {
-        ticket_id: ticketId, subject: 'Phiếu hỗ trợ', description: '', status: 'open', priority: 'medium'
-      };
-      const messages = (db.ticket_messages || []).filter((m) => Number(m.ticket_id) === Number(t.ticket_id) && m.visibility !== 'internal');
+    // 1.11: Trung tâm Hỗ trợ & Gửi khiếu nại
+    function renderModal_1_11(el, params = {}) {
+      const db = window.GDX_DB;
+      const ticketId = params.ticketId;
 
-      el.innerHTML = `
+      if (ticketId) {
+        const t = (db.support_tickets || []).find(
+          (x) => Number(x.ticket_id) === Number(ticketId),
+        ) || {
+          ticket_id: ticketId,
+          subject: "Phiếu hỗ trợ",
+          description: "",
+          status: "open",
+          priority: "medium",
+        };
+        const messages = (db.ticket_messages || []).filter(
+          (m) =>
+            Number(m.ticket_id) === Number(t.ticket_id) &&
+            m.visibility !== "internal",
+        );
+
+        el.innerHTML = `
         <div class="modal-header">
           <div>
             <div class="modal-title">Phiếu hỗ trợ #${shortCode(t.ticket_id)}: ${t.subject}</div>
-            <div class="field-hint">Trạng thái: <strong>${t.status}</strong> · Mức độ: <strong>${t.priority}</strong> · Đơn #${t.booking_id || 'N/A'}</div>
+            <div class="field-hint">Trạng thái: <strong>${t.status}</strong> · Mức độ: <strong>${t.priority}</strong> · Đơn #${t.booking_id || "N/A"}</div>
           </div>
           <div style="display:flex; align-items:center; gap:8px;">
             <button type="button" class="btn btn-secondary btn-sm" onclick="GDXApp.openModal('1.11')">&larr; Tất cả phiếu</button>
@@ -7750,30 +9559,42 @@ window.GDXApp = (() => {
         <div class="modal-body form-stack">
           <div class="panel-subtle">
             <strong style="font-size:14px;">Nội dung sự việc:</strong>
-            <p class="field-hint" style="margin-top:6px; font-size:13.5px; line-height:1.5;">${t.description || 'Không có mô tả.'}</p>
-            ${t.image_url ? `<div style="margin-top:10px;"><div class="field-hint" style="margin-bottom:4px;">Hình ảnh đính kèm:</div><img src="${t.image_url}" alt="Ảnh phiếu hỗ trợ" style="max-width:100%; max-height:220px; border-radius:8px; border:1px solid var(--color-border);"></div>` : ''}
+            <p class="field-hint" style="margin-top:6px; font-size:13.5px; line-height:1.5;">${t.description || "Không có mô tả."}</p>
+            ${t.image_url ? `<div style="margin-top:10px;"><div class="field-hint" style="margin-bottom:4px;">Hình ảnh đính kèm:</div><img src="${t.image_url}" alt="Ảnh phiếu hỗ trợ" style="max-width:100%; max-height:220px; border-radius:8px; border:1px solid var(--color-border);"></div>` : ""}
             <div class="field-hint" style="margin-top:8px; font-size:12px;">Ngày gửi: <strong>${formatDateTime(t.created_at || new Date().toISOString())}</strong></div>
           </div>
 
           <div style="margin-top:10px;">
             <strong style="font-size:14px; font-family:var(--font-heading);">Trao đổi với Quản trị &amp; Điều phối (${messages.length}):</strong>
             <div class="ticket-thread" style="margin-top:8px; display:flex; flex-direction:column; gap:10px;">
-              ${messages.length === 0 ? '<div class="field-hint">Chưa có phản hồi mới. Nhân viên hỗ trợ sẽ phản hồi trong vòng 15-30 phút.</div>' : messages.map((m) => {
-                const isMine = m.sender_role === 'customer' || m.sender_id === state.activeUserId;
-                const senderName = isMine ? 'Bạn' : (m.sender_role === 'admin' ? 'Bộ phận Hỗ trợ / CSKH' : 'Đối tác thợ');
-                return `
-                  <div class="ticket-msg-card" style="padding:10px 14px; border-radius:10px; border:1px solid var(--color-border); background:${isMine ? 'var(--color-primary-subtle, #f0fdf4)' : 'var(--color-surface)'}; margin-left:${isMine ? '24px' : '0'}; margin-right:${isMine ? '0' : '24px'};">
+              ${
+                messages.length === 0
+                  ? '<div class="field-hint">Chưa có phản hồi mới. Nhân viên hỗ trợ sẽ phản hồi trong vòng 15-30 phút.</div>'
+                  : messages
+                      .map((m) => {
+                        const isMine =
+                          m.sender_role === "customer" ||
+                          m.sender_id === state.activeUserId;
+                        const senderName = isMine
+                          ? "Bạn"
+                          : m.sender_role === "admin"
+                            ? "Bộ phận Hỗ trợ / CSKH"
+                            : "Đối tác thợ";
+                        return `
+                  <div class="ticket-msg-card" style="padding:10px 14px; border-radius:10px; border:1px solid var(--color-border); background:${isMine ? "var(--color-primary-subtle, #f0fdf4)" : "var(--color-surface)"}; margin-left:${isMine ? "24px" : "0"}; margin-right:${isMine ? "0" : "24px"};">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                       <div style="display:flex; align-items:center; gap:8px;">
-                        <strong style="font-size:13px; color:${isMine ? 'var(--color-primary)' : 'inherit'};">${senderName}</strong>
-                        <span class="badge ${isMine ? 'badge-positive' : 'badge-info'}" style="font-size:10.5px;">${m.sender_role || 'user'}</span>
+                        <strong style="font-size:13px; color:${isMine ? "var(--color-primary)" : "inherit"};">${senderName}</strong>
+                        <span class="badge ${isMine ? "badge-positive" : "badge-info"}" style="font-size:10.5px;">${m.sender_role || "user"}</span>
                       </div>
                       <span class="field-hint" style="font-size:11px;">${formatDateTime(m.created_at)}</span>
                     </div>
-                    <div style="font-size:13.5px; line-height:1.5; color:var(--color-text);">${m.message_body || m.content || ''}</div>
+                    <div style="font-size:13.5px; line-height:1.5; color:var(--color-text);">${m.message_body || m.content || ""}</div>
                   </div>
                 `;
-              }).join('')}
+                      })
+                      .join("")
+              }
             </div>
           </div>
 
@@ -7793,28 +9614,37 @@ window.GDXApp = (() => {
           <button type="button" class="btn btn-secondary" onclick="GDXApp.closeModal()">Đóng</button>
         </div>
       `;
-      return;
-    }
+        return;
+      }
 
-    const myBookings = (db.bookings || []).filter((b) => b.customer_id === state.activeCustomerId);
-    const defaultBookingId = params.bookingId || (myBookings[0] ? myBookings[0].booking_id : 1042);
-    const myTickets = (db.support_tickets || []).filter((t) => t.user_id === state.activeUserId || !t.user_id || state.userRole === 'customer');
-    const shortCode = (rawId) => {
-      const s = String(rawId || '');
-      return s.length > 8 ? `GDX-${s.slice(-4).toUpperCase()}` : s;
-    };
-    const statusLabelVi = (st) => ({
-      open: 'Đang mở',
-      in_progress: 'Đang xử lý',
-      resolved: 'Đã giải quyết',
-      closed: 'Đã đóng',
-      pending: 'Chờ xác nhận',
-      accepted: 'Đã nhận việc',
-      completed: 'Hoàn thành',
-      cancelled: 'Đã hủy'
-    }[st] || st);
+      const myBookings = (db.bookings || []).filter(
+        (b) => b.customer_id === state.activeCustomerId,
+      );
+      const defaultBookingId =
+        params.bookingId || (myBookings[0] ? myBookings[0].booking_id : 1042);
+      const myTickets = (db.support_tickets || []).filter(
+        (t) =>
+          t.user_id === state.activeUserId ||
+          !t.user_id ||
+          state.userRole === "customer",
+      );
+      const shortCode = (rawId) => {
+        const s = String(rawId || "");
+        return s.length > 8 ? `GDX-${s.slice(-4).toUpperCase()}` : s;
+      };
+      const statusLabelVi = (st) =>
+        ({
+          open: "Đang mở",
+          in_progress: "Đang xử lý",
+          resolved: "Đã giải quyết",
+          closed: "Đã đóng",
+          pending: "Chờ xác nhận",
+          accepted: "Đã nhận việc",
+          completed: "Hoàn thành",
+          cancelled: "Đã hủy",
+        })[st] || st;
 
-    el.innerHTML = `
+      el.innerHTML = `
       <div class="modal-header">
         <div>
           <div class="modal-title">Trung tâm Hỗ trợ</div>
@@ -7839,9 +9669,10 @@ window.GDXApp = (() => {
                 <select id="tkBookingId" name="booking_id" class="select">
                   ${(db.bookings || [])
                     .map(
-                      (b) => `<option value="${b.booking_id}" ${b.booking_id === defaultBookingId ? 'selected' : ''}>#${shortCode(b.booking_id)} · ${statusLabelVi(b.status)}</option>`
+                      (b) =>
+                        `<option value="${b.booking_id}" ${b.booking_id === defaultBookingId ? "selected" : ""}>#${shortCode(b.booking_id)} · ${statusLabelVi(b.status)}</option>`,
                     )
-                    .join('')}
+                    .join("")}
                 </select>
               </div>
               <div class="field-group">
@@ -7876,8 +9707,8 @@ window.GDXApp = (() => {
                 <input type="url" id="tkImageUrl" name="image_url" class="input" placeholder="https://...">
               </div>
             </div>
-            <div id="tkImagePreview" style="display:${state.supportTicketImageDraft ? 'block' : 'none'};">
-              ${state.supportTicketImageDraft ? `<img src="${state.supportTicketImageDraft}" alt="Xem trước ảnh đính kèm" style="max-height:140px; border-radius:12px; border:1px solid var(--color-border);">` : ''}
+            <div id="tkImagePreview" style="display:${state.supportTicketImageDraft ? "block" : "none"};">
+              ${state.supportTicketImageDraft ? `<img src="${state.supportTicketImageDraft}" alt="Xem trước ảnh đính kèm" style="max-height:140px; border-radius:12px; border:1px solid var(--color-border);">` : ""}
             </div>
           </div>
           <div class="modal-footer">
@@ -7905,71 +9736,76 @@ window.GDXApp = (() => {
             <button type="button" class="btn btn-secondary btn-sm" style="white-space:nowrap;" onclick="GDXApp.openModal('1.11', { ticketId: '${t.ticket_id}' })">
               Xem trao đổi &rarr;
             </button>
-          </div>`
+          </div>`,
           )
-          .join('')}
-        ${myTickets.length === 0 ? '<div class="field-hint" style="text-align:center; padding:24px 0;">Bạn chưa gửi phiếu hỗ trợ nào.</div>' : ''}
+          .join("")}
+        ${myTickets.length === 0 ? '<div class="field-hint" style="text-align:center; padding:24px 0;">Bạn chưa gửi phiếu hỗ trợ nào.</div>' : ""}
       </div>
     `;
-  }
-
-  function handleSupportImageSelect(input) {
-    const file = input && input.files && input.files[0];
-    if (!file) {
-      state.supportTicketImageDraft = null;
-      return;
     }
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      state.supportTicketImageDraft = e.target && e.target.result ? String(e.target.result) : null;
-      const previewEl = document.getElementById('tkImagePreview');
-      if (previewEl && state.supportTicketImageDraft) {
-        previewEl.style.display = 'block';
-        previewEl.innerHTML = `<img src="${state.supportTicketImageDraft}" alt="Xem trước ảnh đính kèm" style="max-height:140px; border-radius:8px; border:1px solid var(--color-border);">`;
+
+    function handleSupportImageSelect(input) {
+      const file = input && input.files && input.files[0];
+      if (!file) {
+        state.supportTicketImageDraft = null;
+        return;
       }
-    };
-    reader.readAsDataURL(file);
-  }
-
-  function submitSupportTicket(form) {
-    const db = window.GDX_DB;
-    const urlInput = form.image_url && form.image_url.value ? form.image_url.value.trim() : '';
-    const imageUrl = state.supportTicketImageDraft || urlInput || null;
-    const newTicket = {
-      ticket_id: Date.now(),
-      user_id: state.activeUserId,
-      booking_id: Number(form.booking_id.value),
-      subject: form.subject.value,
-      description: form.description.value,
-      image_url: imageUrl,
-      priority: form.priority.value,
-      status: 'open',
-      created_at: new Date().toISOString()
-    };
-    state.supportTicketImageDraft = null;
-    db.support_tickets.unshift(newTicket);
-    apiRequest('/api/support-tickets', {
-      method: 'POST',
-      body: JSON.stringify(newTicket)
-    });
-    closeModal();
-    showToast('Đã gửi phiếu hỗ trợ tới bộ phận Quản trị!');
-  }
-
-  // 2.6: Kê khai Chi phí phát sinh
-  // 2.5: Thanh trạng thái Nhận việc & GPS
-  function renderModal_2_5(el) {
-    const db = window.GDX_DB;
-    const prov =
-      (db.provider_profiles || []).find((p) => p.provider_id === state.activeProviderId) ||
-      (db.provider_profiles || [])[0] || {
-        provider_id: 201,
-        is_available_online: true,
-        lattitude: 10.7412,
-        longtitude: 106.7021
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        state.supportTicketImageDraft =
+          e.target && e.target.result ? String(e.target.result) : null;
+        const previewEl = document.getElementById("tkImagePreview");
+        if (previewEl && state.supportTicketImageDraft) {
+          previewEl.style.display = "block";
+          previewEl.innerHTML = `<img src="${state.supportTicketImageDraft}" alt="Xem trước ảnh đính kèm" style="max-height:140px; border-radius:8px; border:1px solid var(--color-border);">`;
+        }
       };
+      reader.readAsDataURL(file);
+    }
 
-    el.innerHTML = `
+    function submitSupportTicket(form) {
+      const db = window.GDX_DB;
+      const urlInput =
+        form.image_url && form.image_url.value
+          ? form.image_url.value.trim()
+          : "";
+      const imageUrl = state.supportTicketImageDraft || urlInput || null;
+      const newTicket = {
+        ticket_id: Date.now(),
+        user_id: state.activeUserId,
+        booking_id: Number(form.booking_id.value),
+        subject: form.subject.value,
+        description: form.description.value,
+        image_url: imageUrl,
+        priority: form.priority.value,
+        status: "open",
+        created_at: new Date().toISOString(),
+      };
+      state.supportTicketImageDraft = null;
+      db.support_tickets.unshift(newTicket);
+      apiRequest("/api/support-tickets", {
+        method: "POST",
+        body: JSON.stringify(newTicket),
+      });
+      closeModal();
+      showToast("Đã gửi phiếu hỗ trợ tới bộ phận Quản trị!");
+    }
+
+    // 2.6: Kê khai Chi phí phát sinh
+    // 2.5: Thanh trạng thái Nhận việc & GPS
+    function renderModal_2_5(el) {
+      const db = window.GDX_DB;
+      const prov = (db.provider_profiles || []).find(
+        (p) => p.provider_id === state.activeProviderId,
+      ) ||
+        (db.provider_profiles || [])[0] || {
+          provider_id: 201,
+          is_available_online: true,
+          lattitude: 10.7412,
+          longtitude: 106.7021,
+        };
+
+      el.innerHTML = `
       <div class="modal-header">
         <div>
           <div class="modal-title">2.5. Thanh trạng thái Nhận việc &amp; GPS</div>
@@ -7980,7 +9816,7 @@ window.GDXApp = (() => {
       <form onsubmit="event.preventDefault(); GDXApp.saveProviderOnlineGps(this);">
         <div class="modal-body form-stack">
           <label class="choice-card" style="padding:14px 16px;">
-            <input type="checkbox" name="is_available_online" ${prov.is_available_online ? 'checked' : ''}>
+            <input type="checkbox" name="is_available_online" ${prov.is_available_online ? "checked" : ""}>
             <div>
               <div style="font-weight:700;">Bật nhận việc trực tuyến</div>
               <div class="field-hint">Cho phép hệ thống gửi đơn khu vực và đơn chỉ định mới về hòm thư của bạn</div>
@@ -8003,25 +9839,32 @@ window.GDXApp = (() => {
         </div>
       </form>
     `;
-  }
-
-  function saveProviderOnlineGps(form) {
-    const db = window.GDX_DB;
-    const prov = (db.provider_profiles || []).find((p) => p.provider_id === state.activeProviderId) || (db.provider_profiles || [])[0];
-    if (prov) {
-      prov.is_available_online = Boolean(form.is_available_online.checked);
-      prov.lattitude = Number(form.lattitude.value);
-      prov.longtitude = Number(form.longtitude.value);
     }
-    closeModal();
-    showToast(prov && prov.is_available_online ? 'Đã bật nhận việc & cập nhật GPS!' : 'Đã chuyển sang trạng thái tạm nghỉ');
-    go(state.currentScreen);
-  }
 
-  // 2.6: Thiết lập Lịch cố định & Xin nghỉ phép
-  function renderModal_2_6(el, params = {}) {
-    const activeTab = params.tab === 'exception' ? 'exception' : 'schedule';
-    el.innerHTML = `
+    function saveProviderOnlineGps(form) {
+      const db = window.GDX_DB;
+      const prov =
+        (db.provider_profiles || []).find(
+          (p) => p.provider_id === state.activeProviderId,
+        ) || (db.provider_profiles || [])[0];
+      if (prov) {
+        prov.is_available_online = Boolean(form.is_available_online.checked);
+        prov.lattitude = Number(form.lattitude.value);
+        prov.longtitude = Number(form.longtitude.value);
+      }
+      closeModal();
+      showToast(
+        prov && prov.is_available_online
+          ? "Đã bật nhận việc & cập nhật GPS!"
+          : "Đã chuyển sang trạng thái tạm nghỉ",
+      );
+      go(state.currentScreen);
+    }
+
+    // 2.6: Thiết lập Lịch cố định & Xin nghỉ phép
+    function renderModal_2_6(el, params = {}) {
+      const activeTab = params.tab === "exception" ? "exception" : "schedule";
+      el.innerHTML = `
       <div class="modal-header">
         <div>
           <div class="modal-title">2.6. Thiết lập Lịch cố định &amp; Xin nghỉ phép</div>
@@ -8031,16 +9874,16 @@ window.GDXApp = (() => {
       </div>
       <div class="modal-body form-stack">
         <div class="v3-seg-tabs" role="tablist">
-          <button type="button" class="v3-seg-tab ${activeTab === 'schedule' ? 'is-active' : ''}" onclick="GDXApp.openModal('2.6', {tab: 'schedule'})">
+          <button type="button" class="v3-seg-tab ${activeTab === "schedule" ? "is-active" : ""}" onclick="GDXApp.openModal('2.6', {tab: 'schedule'})">
             Lịch làm việc định kỳ
           </button>
-          <button type="button" class="v3-seg-tab ${activeTab === 'exception' ? 'is-active' : ''}" onclick="GDXApp.openModal('2.6', {tab: 'exception'})">
+          <button type="button" class="v3-seg-tab ${activeTab === "exception" ? "is-active" : ""}" onclick="GDXApp.openModal('2.6', {tab: 'exception'})">
             Xin nghỉ phép đột xuất
           </button>
         </div>
 
         ${
-          activeTab === 'schedule'
+          activeTab === "schedule"
             ? `
           <form class="form-stack" onsubmit="event.preventDefault(); GDXApp.addWeeklySchedule(this);">
             <div class="field-group">
@@ -8098,39 +9941,42 @@ window.GDXApp = (() => {
         }
       </div>
     `;
-  }
+    }
 
-  function addWeeklySchedule(form) {
-    window.GDX_DB.availability_schedules.push({
-      availability_id: Date.now(),
-      provider_id: state.activeProviderId,
-      day_of_week: Number(form.day_of_week.value),
-      start_time: form.start_time.value,
-      end_time: form.end_time.value
-    });
-    closeModal();
-    showToast('Đã cập nhật khung giờ làm việc định kỳ!');
-    if (state.currentScreen === '2.3') go('2.3');
-  }
+    function addWeeklySchedule(form) {
+      window.GDX_DB.availability_schedules.push({
+        availability_id: Date.now(),
+        provider_id: state.activeProviderId,
+        day_of_week: Number(form.day_of_week.value),
+        start_time: form.start_time.value,
+        end_time: form.end_time.value,
+      });
+      closeModal();
+      showToast("Đã cập nhật khung giờ làm việc định kỳ!");
+      if (state.currentScreen === "2.3") go("2.3");
+    }
 
-  function addExceptionSchedule(form) {
-    window.GDX_DB.availability_exceptions.push({
-      exception_id: Date.now(),
-      provider_id: state.activeProviderId,
-      exception_date: form.exception_date.value,
-      start_time: form.start_time.value,
-      end_time: form.end_time.value,
-      reason: form.reason.value
-    });
-    closeModal();
-    showToast('Đã đăng ký lịch nghỉ phép đột xuất!');
-    if (state.currentScreen === '2.3') go('2.3');
-  }
+    function addExceptionSchedule(form) {
+      window.GDX_DB.availability_exceptions.push({
+        exception_id: Date.now(),
+        provider_id: state.activeProviderId,
+        exception_date: form.exception_date.value,
+        start_time: form.start_time.value,
+        end_time: form.end_time.value,
+        reason: form.reason.value,
+      });
+      closeModal();
+      showToast("Đã đăng ký lịch nghỉ phép đột xuất!");
+      if (state.currentScreen === "2.3") go("2.3");
+    }
 
-  // 2.7: Kê khai Chi phí phát sinh (Incidental Cost)
-  function renderModal_2_7(el, params = {}) {
-    const bk = window.GDX_DB.bookings.find((b) => b.booking_id === (params.bookingId || 1042)) || window.GDX_DB.bookings[0];
-    el.innerHTML = `
+    // 2.7: Kê khai Chi phí phát sinh (Incidental Cost)
+    function renderModal_2_7(el, params = {}) {
+      const bk =
+        window.GDX_DB.bookings.find(
+          (b) => b.booking_id === (params.bookingId || 1042),
+        ) || window.GDX_DB.bookings[0];
+      el.innerHTML = `
       <div class="modal-header">
         <div>
           <div class="modal-title">2.7. Kê khai Chi phí vật tư phát sinh · Đơn #${shortCode(bk.booking_id)}</div>
@@ -8146,7 +9992,7 @@ window.GDXApp = (() => {
           </div>
           <div class="field-group">
             <label class="field-label" for="incSpec">Giải trình chi tiết hạng mục (incidental_Specify)</label>
-            <textarea id="incSpec" name="incidental_Specify" class="textarea" rows="3" required>${bk.incidental_Specify || 'Mua thêm 01 chai dung dịch tẩy cặn kính chuyên dụng theo sự đồng ý của chủ nhà'}</textarea>
+            <textarea id="incSpec" name="incidental_Specify" class="textarea" rows="3" required>${bk.incidental_Specify || "Mua thêm 01 chai dung dịch tẩy cặn kính chuyên dụng theo sự đồng ý của chủ nhà"}</textarea>
           </div>
         </div>
         <div class="modal-footer">
@@ -8155,30 +10001,33 @@ window.GDXApp = (() => {
         </div>
       </form>
     `;
-  }
-
-  function saveIncidentalCost(bookingId, form) {
-    const bk = window.GDX_DB.bookings.find((b) => b.booking_id === bookingId);
-    if (bk) {
-      bk.total_incidental = Number(form.total_incidental.value);
-      bk.incidental_Specify = form.incidental_Specify.value;
     }
-    apiRequest(`/api/bookings/${bookingId}/incidental`, {
-      method: 'PATCH',
-      body: JSON.stringify({
-        total_incidental: Number(form.total_incidental.value),
-        incidental_Specify: form.incidental_Specify.value
-      })
-    });
-    closeModal();
-    showToast('Đã cập nhật chi phí vật tư phát sinh!');
-    go(state.currentScreen, { bookingId });
-  }
 
-  // 2.8: Nghiệm thu & Hoàn thành Ca làm
-  function renderModal_2_8(el, params = {}) {
-    const bk = window.GDX_DB.bookings.find((b) => b.booking_id === (params.bookingId || 1042)) || window.GDX_DB.bookings[0];
-    el.innerHTML = `
+    function saveIncidentalCost(bookingId, form) {
+      const bk = window.GDX_DB.bookings.find((b) => b.booking_id === bookingId);
+      if (bk) {
+        bk.total_incidental = Number(form.total_incidental.value);
+        bk.incidental_Specify = form.incidental_Specify.value;
+      }
+      apiRequest(`/api/bookings/${bookingId}/incidental`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          total_incidental: Number(form.total_incidental.value),
+          incidental_Specify: form.incidental_Specify.value,
+        }),
+      });
+      closeModal();
+      showToast("Đã cập nhật chi phí vật tư phát sinh!");
+      go(state.currentScreen, { bookingId });
+    }
+
+    // 2.8: Nghiệm thu & Hoàn thành Ca làm
+    function renderModal_2_8(el, params = {}) {
+      const bk =
+        window.GDX_DB.bookings.find(
+          (b) => b.booking_id === (params.bookingId || 1042),
+        ) || window.GDX_DB.bookings[0];
+      el.innerHTML = `
       <div class="modal-header">
         <div>
           <div class="modal-title">2.8. Nghiệm thu &amp; Hoàn thành Ca làm #${shortCode(bk.booking_id)}</div>
@@ -8211,43 +10060,49 @@ window.GDXApp = (() => {
         </button>
       </div>
     `;
-  }
-
-  function completeJobShift(bookingId) {
-    const db = window.GDX_DB;
-    const bk = db.bookings.find((b) => b.booking_id === bookingId);
-    const nowIso = new Date().toISOString();
-    const activeProv = (db.provider_profiles || []).find((p) => p.provider_id === (state.activeProviderId || 201));
-    const provUserId = state.activeUserId || (activeProv && activeProv.user_id) || 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b21';
-    if (bk) {
-      bk.status = 'completed';
-      db.booking_status_history.unshift({
-        history_id: Date.now(),
-        booking_id: bookingId,
-        previous_status: 'in_progress',
-        old_status: 'in_progress',
-        new_status: 'completed',
-        changed_by: provUserId,
-        reason: 'Hoàn tất nghiệm thu công việc tại nhà khách hàng',
-        created_at: nowIso,
-        changed_at: nowIso
-      });
     }
-    apiRequest(`/api/bookings/${bookingId}/complete`, { method: 'POST' });
-    closeModal();
-    showToast(`Đã hoàn tất nghiệm thu đơn #${bookingId}!`);
-    go('2.3');
-  }
 
-  // 2.9: Báo cáo Sự cố / Hỗ trợ Đối tác (Drawer)
-  function renderModal_2_9(el, params = {}) {
-    const db = window.GDX_DB;
-    const bk =
-      (params.bookingId && db.bookings.find((b) => b.booking_id === Number(params.bookingId))) ||
-      db.bookings.find((b) => b.provider_id === state.activeProviderId) ||
-      db.bookings[0];
+    function completeJobShift(bookingId) {
+      const db = window.GDX_DB;
+      const bk = db.bookings.find((b) => b.booking_id === bookingId);
+      const nowIso = new Date().toISOString();
+      const activeProv = (db.provider_profiles || []).find(
+        (p) => p.provider_id === (state.activeProviderId || 201),
+      );
+      const provUserId =
+        state.activeUserId ||
+        (activeProv && activeProv.user_id) ||
+        "b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b21";
+      if (bk) {
+        bk.status = "completed";
+        db.booking_status_history.unshift({
+          history_id: Date.now(),
+          booking_id: bookingId,
+          previous_status: "in_progress",
+          old_status: "in_progress",
+          new_status: "completed",
+          changed_by: provUserId,
+          reason: "Hoàn tất nghiệm thu công việc tại nhà khách hàng",
+          created_at: nowIso,
+          changed_at: nowIso,
+        });
+      }
+      apiRequest(`/api/bookings/${bookingId}/complete`, { method: "POST" });
+      closeModal();
+      showToast(`Đã hoàn tất nghiệm thu đơn #${bookingId}!`);
+      go("2.3");
+    }
 
-    el.innerHTML = `
+    // 2.9: Báo cáo Sự cố / Hỗ trợ Đối tác (Drawer)
+    function renderModal_2_9(el, params = {}) {
+      const db = window.GDX_DB;
+      const bk =
+        (params.bookingId &&
+          db.bookings.find((b) => b.booking_id === Number(params.bookingId))) ||
+        db.bookings.find((b) => b.provider_id === state.activeProviderId) ||
+        db.bookings[0];
+
+      el.innerHTML = `
       <div class="modal-header">
         <div>
           <div class="modal-title">2.9. Báo cáo Sự cố / Hỗ trợ Đối tác</div>
@@ -8282,37 +10137,41 @@ window.GDXApp = (() => {
         </div>
       </form>
     `;
-  }
-
-  function submitProviderIncident(form) {
-    const db = window.GDX_DB;
-    const ticket = {
-      ticket_id: Date.now(),
-      user_id: state.activeUserId || 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b21',
-      booking_id: Number(form.booking_id.value),
-      subject: form.subject.value,
-      description: form.description.value,
-      status: 'open',
-      created_at: new Date().toISOString()
-    };
-    if (Array.isArray(db.support_tickets)) {
-      db.support_tickets.unshift(ticket);
     }
-    apiRequest('/api/support-tickets', {
-      method: 'POST',
-      body: JSON.stringify(ticket)
-    });
-    closeModal();
-    showToast('Đã gửi báo cáo sự cố tới bộ phận điều phối!');
-  }
 
-  // 3.5: Chi tiết Đơn hàng & Nhật ký trạng thái (Admin Drawer)
-  function renderModal_3_5(el, params = {}) {
-    const db = window.GDX_DB;
-    const bk = db.bookings.find((b) => b.booking_id === (params.bookingId || 1042)) || db.bookings[0];
-    const history = db.booking_status_history.filter((h) => h.booking_id === bk.booking_id);
+    function submitProviderIncident(form) {
+      const db = window.GDX_DB;
+      const ticket = {
+        ticket_id: Date.now(),
+        user_id: state.activeUserId || "b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b21",
+        booking_id: Number(form.booking_id.value),
+        subject: form.subject.value,
+        description: form.description.value,
+        status: "open",
+        created_at: new Date().toISOString(),
+      };
+      if (Array.isArray(db.support_tickets)) {
+        db.support_tickets.unshift(ticket);
+      }
+      apiRequest("/api/support-tickets", {
+        method: "POST",
+        body: JSON.stringify(ticket),
+      });
+      closeModal();
+      showToast("Đã gửi báo cáo sự cố tới bộ phận điều phối!");
+    }
 
-    el.innerHTML = `
+    // 3.5: Chi tiết Đơn hàng & Nhật ký trạng thái (Admin Drawer)
+    function renderModal_3_5(el, params = {}) {
+      const db = window.GDX_DB;
+      const bk =
+        db.bookings.find((b) => b.booking_id === (params.bookingId || 1042)) ||
+        db.bookings[0];
+      const history = db.booking_status_history.filter(
+        (h) => h.booking_id === bk.booking_id,
+      );
+
+      el.innerHTML = `
       <div class="v3-prov-drawer">
         <div class="v3-prov-drawer-head" style="align-items:center;">
           <h2 class="v3-prov-name" style="font-size:19px;">Chi tiết đơn #${shortCode(bk.booking_id)} &amp; Audit Log</h2>
@@ -8328,11 +10187,11 @@ window.GDXApp = (() => {
           <div class="v3-profile-field">
             <label for="admStatusSelect">Trạng thái đơn hàng</label>
             <select id="admStatusSelect" name="status" class="v3-profile-input" style="background:#FFFFFF;">
-              <option value="pending" ${bk.status === 'pending' ? 'selected' : ''}>Chờ nhận (pending)</option>
-              <option value="confirmed" ${bk.status === 'confirmed' ? 'selected' : ''}>Đã xác nhận (confirmed)</option>
-              <option value="in_progress" ${bk.status === 'in_progress' ? 'selected' : ''}>Đang thực hiện (in_progress)</option>
-              <option value="completed" ${bk.status === 'completed' ? 'selected' : ''}>Hoàn thành (completed)</option>
-              <option value="cancelled" ${bk.status === 'cancelled' ? 'selected' : ''}>Hủy đơn (cancelled)</option>
+              <option value="pending" ${bk.status === "pending" ? "selected" : ""}>Chờ nhận (pending)</option>
+              <option value="confirmed" ${bk.status === "confirmed" ? "selected" : ""}>Đã xác nhận (confirmed)</option>
+              <option value="in_progress" ${bk.status === "in_progress" ? "selected" : ""}>Đang thực hiện (in_progress)</option>
+              <option value="completed" ${bk.status === "completed" ? "selected" : ""}>Hoàn thành (completed)</option>
+              <option value="cancelled" ${bk.status === "cancelled" ? "selected" : ""}>Hủy đơn (cancelled)</option>
             </select>
           </div>
 
@@ -8348,56 +10207,60 @@ window.GDXApp = (() => {
             <div class="panel-subtle form-stack" style="gap:6px;">
               <div><strong>Địa chỉ:</strong> ${bk.address}</div>
               <div><strong>Tổng thanh toán:</strong> <span class="num">${formatMoney(bk.total_amount + bk.total_incidental)}</span></div>
-              <div><strong>Ghi chú khách:</strong> ${bk.notes || 'Không có'}</div>
+              <div><strong>Ghi chú khách:</strong> ${bk.notes || "Không có"}</div>
             </div>
             <div class="audit-timeline">
               ${history
                 .map(
                   (h) => `
                 <div class="audit-item">
-                  <div><strong>${h.old_status || h.previous_status || 'Mới'} &rarr; ${h.new_status}</strong> &middot; <span class="field-hint num">${formatDateTime(h.changed_at || h.created_at)}</span></div>
+                  <div><strong>${h.old_status || h.previous_status || "Mới"} &rarr; ${h.new_status}</strong> &middot; <span class="field-hint num">${formatDateTime(h.changed_at || h.created_at)}</span></div>
                   <div class="field-hint">${h.reason}</div>
-                </div>`
+                </div>`,
                 )
-                .join('')}
+                .join("")}
             </div>
           </div>
         </form>
       </div>
     `;
-  }
-
-  function adminForceStatus(bookingId, form) {
-    const db = window.GDX_DB;
-    const bk = db.bookings.find((b) => b.booking_id === bookingId);
-    const nowIso = new Date().toISOString();
-    const adminUserId = (typeof state.activeUserId === 'string' && /^[0-9a-f-]{36}$/i.test(state.activeUserId))
-      ? state.activeUserId
-      : 'c2eebc99-9c0b-4ef8-bb6d-6bb9bd380c99';
-    if (bk) {
-      const oldStatus = bk.status;
-      bk.status = form.status.value;
-      db.booking_status_history.unshift({
-        history_id: Date.now(),
-        booking_id: bookingId,
-        previous_status: oldStatus,
-        old_status: oldStatus,
-        new_status: form.status.value,
-        changed_by: adminUserId,
-        reason: form.reason.value,
-        created_at: nowIso,
-        changed_at: nowIso
-      });
     }
-    closeModal();
-    showToast(`Đã cập nhật trạng thái đơn #${bookingId}`);
-    if (state.currentScreen === '3.1') go('3.1');
-  }
 
-  // 3.6: Thêm / Sửa Danh mục Dịch vụ
-  function renderModal_3_6(el) {
-    const rootCats = window.GDX_DB.service_categories.filter((c) => c.parent_id === null);
-    el.innerHTML = `
+    function adminForceStatus(bookingId, form) {
+      const db = window.GDX_DB;
+      const bk = db.bookings.find((b) => b.booking_id === bookingId);
+      const nowIso = new Date().toISOString();
+      const adminUserId =
+        typeof state.activeUserId === "string" &&
+        /^[0-9a-f-]{36}$/i.test(state.activeUserId)
+          ? state.activeUserId
+          : "c2eebc99-9c0b-4ef8-bb6d-6bb9bd380c99";
+      if (bk) {
+        const oldStatus = bk.status;
+        bk.status = form.status.value;
+        db.booking_status_history.unshift({
+          history_id: Date.now(),
+          booking_id: bookingId,
+          previous_status: oldStatus,
+          old_status: oldStatus,
+          new_status: form.status.value,
+          changed_by: adminUserId,
+          reason: form.reason.value,
+          created_at: nowIso,
+          changed_at: nowIso,
+        });
+      }
+      closeModal();
+      showToast(`Đã cập nhật trạng thái đơn #${bookingId}`);
+      if (state.currentScreen === "3.1") go("3.1");
+    }
+
+    // 3.6: Thêm / Sửa Danh mục Dịch vụ
+    function renderModal_3_6(el) {
+      const rootCats = window.GDX_DB.service_categories.filter(
+        (c) => c.parent_id === null,
+      );
+      el.innerHTML = `
       <div class="modal-header">
         <div>
           <div class="modal-title">3.6. Thêm Danh mục Dịch vụ mới</div>
@@ -8415,7 +10278,7 @@ window.GDXApp = (() => {
             <label class="field-label" for="catParent">Danh mục cha (parent_id)</label>
             <select id="catParent" name="parent_id" class="select">
               <option value="">-- Danh mục gốc (Cấp 1) --</option>
-              ${rootCats.map((c) => `<option value="${c.category_id}">${c.name}</option>`).join('')}
+              ${rootCats.map((c) => `<option value="${c.category_id}">${c.name}</option>`).join("")}
             </select>
           </div>
           <div class="field-group">
@@ -8429,39 +10292,42 @@ window.GDXApp = (() => {
         </div>
       </form>
     `;
-  }
+    }
 
-  function saveCategoryModal(form) {
-    const db = window.GDX_DB;
-    db.service_categories.push({
-      category_id: Math.max(...db.service_categories.map((c) => c.category_id)) + 1,
-      name: form.name.value,
-      description: form.description.value,
-      parent_id: form.parent_id.value ? Number(form.parent_id.value) : null
-    });
-    closeModal();
-    showToast('Đã thêm danh mục dịch vụ mới!');
-    if (state.currentScreen === '3.2') go('3.2');
-  }
+    function saveCategoryModal(form) {
+      const db = window.GDX_DB;
+      db.service_categories.push({
+        category_id:
+          Math.max(...db.service_categories.map((c) => c.category_id)) + 1,
+        name: form.name.value,
+        description: form.description.value,
+        parent_id: form.parent_id.value ? Number(form.parent_id.value) : null,
+      });
+      closeModal();
+      showToast("Đã thêm danh mục dịch vụ mới!");
+      if (state.currentScreen === "3.2") go("3.2");
+    }
 
-  // 3.7: Thêm / Sửa Gói Dịch vụ & Giá
-  function renderModal_3_7(el, params = {}) {
-    const db = window.GDX_DB;
-    const existing = params.serviceId ? db.services.find((s) => s.service_id === params.serviceId) : null;
+    // 3.7: Thêm / Sửa Gói Dịch vụ & Giá
+    function renderModal_3_7(el, params = {}) {
+      const db = window.GDX_DB;
+      const existing = params.serviceId
+        ? db.services.find((s) => s.service_id === params.serviceId)
+        : null;
 
-    el.innerHTML = `
+      el.innerHTML = `
       <div class="modal-header">
         <div>
-          <div class="modal-title">3.7. ${existing ? `Cập nhật Gói dịch vụ #${shortCode(existing.service_id)}` : 'Thêm Gói Dịch vụ & Niêm yết giá'}</div>
+          <div class="modal-title">3.7. ${existing ? `Cập nhật Gói dịch vụ #${shortCode(existing.service_id)}` : "Thêm Gói Dịch vụ & Niêm yết giá"}</div>
           <div class="field-hint">Bảng: services (category_id, title, pricing_type, price, estimated_duration)</div>
         </div>
         <button type="button" class="btn btn-ghost btn-sm" onclick="GDXApp.closeModal()">✕</button>
       </div>
-      <form onsubmit="event.preventDefault(); GDXApp.saveServiceModal(this, ${existing ? existing.service_id : 'null'});">
+      <form onsubmit="event.preventDefault(); GDXApp.saveServiceModal(this, ${existing ? existing.service_id : "null"});">
         <div class="modal-body form-stack">
           <div class="field-group">
             <label class="field-label" for="svcTitle">Tên gói dịch vụ (services.title)</label>
-            <input type="text" id="svcTitle" name="title" class="input" value="${existing ? existing.title : 'Vệ sinh máy giặt lồng ngang tại nhà'}" required>
+            <input type="text" id="svcTitle" name="title" class="input" value="${existing ? existing.title : "Vệ sinh máy giặt lồng ngang tại nhà"}" required>
           </div>
           <div class="form-row-2">
             <div class="field-group">
@@ -8469,16 +10335,17 @@ window.GDXApp = (() => {
               <select id="svcCat" name="category_id" class="select">
                 ${db.service_categories
                   .map(
-                    (c) => `<option value="${c.category_id}" ${existing && existing.category_id === c.category_id ? 'selected' : ''}>${c.name}</option>`
+                    (c) =>
+                      `<option value="${c.category_id}" ${existing && existing.category_id === c.category_id ? "selected" : ""}>${c.name}</option>`,
                   )
-                  .join('')}
+                  .join("")}
               </select>
             </div>
             <div class="field-group">
               <label class="field-label" for="svcType">Cách tính phí (pricing_type)</label>
               <select id="svcType" name="pricing_type" class="select">
-                <option value="fixed" ${existing && existing.pricing_type === 'fixed' ? 'selected' : ''}>Trọn gói cố định (fixed)</option>
-                <option value="hourly" ${existing && existing.pricing_type === 'hourly' ? 'selected' : ''}>Tính theo giờ (hourly)</option>
+                <option value="fixed" ${existing && existing.pricing_type === "fixed" ? "selected" : ""}>Trọn gói cố định (fixed)</option>
+                <option value="hourly" ${existing && existing.pricing_type === "hourly" ? "selected" : ""}>Tính theo giờ (hourly)</option>
               </select>
             </div>
           </div>
@@ -8499,43 +10366,46 @@ window.GDXApp = (() => {
         </div>
       </form>
     `;
-  }
-
-  function saveServiceModal(form, existingId) {
-    const db = window.GDX_DB;
-    if (existingId) {
-      const s = db.services.find((x) => x.service_id === existingId);
-      if (s) {
-        s.title = form.title.value;
-        s.category_id = Number(form.category_id.value);
-        s.pricing_type = form.pricing_type.value;
-        s.price = Number(form.price.value);
-        s.estimated_duration = Number(form.estimated_duration.value);
-      }
-    } else {
-      db.services.push({
-        service_id: Math.max(...db.services.map((x) => x.service_id)) + 1,
-        category_id: Number(form.category_id.value),
-        title: form.title.value,
-        image_url: '/assets/service-laundry.jpg',
-        pricing_type: form.pricing_type.value,
-        price: Number(form.price.value),
-        estimated_duration: Number(form.estimated_duration.value),
-        is_active: true
-      });
     }
-    closeModal();
-    showToast('Đã lưu thông tin gói dịch vụ!');
-    if (state.currentScreen === '3.2') go('3.2');
-  }
 
-  // 3.8: Chi tiết Hồ sơ KYC & Duyệt Thợ
-  function renderModal_3_8(el, params = {}) {
-    const db = window.GDX_DB;
-    const p = db.provider_profiles.find((x) => x.provider_id === (params.providerId || 204)) || db.provider_profiles[3];
-    const u = db.users.find((x) => x.user_id === p.user_id);
+    function saveServiceModal(form, existingId) {
+      const db = window.GDX_DB;
+      if (existingId) {
+        const s = db.services.find((x) => x.service_id === existingId);
+        if (s) {
+          s.title = form.title.value;
+          s.category_id = Number(form.category_id.value);
+          s.pricing_type = form.pricing_type.value;
+          s.price = Number(form.price.value);
+          s.estimated_duration = Number(form.estimated_duration.value);
+        }
+      } else {
+        db.services.push({
+          service_id: Math.max(...db.services.map((x) => x.service_id)) + 1,
+          category_id: Number(form.category_id.value),
+          title: form.title.value,
+          image_url: "/assets/service-laundry.jpg",
+          pricing_type: form.pricing_type.value,
+          price: Number(form.price.value),
+          estimated_duration: Number(form.estimated_duration.value),
+          is_active: true,
+        });
+      }
+      closeModal();
+      showToast("Đã lưu thông tin gói dịch vụ!");
+      if (state.currentScreen === "3.2") go("3.2");
+    }
 
-    el.innerHTML = `
+    // 3.8: Chi tiết Hồ sơ KYC & Duyệt Thợ
+    function renderModal_3_8(el, params = {}) {
+      const db = window.GDX_DB;
+      const p =
+        db.provider_profiles.find(
+          (x) => x.provider_id === (params.providerId || 204),
+        ) || db.provider_profiles[3];
+      const u = db.users.find((x) => x.user_id === p.user_id);
+
+      el.innerHTML = `
       <div class="modal-header">
         <div>
           <div class="modal-title">3.8. Đối chiếu Hồ sơ Pháp lý &amp; CCCD Đối tác #${shortCode(p.provider_id)}</div>
@@ -8547,8 +10417,8 @@ window.GDXApp = (() => {
         <div style="display:flex; align-items:center; gap:14px;">
           <img src="${p.avatar_url}" alt="Avatar" class="provider-avatar-lg">
           <div>
-            <strong style="font-size:17px;">${u ? u.full_name : ''}</strong>
-            <div class="field-hint num">Số CCCD: <strong>${p.id_card_number}</strong> · SĐT: ${u ? u.phone_number : ''}</div>
+            <strong style="font-size:17px;">${u ? u.full_name : ""}</strong>
+            <div class="field-hint num">Số CCCD: <strong>${p.id_card_number}</strong> · SĐT: ${u ? u.phone_number : ""}</div>
           </div>
         </div>
         <div class="panel-subtle">
@@ -8561,18 +10431,27 @@ window.GDXApp = (() => {
         <button type="button" class="btn btn-primary" onclick="GDXApp.updateProviderKyc(${p.provider_id}, 'verified')">Phê duyệt chính thức (verified) &rarr;</button>
       </div>
     `;
-  }
+    }
 
-  // 3.9: Xử lý Phiếu Hỗ trợ (Support Ticket Detail)
-  function renderModal_3_9(el, params = {}) {
-    const db = window.GDX_DB;
-    const ticketId = params.ticketId || 701;
-    const t = (db.support_tickets || []).find((x) => Number(x.ticket_id) === Number(ticketId)) || db.support_tickets[0] || {
-      ticket_id: ticketId, subject: 'Phiếu hỗ trợ', description: '', status: 'open', priority: 'medium'
-    };
-    const messages = (db.ticket_messages || []).filter((m) => Number(m.ticket_id) === Number(t.ticket_id));
+    // 3.9: Xử lý Phiếu Hỗ trợ (Support Ticket Detail)
+    function renderModal_3_9(el, params = {}) {
+      const db = window.GDX_DB;
+      const ticketId = params.ticketId || 701;
+      const t = (db.support_tickets || []).find(
+        (x) => Number(x.ticket_id) === Number(ticketId),
+      ) ||
+        db.support_tickets[0] || {
+          ticket_id: ticketId,
+          subject: "Phiếu hỗ trợ",
+          description: "",
+          status: "open",
+          priority: "medium",
+        };
+      const messages = (db.ticket_messages || []).filter(
+        (m) => Number(m.ticket_id) === Number(t.ticket_id),
+      );
 
-    el.innerHTML = `
+      el.innerHTML = `
       <div class="modal-header">
         <div>
           <div class="modal-title">3.9. Xử lý Phiếu Hỗ trợ #${shortCode(t.ticket_id)}</div>
@@ -8586,9 +10465,9 @@ window.GDXApp = (() => {
             <strong>${t.subject}</strong>
             ${priorityBadge(t.priority)}
           </div>
-          <p class="field-hint" style="margin-top:6px; font-size:13.5px; line-height:1.5;">${t.description || 'Không có mô tả chi tiết.'}</p>
-          ${t.image_url ? `<div style="margin-top:10px;"><div class="field-hint" style="margin-bottom:4px;">Hình ảnh đính kèm:</div><img src="${t.image_url}" alt="Ảnh phiếu hỗ trợ" style="max-width:100%; max-height:220px; border-radius:8px; border:1px solid var(--color-border);"></div>` : ''}
-          <div class="field-hint" style="margin-top:8px; font-size:12px;">Đơn hàng: <strong>#${t.booking_id ? shortCode(t.booking_id) : 'N/A'}</strong> · Ngày tạo: <strong>${formatDateTime(t.created_at || new Date().toISOString())}</strong></div>
+          <p class="field-hint" style="margin-top:6px; font-size:13.5px; line-height:1.5;">${t.description || "Không có mô tả chi tiết."}</p>
+          ${t.image_url ? `<div style="margin-top:10px;"><div class="field-hint" style="margin-bottom:4px;">Hình ảnh đính kèm:</div><img src="${t.image_url}" alt="Ảnh phiếu hỗ trợ" style="max-width:100%; max-height:220px; border-radius:8px; border:1px solid var(--color-border);"></div>` : ""}
+          <div class="field-hint" style="margin-top:8px; font-size:12px;">Đơn hàng: <strong>#${t.booking_id ? shortCode(t.booking_id) : "N/A"}</strong> · Ngày tạo: <strong>${formatDateTime(t.created_at || new Date().toISOString())}</strong></div>
         </div>
 
         <form onsubmit="event.preventDefault(); GDXApp.updateSupportTicket(${t.ticket_id}, this);">
@@ -8596,19 +10475,19 @@ window.GDXApp = (() => {
             <div class="field-group">
               <label class="field-label" for="admTkStatus">Trạng thái xử lý (ticket_status)</label>
               <select id="admTkStatus" name="status" class="select">
-                <option value="open" ${t.status === 'open' ? 'selected' : ''}>Mới tiếp nhận (open)</option>
-                <option value="in_progress" ${t.status === 'in_progress' ? 'selected' : ''}>Đang xử lý (in_progress)</option>
-                <option value="resolved" ${t.status === 'resolved' ? 'selected' : ''}>Đã giải quyết (resolved)</option>
-                <option value="closed" ${t.status === 'closed' ? 'selected' : ''}>Đóng phiếu (closed)</option>
+                <option value="open" ${t.status === "open" ? "selected" : ""}>Mới tiếp nhận (open)</option>
+                <option value="in_progress" ${t.status === "in_progress" ? "selected" : ""}>Đang xử lý (in_progress)</option>
+                <option value="resolved" ${t.status === "resolved" ? "selected" : ""}>Đã giải quyết (resolved)</option>
+                <option value="closed" ${t.status === "closed" ? "selected" : ""}>Đóng phiếu (closed)</option>
               </select>
             </div>
             <div class="field-group">
               <label class="field-label" for="admTkPrio">Mức độ ưu tiên (ticket_priority)</label>
               <select id="admTkPrio" name="priority" class="select">
-                <option value="low" ${t.priority === 'low' ? 'selected' : ''}>Thấp (low)</option>
-                <option value="medium" ${t.priority === 'medium' ? 'selected' : ''}>Trung bình (medium)</option>
-                <option value="high" ${t.priority === 'high' ? 'selected' : ''}>Cao (high)</option>
-                <option value="urgent" ${t.priority === 'urgent' ? 'selected' : ''}>Khẩn cấp (urgent)</option>
+                <option value="low" ${t.priority === "low" ? "selected" : ""}>Thấp (low)</option>
+                <option value="medium" ${t.priority === "medium" ? "selected" : ""}>Trung bình (medium)</option>
+                <option value="high" ${t.priority === "high" ? "selected" : ""}>Cao (high)</option>
+                <option value="urgent" ${t.priority === "urgent" ? "selected" : ""}>Khẩn cấp (urgent)</option>
               </select>
             </div>
           </div>
@@ -8620,24 +10499,40 @@ window.GDXApp = (() => {
         <div style="margin-top:12px;">
           <strong style="font-size:14px; font-family:var(--font-heading);">Lịch sử trao đổi &amp; Ghi chú nội bộ (${messages.length}):</strong>
           <div class="ticket-thread" style="margin-top:8px; display:flex; flex-direction:column; gap:10px;">
-            ${messages.length === 0 ? '<div class="field-hint">Chưa có tin nhắn nào trong phiếu này.</div>' : messages.map((m) => {
-              const isInternal = m.visibility === 'internal';
-              const sender = (db.users || []).find((u) => u.user_id === m.sender_id || String(u.user_id) === String(m.sender_id));
-              const senderName = sender ? sender.full_name : (m.sender_role === 'admin' ? 'Điều phối viên' : (m.sender_role === 'provider' ? 'Đối tác thợ' : 'Khách hàng'));
-              return `
-                <div class="ticket-msg-card ${isInternal ? 'is-internal' : ''}" style="padding:10px 14px; border-radius:10px; border:1px solid ${isInternal ? '#fcd34d' : 'var(--color-border)'}; background:${isInternal ? '#fffbeb' : 'var(--color-surface)'};">
+            ${
+              messages.length === 0
+                ? '<div class="field-hint">Chưa có tin nhắn nào trong phiếu này.</div>'
+                : messages
+                    .map((m) => {
+                      const isInternal = m.visibility === "internal";
+                      const sender = (db.users || []).find(
+                        (u) =>
+                          u.user_id === m.sender_id ||
+                          String(u.user_id) === String(m.sender_id),
+                      );
+                      const senderName = sender
+                        ? sender.full_name
+                        : m.sender_role === "admin"
+                          ? "Điều phối viên"
+                          : m.sender_role === "provider"
+                            ? "Đối tác thợ"
+                            : "Khách hàng";
+                      return `
+                <div class="ticket-msg-card ${isInternal ? "is-internal" : ""}" style="padding:10px 14px; border-radius:10px; border:1px solid ${isInternal ? "#fcd34d" : "var(--color-border)"}; background:${isInternal ? "#fffbeb" : "var(--color-surface)"};">
                   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
                     <div style="display:flex; align-items:center; gap:8px;">
                       <strong style="font-size:13px;">${senderName}</strong>
-                      <span class="badge ${m.sender_role === 'admin' ? 'badge-info' : 'badge-subtle'}" style="font-size:10.5px;">${m.sender_role || 'user'}</span>
-                      ${isInternal ? '<span class="badge-internal-note" style="font-size:11px; font-weight:600; color:#b45309; background:#fef3c7; padding:2px 6px; border-radius:4px;">🔒 Ghi chú nội bộ</span>' : ''}
+                      <span class="badge ${m.sender_role === "admin" ? "badge-info" : "badge-subtle"}" style="font-size:10.5px;">${m.sender_role || "user"}</span>
+                      ${isInternal ? '<span class="badge-internal-note" style="font-size:11px; font-weight:600; color:#b45309; background:#fef3c7; padding:2px 6px; border-radius:4px;">🔒 Ghi chú nội bộ</span>' : ""}
                     </div>
                     <span class="field-hint" style="font-size:11px;">${formatDateTime(m.created_at)}</span>
                   </div>
-                  <div style="font-size:13.5px; line-height:1.5; color:var(--color-text);">${m.message_body || m.content || ''}</div>
+                  <div style="font-size:13.5px; line-height:1.5; color:var(--color-text);">${m.message_body || m.content || ""}</div>
                 </div>
               `;
-            }).join('')}
+                    })
+                    .join("")
+            }
           </div>
         </div>
 
@@ -8661,37 +10556,54 @@ window.GDXApp = (() => {
         <button type="button" class="btn btn-secondary" onclick="GDXApp.closeModal()">Đóng</button>
       </div>
     `;
-  }
-
-  async function updateSupportTicket(ticketId, form) {
-    const status = form.status ? form.status.value : null;
-    const priority = form.priority ? form.priority.value : null;
-    const t = window.GDX_DB.support_tickets.find((x) => Number(x.ticket_id) === Number(ticketId));
-    if (t) {
-      if (status) t.status = status;
-      if (priority) t.priority = priority;
     }
-    await apiRequest(`/api/tickets/${ticketId}/status`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status, priority, actor_id: state.activeUserId })
-    });
-    showToast(`Đã cập nhật phiếu hỗ trợ #${ticketId}`);
-    if (state.currentScreen === '3.4') go('3.4');
-  }
 
-  // 4.4: Thêm nhân viên Thợ / Phân công dịch vụ (Company Modal)
-  function renderModal_4_4(el, params = {}) {
-    const db = window.GDX_DB;
-    const comp = getActiveCompanyProfile();
-    const companySvcs = (db.services || []).filter((s) => Number(s.company_id) === Number(comp.company_id));
-    const svcsToShow = companySvcs.length > 0 ? companySvcs : (db.services || []);
+    async function updateSupportTicket(ticketId, form) {
+      const status = form.status ? form.status.value : null;
+      const priority = form.priority ? form.priority.value : null;
+      const t = window.GDX_DB.support_tickets.find(
+        (x) => Number(x.ticket_id) === Number(ticketId),
+      );
+      if (t) {
+        if (status) t.status = status;
+        if (priority) t.priority = priority;
+      }
+      await apiRequest(`/api/tickets/${ticketId}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          status,
+          priority,
+          actor_id: state.activeUserId,
+        }),
+      });
+      showToast(`Đã cập nhật phiếu hỗ trợ #${ticketId}`);
+      if (state.currentScreen === "3.4") go("3.4");
+    }
 
-    if (params.providerId) {
-      const prov = (db.provider_profiles || []).find((p) => Number(p.provider_id) === Number(params.providerId));
-      const u = prov ? (db.users || []).find((x) => String(x.user_id) === String(prov.user_id)) : null;
-      const assignedIds = (db.provider_services || []).filter((ps) => Number(ps.provider_id) === Number(params.providerId)).map((ps) => Number(ps.service_id));
+    // 4.4: Thêm nhân viên Thợ / Phân công dịch vụ (Company Modal)
+    function renderModal_4_4(el, params = {}) {
+      const db = window.GDX_DB;
+      const comp = getActiveCompanyProfile();
+      const companySvcs = (db.services || []).filter(
+        (s) => Number(s.company_id) === Number(comp.company_id),
+      );
+      const svcsToShow =
+        companySvcs.length > 0 ? companySvcs : db.services || [];
 
-      el.innerHTML = `
+      if (params.providerId) {
+        const prov = (db.provider_profiles || []).find(
+          (p) => Number(p.provider_id) === Number(params.providerId),
+        );
+        const u = prov
+          ? (db.users || []).find(
+              (x) => String(x.user_id) === String(prov.user_id),
+            )
+          : null;
+        const assignedIds = (db.provider_services || [])
+          .filter((ps) => Number(ps.provider_id) === Number(params.providerId))
+          .map((ps) => Number(ps.service_id));
+
+        el.innerHTML = `
         <div class="modal-header">
           <div>
             <div class="modal-title">Phân công Dịch vụ cho Thợ: ${u ? u.full_name : `#${shortCode(params.providerId)}`}</div>
@@ -8706,14 +10618,14 @@ window.GDXApp = (() => {
                 .map(
                   (s) => `
                 <label class="choice-card">
-                  <input type="checkbox" name="serviceIds" value="${s.service_id}" ${assignedIds.includes(Number(s.service_id)) ? 'checked' : ''}>
+                  <input type="checkbox" name="serviceIds" value="${s.service_id}" ${assignedIds.includes(Number(s.service_id)) ? "checked" : ""}>
                   <div>
                     <div style="font-weight:600;">${s.title}</div>
                     <div class="field-hint num">${formatMoney(s.price)}</div>
                   </div>
-                </label>`
+                </label>`,
                 )
-                .join('')}
+                .join("")}
             </div>
           </div>
           <div class="modal-footer">
@@ -8722,10 +10634,10 @@ window.GDXApp = (() => {
           </div>
         </form>
       `;
-      return;
-    }
+        return;
+      }
 
-    el.innerHTML = `
+      el.innerHTML = `
       <div class="modal-header">
         <div>
           <div class="modal-title">4.4. Thêm Hồ sơ Nhân viên Thợ mới</div>
@@ -8772,9 +10684,9 @@ window.GDXApp = (() => {
                 <label class="choice-card">
                   <input type="checkbox" name="serviceIds" value="${s.service_id}" checked>
                   <span style="font-size:13.5px; font-weight:600;">${s.title}</span>
-                </label>`
+                </label>`,
                 )
-                .join('')}
+                .join("")}
             </div>
           </div>
         </div>
@@ -8784,97 +10696,120 @@ window.GDXApp = (() => {
         </div>
       </form>
     `;
-  }
-
-  async function companyAddProvider(form) {
-    const db = window.GDX_DB;
-    const comp = getActiveCompanyProfile();
-    const serviceIds = Array.from(form.querySelectorAll('input[name="serviceIds"]:checked')).map((el) => Number(el.value));
-    const payload = {
-      company_id: comp.company_id,
-      full_name: form.full_name.value.trim(),
-      phone_number: form.phone_number.value.trim(),
-      email: form.email ? form.email.value.trim() : '',
-      password: form.password ? form.password.value : '123456',
-      id_card_number: form.id_card_number.value.trim(),
-      info: form.info.value.trim(),
-      service_ids: serviceIds,
-      ward_ids: ['27403']
-    };
-
-    const res = await apiRequest('/api/company/providers', {
-      method: 'POST',
-      body: JSON.stringify(payload)
-    });
-
-    if (res && res.ok && res.provider_profile && res.user) {
-      db.users.push(res.user);
-      db.provider_profiles.push(res.provider_profile);
-      serviceIds.forEach((sid) => {
-        db.provider_services.push({ provider_id: res.provider_profile.provider_id, service_id: sid });
-      });
-      refreshClientPublicProviders();
-      closeModal();
-      showToast(`Đã thêm nhân viên Thợ ${res.user.full_name}!`);
-      if (state.currentScreen === '4.2') go('4.2');
-    } else {
-      showToast((res && res.error) || 'Không thể tạo hồ sơ Thợ. Kiểm tra số điện thoại hoặc CCCD.');
     }
-  }
 
-  async function companyUpdateProviderServices(providerId, form) {
-    const db = window.GDX_DB;
-    const comp = getActiveCompanyProfile();
-    const serviceIds = Array.from(form.querySelectorAll('input[name="serviceIds"]:checked')).map((el) => Number(el.value));
-    await apiRequest(`/api/company/providers/${providerId}/services`, {
-      method: 'PUT',
-      body: JSON.stringify({ company_id: comp.company_id, service_ids: serviceIds })
-    });
-    db.provider_services = (db.provider_services || []).filter((ps) => Number(ps.provider_id) !== Number(providerId));
-    serviceIds.forEach((sid) => {
-      db.provider_services.push({ provider_id: Number(providerId), service_id: sid });
-    });
-    closeModal();
-    showToast('Đã cập nhật dịch vụ phân công cho nhân viên!');
-    if (state.currentScreen === '4.2') go('4.2');
-  }
+    async function companyAddProvider(form) {
+      const db = window.GDX_DB;
+      const comp = getActiveCompanyProfile();
+      const serviceIds = Array.from(
+        form.querySelectorAll('input[name="serviceIds"]:checked'),
+      ).map((el) => Number(el.value));
+      const payload = {
+        company_id: comp.company_id,
+        full_name: form.full_name.value.trim(),
+        phone_number: form.phone_number.value.trim(),
+        email: form.email ? form.email.value.trim() : "",
+        password: form.password ? form.password.value : "123456",
+        id_card_number: form.id_card_number.value.trim(),
+        info: form.info.value.trim(),
+        service_ids: serviceIds,
+        ward_ids: ["27403"],
+      };
 
-  // 4.5: Thêm / Chỉnh sửa Dịch vụ Công ty (Company Modal)
-  function renderModal_4_5(el, params = {}) {
-    const db = window.GDX_DB;
-    const comp = getActiveCompanyProfile();
-    const editing = params.serviceId
-      ? (db.services || []).find((s) => Number(s.service_id) === Number(params.serviceId))
-      : null;
+      const res = await apiRequest("/api/company/providers", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      });
 
-    el.innerHTML = `
+      if (res && res.ok && res.provider_profile && res.user) {
+        db.users.push(res.user);
+        db.provider_profiles.push(res.provider_profile);
+        serviceIds.forEach((sid) => {
+          db.provider_services.push({
+            provider_id: res.provider_profile.provider_id,
+            service_id: sid,
+          });
+        });
+        refreshClientPublicProviders();
+        closeModal();
+        showToast(`Đã thêm nhân viên Thợ ${res.user.full_name}!`);
+        if (state.currentScreen === "4.2") go("4.2");
+      } else {
+        showToast(
+          (res && res.error) ||
+            "Không thể tạo hồ sơ Thợ. Kiểm tra số điện thoại hoặc CCCD.",
+        );
+      }
+    }
+
+    async function companyUpdateProviderServices(providerId, form) {
+      const db = window.GDX_DB;
+      const comp = getActiveCompanyProfile();
+      const serviceIds = Array.from(
+        form.querySelectorAll('input[name="serviceIds"]:checked'),
+      ).map((el) => Number(el.value));
+      await apiRequest(`/api/company/providers/${providerId}/services`, {
+        method: "PUT",
+        body: JSON.stringify({
+          company_id: comp.company_id,
+          service_ids: serviceIds,
+        }),
+      });
+      db.provider_services = (db.provider_services || []).filter(
+        (ps) => Number(ps.provider_id) !== Number(providerId),
+      );
+      serviceIds.forEach((sid) => {
+        db.provider_services.push({
+          provider_id: Number(providerId),
+          service_id: sid,
+        });
+      });
+      closeModal();
+      showToast("Đã cập nhật dịch vụ phân công cho nhân viên!");
+      if (state.currentScreen === "4.2") go("4.2");
+    }
+
+    // 4.5: Thêm / Chỉnh sửa Dịch vụ Công ty (Company Modal)
+    function renderModal_4_5(el, params = {}) {
+      const db = window.GDX_DB;
+      const comp = getActiveCompanyProfile();
+      const editing = params.serviceId
+        ? (db.services || []).find(
+            (s) => Number(s.service_id) === Number(params.serviceId),
+          )
+        : null;
+
+      el.innerHTML = `
       <div class="modal-header">
         <div>
-          <div class="modal-title">4.5. ${editing ? `Chỉnh sửa Dịch vụ #${shortCode(editing.service_id)}` : 'Tạo Dịch vụ mới cho Công ty'}</div>
+          <div class="modal-title">4.5. ${editing ? `Chỉnh sửa Dịch vụ #${shortCode(editing.service_id)}` : "Tạo Dịch vụ mới cho Công ty"}</div>
           <div class="field-hint">Bảng: services (company_id = #${shortCode(comp.company_id)})</div>
         </div>
         <button type="button" class="btn btn-ghost btn-sm" onclick="GDXApp.closeModal()">✕</button>
       </div>
-      <form onsubmit="event.preventDefault(); GDXApp.companySaveService(${editing ? editing.service_id : 'null'}, this);">
+      <form onsubmit="event.preventDefault(); GDXApp.companySaveService(${editing ? editing.service_id : "null"}, this);">
         <div class="modal-body form-stack">
           <div class="field-group">
             <label class="field-label" for="cpSvcTitle">Tên gói dịch vụ</label>
-            <input type="text" id="cpSvcTitle" name="title" class="input" value="${editing ? editing.title : ''}" required placeholder="Ví dụ: Tổng vệ sinh chung cư cao cấp">
+            <input type="text" id="cpSvcTitle" name="title" class="input" value="${editing ? editing.title : ""}" required placeholder="Ví dụ: Tổng vệ sinh chung cư cao cấp">
           </div>
           <div class="form-row-2">
             <div class="field-group">
               <label class="field-label" for="cpSvcCat">Danh mục</label>
               <select id="cpSvcCat" name="category_id" class="select">
                 ${(db.service_categories || [])
-                  .map((c) => `<option value="${c.category_id}" ${editing && Number(editing.category_id) === Number(c.category_id) ? 'selected' : ''}>${c.name}</option>`)
-                  .join('')}
+                  .map(
+                    (c) =>
+                      `<option value="${c.category_id}" ${editing && Number(editing.category_id) === Number(c.category_id) ? "selected" : ""}>${c.name}</option>`,
+                  )
+                  .join("")}
               </select>
             </div>
             <div class="field-group">
               <label class="field-label" for="cpSvcType">Cách tính giá</label>
               <select id="cpSvcType" name="pricing_type" class="select">
-                <option value="hourly" ${editing && editing.pricing_type === 'hourly' ? 'selected' : ''}>Theo giờ (hourly)</option>
-                <option value="fixed" ${editing && editing.pricing_type === 'fixed' ? 'selected' : ''}>Trọn gói (fixed)</option>
+                <option value="hourly" ${editing && editing.pricing_type === "hourly" ? "selected" : ""}>Theo giờ (hourly)</option>
+                <option value="fixed" ${editing && editing.pricing_type === "fixed" ? "selected" : ""}>Trọn gói (fixed)</option>
               </select>
             </div>
           </div>
@@ -8890,7 +10825,7 @@ window.GDXApp = (() => {
           </div>
           <div class="field-group">
             <label class="field-label" for="cpSvcDesc">Mô tả chi tiết</label>
-            <textarea id="cpSvcDesc" name="description" class="textarea" rows="2">${editing ? editing.description : ''}</textarea>
+            <textarea id="cpSvcDesc" name="description" class="textarea" rows="2">${editing ? editing.description : ""}</textarea>
           </div>
         </div>
         <div class="modal-footer">
@@ -8899,47 +10834,49 @@ window.GDXApp = (() => {
         </div>
       </form>
     `;
-  }
-
-  async function companySaveService(serviceId, form) {
-    const db = window.GDX_DB;
-    const comp = getActiveCompanyProfile();
-    const payload = {
-      company_id: comp.company_id,
-      category_id: Number(form.category_id.value),
-      title: form.title.value.trim(),
-      pricing_type: form.pricing_type.value,
-      price: Number(form.price.value),
-      estimated_duration: Number(form.estimated_duration.value),
-      description: form.description ? form.description.value.trim() : ''
-    };
-
-    if (serviceId) {
-      const res = await apiRequest(`/api/company/services/${serviceId}`, {
-        method: 'PUT',
-        body: JSON.stringify(payload)
-      });
-      const existing = (db.services || []).find((s) => Number(s.service_id) === Number(serviceId));
-      if (existing) Object.assign(existing, (res && res.service) || payload);
-    } else {
-      const res = await apiRequest('/api/company/services', {
-        method: 'POST',
-        body: JSON.stringify(payload)
-      });
-      if (res && res.ok && res.service) {
-        db.services.push(res.service);
-      }
     }
 
-    closeModal();
-    showToast('Đã lưu dịch vụ của Công ty!');
-    if (state.currentScreen === '4.3') go('4.3');
-  }
+    async function companySaveService(serviceId, form) {
+      const db = window.GDX_DB;
+      const comp = getActiveCompanyProfile();
+      const payload = {
+        company_id: comp.company_id,
+        category_id: Number(form.category_id.value),
+        title: form.title.value.trim(),
+        pricing_type: form.pricing_type.value,
+        price: Number(form.price.value),
+        estimated_duration: Number(form.estimated_duration.value),
+        description: form.description ? form.description.value.trim() : "",
+      };
 
-  // SUPABASE_STATUS Modal (Dev Mode)
-  function renderModal_SupabaseStatus(el) {
-    const b = state.backend;
-    el.innerHTML = `
+      if (serviceId) {
+        const res = await apiRequest(`/api/company/services/${serviceId}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+        const existing = (db.services || []).find(
+          (s) => Number(s.service_id) === Number(serviceId),
+        );
+        if (existing) Object.assign(existing, (res && res.service) || payload);
+      } else {
+        const res = await apiRequest("/api/company/services", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        if (res && res.ok && res.service) {
+          db.services.push(res.service);
+        }
+      }
+
+      closeModal();
+      showToast("Đã lưu dịch vụ của Công ty!");
+      if (state.currentScreen === "4.3") go("4.3");
+    }
+
+    // SUPABASE_STATUS Modal (Dev Mode)
+    function renderModal_SupabaseStatus(el) {
+      const b = state.backend;
+      el.innerHTML = `
       <div class="modal-header">
         <div>
           <div class="modal-title">Trạng thái kết nối Backend &amp; Supabase (.env.local)</div>
@@ -8952,12 +10889,12 @@ window.GDXApp = (() => {
           <div class="slip-row">
             <span>Chế độ dữ liệu hiện tại</span>
             <span class="slip-dots"></span>
-            <span class="badge ${b.mode === 'supabase' ? 'badge-positive' : 'badge-info'}">${b.mode === 'supabase' ? 'Supabase PostgreSQL Live' : 'Local JSON Store (Fallback)'}</span>
+            <span class="badge ${b.mode === "supabase" ? "badge-positive" : "badge-info"}">${b.mode === "supabase" ? "Supabase PostgreSQL Live" : "Local JSON Store (Fallback)"}</span>
           </div>
           <div class="slip-row">
             <span>Trạng thái cấu hình .env.local</span>
             <span class="slip-dots"></span>
-            <strong>${b.supabaseConfigured ? 'Đã cấu hình đầy đủ' : 'Chưa điền khóa API'}</strong>
+            <strong>${b.supabaseConfigured ? "Đã cấu hình đầy đủ" : "Chưa điền khóa API"}</strong>
           </div>
           <div class="field-hint">${b.message}</div>
         </div>
@@ -8966,12 +10903,12 @@ window.GDXApp = (() => {
         <button type="button" class="btn btn-primary" onclick="GDXApp.closeModal()">Đã hiểu</button>
       </div>
     `;
-  }
+    }
 
-  // CATALOG Pricing Modal
-  function renderModal_Catalog(el) {
-    const svcs = window.GDX_DB.services.filter((s) => s.is_active);
-    el.innerHTML = `
+    // CATALOG Pricing Modal
+    function renderModal_Catalog(el) {
+      const svcs = window.GDX_DB.services.filter((s) => s.is_active);
+      el.innerHTML = `
       <div class="modal-header">
         <div>
           <div class="modal-title">Biểu giá niêm yết Dịch vụ Gia Đình Xanh</div>
@@ -8997,7 +10934,7 @@ window.GDXApp = (() => {
                   (s) => `
                 <tr>
                   <td><strong>${s.title}</strong></td>
-                  <td>${s.pricing_type === 'hourly' ? 'Theo giờ' : 'Trọn gói'}</td>
+                  <td>${s.pricing_type === "hourly" ? "Theo giờ" : "Trọn gói"}</td>
                   <td class="num">~${s.estimated_duration} phút</td>
                   <td class="num"><strong style="color:var(--accent);">${formatMoney(s.price)}</strong></td>
                   <td>
@@ -9005,205 +10942,220 @@ window.GDXApp = (() => {
                       Đặt lịch
                     </button>
                   </td>
-                </tr>`
+                </tr>`,
                 )
-                .join('')}
+                .join("")}
             </tbody>
           </table>
         </div>
       </div>
     `;
-  }
+    }
 
-  // =====================================================================
-  // INITIALIZATION
-  // =====================================================================
-  async function init() {
-    UserInvalidFallback.init(document);
+    // =====================================================================
+    // INITIALIZATION
+    // =====================================================================
+    async function init() {
+      UserInvalidFallback.init(document);
 
-    const dialog = document.getElementById('appModal');
-    if (dialog) {
-      dialog.addEventListener('cancel', (e) => {
-        e.preventDefault();
-        closeModal();
-      });
-      dialog.addEventListener('click', (e) => {
-        if (e.target === dialog) {
+      const dialog = document.getElementById("appModal");
+      if (dialog) {
+        dialog.addEventListener("cancel", (e) => {
+          e.preventDefault();
           closeModal();
+        });
+        dialog.addEventListener("click", (e) => {
+          if (e.target === dialog) {
+            closeModal();
+          }
+        });
+      }
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          const notifDrawer = document.getElementById("notificationsDrawer");
+          if (
+            notifDrawer &&
+            (!notifDrawer.hidden || notifDrawer.style.display === "flex")
+          ) {
+            toggleNotificationsDrawer(false);
+          }
+          const aiDrawer = document.getElementById("aiChatDrawer");
+          if (
+            aiDrawer &&
+            (!aiDrawer.hidden || aiDrawer.style.display === "flex")
+          ) {
+            toggleAiDrawer(false);
+          }
         }
       });
-    }
 
-    document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') {
-        const notifDrawer = document.getElementById('notificationsDrawer');
-        if (notifDrawer && (!notifDrawer.hidden || notifDrawer.style.display === 'flex')) {
-          toggleNotificationsDrawer(false);
+      document.addEventListener("click", (e) => {
+        const notifDrawer = document.getElementById("notificationsDrawer");
+        const notifBell = document.getElementById("notifBellBtn");
+        if (
+          notifDrawer &&
+          !notifDrawer.hidden &&
+          notifDrawer.style.display === "flex"
+        ) {
+          if (
+            !notifDrawer.contains(e.target) &&
+            !notifBell?.contains(e.target)
+          ) {
+            toggleNotificationsDrawer(false);
+          }
         }
-        const aiDrawer = document.getElementById('aiChatDrawer');
-        if (aiDrawer && (!aiDrawer.hidden || aiDrawer.style.display === 'flex')) {
-          toggleAiDrawer(false);
+      });
+
+      const params = new URLSearchParams(window.location.search);
+      const modeParam = params.get("mode") || params.get("env");
+      if (
+        modeParam === "dev" ||
+        modeParam === "user" ||
+        modeParam === "production"
+      ) {
+        state.viewMode = modeParam;
+        if (modeParam === "production") {
+          state.isProduction = true;
         }
       }
-    });
 
-    document.addEventListener('click', (e) => {
-      const notifDrawer = document.getElementById('notificationsDrawer');
-      const notifBell = document.getElementById('notifBellBtn');
-      if (notifDrawer && !notifDrawer.hidden && notifDrawer.style.display === 'flex') {
-        if (!notifDrawer.contains(e.target) && !notifBell?.contains(e.target)) {
-          toggleNotificationsDrawer(false);
+      const initialRoute = resolveRouteFromLocation();
+      state.currentScreen = initialRoute.screenId;
+      state.currentRouteParams = initialRoute.params || {};
+      if (initialRoute.screenId === "0.1" && initialRoute.params?.view) {
+        state.authView = initialRoute.params.view;
+      }
+      const initialMeta = SCREENS[initialRoute.screenId];
+      if (initialMeta) {
+        state.currentPortal = initialMeta.portal;
+      }
+      pushScreenUrl(initialRoute.screenId, initialRoute.params, true);
+
+      window.addEventListener("popstate", () => {
+        const resolved = resolveRouteFromLocation();
+        if (resolved.screenId === "0.1" && resolved.params?.view) {
+          state.authView = resolved.params.view;
         }
-      }
-    });
+        go(resolved.screenId, resolved.params, { skipHistory: true });
+      });
 
-    const params = new URLSearchParams(window.location.search);
-    const modeParam = params.get('mode') || params.get('env');
-    if (modeParam === 'dev' || modeParam === 'user' || modeParam === 'production') {
-      state.viewMode = modeParam;
-      if (modeParam === 'production') {
-        state.isProduction = true;
-      }
+      await syncWithBackend();
+      setViewMode(state.viewMode, true, { skipHistory: true });
     }
 
-    const initialRoute = resolveRouteFromLocation();
-    state.currentScreen = initialRoute.screenId;
-    state.currentRouteParams = initialRoute.params || {};
-    if (initialRoute.screenId === '0.1' && initialRoute.params?.view) {
-      state.authView = initialRoute.params.view;
-    }
-    const initialMeta = SCREENS[initialRoute.screenId];
-    if (initialMeta) {
-      state.currentPortal = initialMeta.portal;
-    }
-    pushScreenUrl(initialRoute.screenId, initialRoute.params, true);
+    document.addEventListener("DOMContentLoaded", init);
 
-    window.addEventListener('popstate', () => {
-      const resolved = resolveRouteFromLocation();
-      if (resolved.screenId === '0.1' && resolved.params?.view) {
-        state.authView = resolved.params.view;
-      }
-      go(resolved.screenId, resolved.params, { skipHistory: true });
-    });
-
-    await syncWithBackend();
-    setViewMode(state.viewMode, true, { skipHistory: true });
-  }
-
-  document.addEventListener('DOMContentLoaded', init);
-
-  return {
-    go,
-    goHomeByRole,
-    switchPortal,
-    setViewMode,
-    handleUserRoleSwitch,
-    openModal,
-    openSupabaseStatusModal: () => openModal('SUPABASE_STATUS'),
-    openScreenCatalogModal: () => openModal('CATALOG'),
-    closeModal,
-    showToast,
-    toggleProviderOnline,
-    refreshProviderGPS,
-    togglePasswordVisibility,
-    quickPersonaLogin,
-    setAuthTab,
-    setAuthView,
-    handleForgot,
-    handleLogin,
-    handleRegister,
-    handleLogout,
-    handleCustomerOnboarding,
-    handleCompanyOnboarding,
-    handleProvinceChange,
-    selectOnboardingAvatar,
-    handleProviderOnboarding,
-    handleOmniSearchSubmit,
-    selectScheduleSlotInModal,
-    setCatalogCategory,
-    setCatalogPricingType,
-    setCatalogSearch,
-    resetCatalogFilters,
-    refreshCustomerServices,
-    toggleFavorite,
-    setWizardCategory,
-    setWizardProviderMode,
-    setDirectProviderSearch,
-    setDirectProviderCompanyFilter,
-    setBookingHours,
-    selectBookingProvider,
-    submitNewBooking,
-    setBookingListFilter,
-    saveCustomerProfile,
-    setJobBoardWard,
-    setInboxTab,
-    dismissJob,
-    simulateJobExpired,
-    acceptJob,
-    toggleShiftTimer,
-    startShiftWork,
-    saveProviderConfig,
-    setAdminDispatchFilter,
-    toggleServiceActive,
-    updateProviderKyc,
-    verifyCompanyKyc,
-    toggleCompanyActive,
-    setCompanyStaffFilter,
-    companyAddProvider,
-    companyToggleProviderBan,
-    companyUpdateProviderServices,
-    companySaveService,
-    companyToggleService,
-    toggleUserActive,
-    deleteReview,
-    confirmBookingPayment,
-    setCheckoutPayMethod,
-    submitInvoicePayment,
-    executeQrPaymentSuccess,
-    cancelQrPayment,
-    copyText,
-    setReviewStars,
-    submitBookingReview,
-    confirmCancelBooking,
-    handleSupportImageSelect,
-    submitSupportTicket,
-    saveProviderOnlineGps,
-    saveIncidentalCost,
-    completeJobShift,
-    addWeeklySchedule,
-    addExceptionSchedule,
-    submitProviderIncident,
-    adminForceStatus,
-    setAdmin34Tab,
-    saveCategoryModal,
-    saveServiceModal,
-    updateSupportTicket,
-    initCustomerLocationPicker,
-    locateUserGPS,
-    toggleNotificationsDrawer,
-    closeNotificationsDrawer,
-    fetchNotifications,
-    markNotificationRead,
-    markAllNotificationsRead,
-    handleNotificationClick,
-    toggleAiDrawer,
-    closeAiDrawer,
-    sendAiChatMessage,
-    sendAiPromptChip,
-    bookRecommendedService,
-    pickSavedAddress,
-    addCustomerAddress,
-    deleteCustomerAddress,
-    setDefaultCustomerAddress,
-    openAddAddressModal,
-    toggleProviderFavorite,
-    moderateReview,
-    openModerateReviewDialog,
-    sendTicketReply,
-    rpc: RPC,
-    RPC
-  };
-})();
-
+    return {
+      go,
+      goHomeByRole,
+      switchPortal,
+      setViewMode,
+      handleUserRoleSwitch,
+      openModal,
+      openSupabaseStatusModal: () => openModal("SUPABASE_STATUS"),
+      openScreenCatalogModal: () => openModal("CATALOG"),
+      closeModal,
+      showToast,
+      toggleProviderOnline,
+      refreshProviderGPS,
+      togglePasswordVisibility,
+      quickPersonaLogin,
+      setAuthTab,
+      setAuthView,
+      handleForgot,
+      handleLogin,
+      handleRegister,
+      handleLogout,
+      handleCustomerOnboarding,
+      handleCompanyOnboarding,
+      handleProvinceChange,
+      selectOnboardingAvatar,
+      handleProviderOnboarding,
+      handleOmniSearchSubmit,
+      selectScheduleSlotInModal,
+      setCatalogCategory,
+      setCatalogPricingType,
+      setCatalogSearch,
+      resetCatalogFilters,
+      refreshCustomerServices,
+      toggleFavorite,
+      setWizardCategory,
+      setWizardProviderMode,
+      setDirectProviderSearch,
+      setDirectProviderCompanyFilter,
+      setBookingHours,
+      selectBookingProvider,
+      submitNewBooking,
+      setBookingListFilter,
+      saveCustomerProfile,
+      setJobBoardWard,
+      setInboxTab,
+      dismissJob,
+      simulateJobExpired,
+      acceptJob,
+      toggleShiftTimer,
+      startShiftWork,
+      saveProviderConfig,
+      setAdminDispatchFilter,
+      toggleServiceActive,
+      updateProviderKyc,
+      verifyCompanyKyc,
+      toggleCompanyActive,
+      setCompanyStaffFilter,
+      companyAddProvider,
+      companyToggleProviderBan,
+      companyUpdateProviderServices,
+      companySaveService,
+      companyToggleService,
+      toggleUserActive,
+      deleteReview,
+      confirmBookingPayment,
+      setCheckoutPayMethod,
+      submitInvoicePayment,
+      executeQrPaymentSuccess,
+      cancelQrPayment,
+      copyText,
+      setReviewStars,
+      submitBookingReview,
+      confirmCancelBooking,
+      handleSupportImageSelect,
+      submitSupportTicket,
+      saveProviderOnlineGps,
+      saveIncidentalCost,
+      completeJobShift,
+      addWeeklySchedule,
+      addExceptionSchedule,
+      submitProviderIncident,
+      adminForceStatus,
+      setAdmin34Tab,
+      saveCategoryModal,
+      saveServiceModal,
+      updateSupportTicket,
+      initCustomerLocationPicker,
+      locateUserGPS,
+      toggleNotificationsDrawer,
+      closeNotificationsDrawer,
+      fetchNotifications,
+      markNotificationRead,
+      markAllNotificationsRead,
+      handleNotificationClick,
+      toggleAiDrawer,
+      closeAiDrawer,
+      sendAiChatMessage,
+      sendAiPromptChip,
+      bookRecommendedService,
+      pickSavedAddress,
+      addCustomerAddress,
+      deleteCustomerAddress,
+      setDefaultCustomerAddress,
+      openAddAddressModal,
+      toggleProviderFavorite,
+      moderateReview,
+      openModerateReviewDialog,
+      sendTicketReply,
+      rpc: RPC,
+      RPC,
+    };
+  })();
 }
-
