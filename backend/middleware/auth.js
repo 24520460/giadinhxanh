@@ -178,16 +178,12 @@ async function requireAuthAsync(req, res, client, allowedRoles = null) {
 }
 
 /**
- * Xác thực cho các thao tác ghi / scoped: bắt buộc ở Production hoặc khi client gửi token.
+ * Xác thực bắt buộc cho các thao tác ghi / scoped trên mọi môi trường.
  */
-async function authenticateWriteOrScopedRequest(req, res, { isProd, client, allowedRoles = null } = {}) {
-  const hasToken = Boolean(extractTokenFromRequest(req));
-  if (isProd || hasToken) {
-    const user = await requireAuthAsync(req, res, client, allowedRoles);
-    if (!user) return { halted: true, user: null };
-    return { halted: false, user };
-  }
-  return { halted: false, user: null };
+async function authenticateWriteOrScopedRequest(req, res, { client, allowedRoles = null } = {}) {
+  const user = await requireAuthAsync(req, res, client, allowedRoles);
+  if (!user) return { halted: true, user: null };
+  return { halted: false, user };
 }
 
 module.exports = {

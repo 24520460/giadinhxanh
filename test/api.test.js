@@ -186,6 +186,7 @@ describe('Gia Đình Xanh - Full-Stack REST API & RPC Verification', () => {
   });
 
   test('POST /api/bookings creates a new booking with history record', async () => {
+    const custSess = await makeRequest('POST', '/api/auth/demo-session', { role: 'customer' });
     const futureTime = new Date(Date.now() + 5 * 86400000).toISOString();
     const payload = {
       customer_id: 101,
@@ -197,7 +198,7 @@ describe('Gia Đình Xanh - Full-Stack REST API & RPC Verification', () => {
       total_amount: 180000,
       notes: 'Unit test booking creation'
     };
-    const res = await makeRequest('POST', '/api/bookings', payload);
+    const res = await makeRequest('POST', '/api/bookings', payload, { Authorization: `Bearer ${custSess.data.token}` });
     assert.strictEqual(res.statusCode, 201);
     assert.strictEqual(res.data.ok, true);
     assert.ok(res.data.booking.booking_id, 'New booking has booking_id');
@@ -207,6 +208,7 @@ describe('Gia Đình Xanh - Full-Stack REST API & RPC Verification', () => {
   });
 
   test('POST /api/rpc/transition-status updates booking status and logs audit trail', async () => {
+    const provSess = await makeRequest('POST', '/api/auth/demo-session', { role: 'provider' });
     const targetBookingId = createdBookingId || 1040;
     const payload = {
       booking_id: targetBookingId,
@@ -214,7 +216,7 @@ describe('Gia Đình Xanh - Full-Stack REST API & RPC Verification', () => {
       reason: 'Unit test transition',
       changed_by: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b21'
     };
-    const res = await makeRequest('POST', '/api/rpc/transition-status', payload);
+    const res = await makeRequest('POST', '/api/rpc/transition-status', payload, { Authorization: `Bearer ${provSess.data.token}` });
     assert.strictEqual(res.statusCode, 200);
     assert.strictEqual(res.data.ok, true);
     assert.strictEqual(res.data.booking.status, 'confirmed');
@@ -326,6 +328,10 @@ describe('Gia Đình Xanh - Full-Stack REST API & RPC Verification', () => {
   });
 
   test('Job Dispatch Inbox & Concurrency: POST /api/bookings supports broadcast pool and /accept prevents double-booking (expired lock)', async () => {
+    const custSess = await makeRequest('POST', '/api/auth/demo-session', { role: 'customer' });
+    const provSess = await makeRequest('POST', '/api/auth/demo-session', { role: 'provider' });
+    const adminSess = await makeRequest('POST', '/api/auth/demo-session', { role: 'admin' });
+
     // 1. Create a broadcast order (provider_id = null)
     const broadcastPayload = {
       customer_id: 101,
@@ -336,7 +342,7 @@ describe('Gia Đình Xanh - Full-Stack REST API & RPC Verification', () => {
       total_amount: 170000,
       notes: 'Đơn broadcast gửi tới toàn bộ thợ'
     };
-    const createRes = await makeRequest('POST', '/api/bookings', broadcastPayload);
+    const createRes = await makeRequest('POST', '/api/bookings', broadcastPayload, { Authorization: `Bearer ${custSess.data.token}` });
     assert.strictEqual(createRes.statusCode, 201);
     assert.strictEqual(createRes.data.ok, true);
     const bkId = createRes.data.booking.booking_id;
@@ -346,7 +352,7 @@ describe('Gia Đình Xanh - Full-Stack REST API & RPC Verification', () => {
     const acceptRes1 = await makeRequest('POST', `/api/bookings/${bkId}/accept`, {
       provider_id: 201,
       user_id: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380b21'
-    });
+    }, { Authorization: `Bearer ${provSess.data.token}` });
     assert.strictEqual(acceptRes1.statusCode, 200);
     assert.strictEqual(acceptRes1.data.ok, true);
     assert.strictEqual(acceptRes1.data.booking.status, 'confirmed');
@@ -356,7 +362,7 @@ describe('Gia Đình Xanh - Full-Stack REST API & RPC Verification', () => {
     const acceptRes2 = await makeRequest('POST', `/api/bookings/${bkId}/accept`, {
       provider_id: 202,
       user_id: 5
-    });
+    }, { Authorization: `Bearer ${adminSess.data.token}` });
     assert.strictEqual(acceptRes2.statusCode, 409);
     assert.strictEqual(acceptRes2.data.ok, false);
     assert.strictEqual(acceptRes2.data.expired, true);
@@ -408,6 +414,7 @@ describe('Gia Đình Xanh - Full-Stack REST API & RPC Verification', () => {
   });
 
   test('Double-booking & schedule exception prevention: POST /api/bookings returns 409 Conflict', async () => {
+    const custSess = await makeRequest('POST', '/api/auth/demo-session', { role: 'customer' });
     const seed = dbMock.createInitialStore();
     const ex = seed.availability_exceptions.find((e) => Number(e.provider_id) === 201) || seed.availability_exceptions[0];
     // 1. Provider 201 has exception on ex.exception_date
@@ -418,7 +425,7 @@ describe('Gia Đình Xanh - Full-Stack REST API & RPC Verification', () => {
       ward_id: '27403',
       address: '123 Đường Nguyễn Thị Thập',
       scheduled_time: `${ex.exception_date}T14:00:00+07:00`
-    });
+    }, { Authorization: `Bearer ${custSess.data.token}` });
     assert.strictEqual(conflictRes.statusCode, 409);
     assert.strictEqual(conflictRes.data.conflict, true);
     assert.ok(conflictRes.data.error.includes('nghỉ làm hoặc bận'));
@@ -433,7 +440,7 @@ describe('Gia Đình Xanh - Full-Stack REST API & RPC Verification', () => {
       ward_id: '27403',
       address: '123 Đường Nguyễn Thị Thập',
       scheduled_time: overlapTime
-    });
+    }, { Authorization: `Bearer ${custSess.data.token}` });
     assert.strictEqual(overlapRes.statusCode, 409);
     assert.strictEqual(overlapRes.data.conflict, true);
     assert.ok(overlapRes.data.error.includes('trùng hoặc quá sát'));
@@ -581,13 +588,14 @@ describe('Gia Đình Xanh - Full-Stack REST API & RPC Verification', () => {
     assert.strictEqual(badPhone.statusCode, 400);
 
     // 2. Past scheduled_time rejected with 400 (TC06 fix)
+    const custSess = await makeRequest('POST', '/api/auth/demo-session', { role: 'customer' });
     const pastBk = await makeRequest('POST', '/api/bookings', {
       customer_id: 101,
       service_id: 301,
       ward_id: '27403',
       address: '100 Nguyễn Văn Linh',
       scheduled_time: '2020-01-01T09:00:00.000Z'
-    });
+    }, { Authorization: `Bearer ${custSess.data.token}` });
     assert.strictEqual(pastBk.statusCode, 400);
 
     // 3. Unauthenticated admin-adjust rejected with 401 (TC12 fix)
@@ -598,7 +606,6 @@ describe('Gia Đình Xanh - Full-Stack REST API & RPC Verification', () => {
     assert.strictEqual(unauthAdmin.statusCode, 401);
 
     // 4. Customer token on admin-adjust rejected with 403 (TC12 fix)
-    const custSess = await makeRequest('POST', '/api/auth/demo-session', { role: 'customer' });
     const custAdmin = await makeRequest('POST', '/api/rpc/admin-adjust', {
       booking_id: 1042,
       total_amount: 0

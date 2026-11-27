@@ -88,13 +88,24 @@ export function syncActiveIdentityWithDb() {
 }
 
 export async function refreshDemoToken(role) {
-  if (state.isProduction || state.currentUser) return;
+  if (state.isProduction || (state.currentUser && state.viewMode !== "dev")) return;
   const res = await apiRequest("/api/auth/demo-session", {
     method: "POST",
     body: JSON.stringify({ role }),
   });
   if (res && res.ok && res.token) {
     state.authToken = res.token;
+    if (res.user) {
+      state.activeUserId = res.user.user_id;
+      state.userRole = res.user.role;
+    }
+    if (
+      state.viewMode === "dev" &&
+      (state.currentScreen === "2.1" || state.currentScreen === "2.2") &&
+      state.userRole === "provider"
+    ) {
+      go(state.currentScreen, state.currentRouteParams || {}, { skipHistory: true });
+    }
   }
 }
 

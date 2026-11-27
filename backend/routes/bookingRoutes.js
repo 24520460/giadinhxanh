@@ -1072,7 +1072,7 @@ async function handleBookingRoutes(ctx) {
   // POST/PATCH /api/bookings/:id/incidental
   const bkIncMatch = pathname.match(/^\/api\/bookings\/([^/]+)\/incidental$/);
   if ((method === "POST" || method === "PATCH") && bkIncMatch) {
-    const authUser = requireAuth(req, res, ["provider", "admin"]);
+    const authUser = await requireAuthAsync(req, res, client, ["provider", "admin"]);
     if (!authUser) return true;
 
     const bookingId = normalizeId(bkIncMatch[1]);
@@ -1084,6 +1084,47 @@ async function handleBookingRoutes(ctx) {
     }
     const incidental = incCheck.value;
     const notes = String(body.notes || body.incidental_Specify || "").trim();
+    const useSupabase = Boolean(isProd || (client && isUuid(String(bookingId))));
+
+    if (useSupabase) {
+      if (!client) {
+        sendJson(res, 503, { ok: false, code: "SERVICE_UNAVAILABLE", error: "Không có kết nối Supabase." });
+        return true;
+      }
+      const { data: curBk, error: curErr } = await client
+        .from("bookings")
+        .select("*")
+        .eq("booking_id", bookingId)
+        .maybeSingle();
+      if (curErr || !curBk) {
+        sendJson(res, 404, { ok: false, code: "NOT_FOUND", error: "Không tìm thấy đơn hàng." });
+        return true;
+      }
+      if (authUser.role === "provider") {
+        const actor = await resolveActorContext(authUser, { useSupabase: true, db, client });
+        if (!actor || !actor.providerId || String(curBk.provider_id) !== String(actor.providerId)) {
+          sendJson(res, 403, { ok: false, code: "FORBIDDEN", error: "Đơn hàng này không thuộc phân công của bạn." });
+          return true;
+        }
+      }
+      const basePrice = Math.max(0, Number(curBk.total_amount || 0) - Number(curBk.total_incidental || 0));
+      const { data: updatedBk, error: updErr } = await client
+        .from("bookings")
+        .update({
+          total_incidental: incidental,
+          total_amount: basePrice + incidental,
+          updated_at: new Date().toISOString()
+        })
+        .eq("booking_id", bookingId)
+        .select()
+        .single();
+      if (updErr) {
+        sendJson(res, 500, { ok: false, code: "DB_ERROR", error: updErr.message });
+        return true;
+      }
+      sendJson(res, 200, { ok: true, booking: normalizeBookingRecord(updatedBk) });
+      return true;
+    }
 
     const bk = (db.bookings || []).find((b) => String(b.booking_id) === String(bookingId));
     if (!bk) {

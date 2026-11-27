@@ -78,6 +78,9 @@ const acceptingJobIds = new Set();
 
 function getJobBoardUser() {
   if (state.currentUser || !state.authToken) return state.currentUser;
+  if (!state.isProduction && state.viewMode === "dev" && state.userRole === "provider" && state.activeUserId) {
+    return { user_id: state.activeUserId, role: "provider" };
+  }
   try {
     // Bootstrap lúc khởi động có thể lỗi trước khi phiên được khôi phục.
     if (localStorage.getItem("gdx_auth_token") === state.authToken) {
@@ -1233,10 +1236,19 @@ export function addExceptionSchedule(form) {
 
 // 2.7: Kê khai Chi phí phát sinh (Incidental Cost)
 export function renderModal_2_7(el, params = {}) {
+  const bookings = Array.isArray(window.GDX_DB?.bookings) ? window.GDX_DB.bookings : [];
+  const targetId = params.bookingId ?? state.activeBookingId ?? 1042;
   const bk =
-    window.GDX_DB.bookings.find(
-      (b) => b.booking_id === (params.bookingId || 1042),
-    ) || window.GDX_DB.bookings[0];
+    bookings.find((b) => String(b.booking_id) === String(targetId)) || bookings[0];
+  if (!bk) {
+    el.innerHTML = `
+      <div class="modal-header">
+        <div class="modal-title">2.7. Kê khai Chi phí vật tư phát sinh</div>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="GDXApp.closeModal()">&times;</button>
+      </div>
+      <div class="modal-body"><p role="alert">Không tìm thấy đơn hàng để kê khai chi phí.</p></div>`;
+    return;
+  }
   el.innerHTML = `
   <div class="modal-header">
     <div>
@@ -1245,7 +1257,7 @@ export function renderModal_2_7(el, params = {}) {
     </div>
     <button type="button" class="btn btn-ghost btn-sm" onclick="GDXApp.closeModal()">&times;</button>
   </div>
-  <form onsubmit="event.preventDefault(); GDXApp.saveIncidentalCost(${bk.booking_id}, this);">
+  <form onsubmit="event.preventDefault(); GDXApp.saveIncidentalCost('${escapeHtml(String(bk.booking_id))}', this);">
     <div class="modal-body form-stack">
       <div class="field-group">
         <label class="field-label" for="incAmount">Số tiền vật tư phát sinh (VNĐ - total_incidental &gt;= 0)</label>
@@ -1264,19 +1276,28 @@ export function renderModal_2_7(el, params = {}) {
 `;
 }
 
-export function saveIncidentalCost(bookingId, form) {
-  const bk = window.GDX_DB.bookings.find((b) => b.booking_id === bookingId);
-  if (bk) {
-    bk.total_incidental = Number(form.total_incidental.value);
-    bk.incidental_Specify = form.incidental_Specify.value;
-  }
-  apiRequest(`/api/bookings/${bookingId}/incidental`, {
+export async function saveIncidentalCost(bookingId, form) {
+  const totalIncidental = Number(form.total_incidental.value);
+  const incidentalSpecify = form.incidental_Specify.value;
+  const res = await apiRequest(`/api/bookings/${encodeURIComponent(bookingId)}/incidental`, {
     method: "PATCH",
     body: JSON.stringify({
-      total_incidental: Number(form.total_incidental.value),
-      incidental_Specify: form.incidental_Specify.value,
+      total_incidental: totalIncidental,
+      incidental_Specify: incidentalSpecify,
     }),
   });
+  if (!res || res.ok !== true) {
+    showToast((res && res.error) || "Không thể cập nhật chi phí vật tư phát sinh.");
+    return;
+  }
+  const bk = (window.GDX_DB?.bookings || []).find(
+    (b) => String(b.booking_id) === String(bookingId),
+  );
+  if (bk) {
+    bk.total_incidental = res.booking?.total_incidental ?? totalIncidental;
+    bk.total_amount = res.booking?.total_amount ?? bk.total_amount;
+    bk.incidental_Specify = incidentalSpecify;
+  }
   closeModal();
   showToast("Đã cập nhật chi phí vật tư phát sinh!");
   go(state.currentScreen, { bookingId });

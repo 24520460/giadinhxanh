@@ -1,4 +1,6 @@
-export const urlParams = new URLSearchParams(window.location.search);
+export const urlParams = new URLSearchParams(
+  typeof window !== "undefined" && window.location ? window.location.search : "",
+);
 export const initialModeParam = urlParams.get("mode") || urlParams.get("env");
 export const isDevFromUrl =
   initialModeParam === "dev" || urlParams.get("dev") === "1";
