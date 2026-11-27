@@ -48,11 +48,101 @@ function validateNonNegativeAmount(val, fieldLabel = "Số tiền") {
   return { ok: true, value: num };
 }
 
+const VALID_BOOKING_STATUSES = [
+  "pending",
+  "confirmed",
+  "in_progress",
+  "completed",
+  "cancelled",
+  "rejected",
+  "auto_cancelled"
+];
+
+const BOOKING_TRANSITIONS = {
+  pending: ["confirmed", "rejected", "cancelled", "auto_cancelled"],
+  confirmed: ["in_progress", "cancelled"],
+  in_progress: ["completed", "cancelled"],
+  completed: [],
+  cancelled: [],
+  rejected: [],
+  auto_cancelled: []
+};
+
+function validateBookingStatusTransition(currentStatus, newStatus, actorRole = null) {
+  if (!VALID_BOOKING_STATUSES.includes(newStatus)) {
+    return { ok: false, statusCode: 400, code: "INVALID_STATUS", error: "Trạng thái đơn hàng không hợp lệ." };
+  }
+  if (currentStatus === newStatus) {
+    return {
+      ok: false,
+      statusCode: 409,
+      code: "ALREADY_IN_STATUS",
+      error: `Đơn hàng đã ở trạng thái '${newStatus}'.`
+    };
+  }
+  const allowedNext = BOOKING_TRANSITIONS[currentStatus] || [];
+  if (!allowedNext.includes(newStatus)) {
+    return {
+      ok: false,
+      statusCode: 400,
+      code: "INVALID_TRANSITION",
+      error: `Không thể chuyển trạng thái đơn từ '${currentStatus}' sang '${newStatus}'.`
+    };
+  }
+  if (actorRole === "customer") {
+    if (newStatus !== "cancelled" || !["pending", "confirmed"].includes(currentStatus)) {
+      return {
+        ok: false,
+        statusCode: 403,
+        code: "FORBIDDEN_TRANSITION",
+        error: "Khách hàng chỉ được phép hủy đơn đang chờ hoặc đã xác nhận."
+      };
+    }
+  } else if (actorRole === "provider") {
+    const provAllowed =
+      (currentStatus === "pending" && ["confirmed", "rejected"].includes(newStatus)) ||
+      (currentStatus === "confirmed" && ["in_progress", "cancelled"].includes(newStatus)) ||
+      (currentStatus === "in_progress" && ["completed", "cancelled"].includes(newStatus));
+    if (!provAllowed) {
+      return {
+        ok: false,
+        statusCode: 403,
+        code: "FORBIDDEN_TRANSITION",
+        error: `Đối tác không được phép chuyển đơn từ '${currentStatus}' sang '${newStatus}'.`
+      };
+    }
+  }
+  return { ok: true };
+}
+
+function validateCoordinates(lat, lng, defaultLat = 10.728912, defaultLng = 106.712405) {
+  if (lat == null || lat === "" || lng == null || lng === "") {
+    return { ok: true, latitude: defaultLat, longitude: defaultLng };
+  }
+  const parsedLat = Number(lat);
+  const parsedLng = Number(lng);
+  if (
+    !Number.isFinite(parsedLat) ||
+    !Number.isFinite(parsedLng) ||
+    parsedLat < -90 ||
+    parsedLat > 90 ||
+    parsedLng < -180 ||
+    parsedLng > 180
+  ) {
+    return { ok: false, error: "Tọa độ GPS (latitude/longitude) không hợp lệ." };
+  }
+  return { ok: true, latitude: parsedLat, longitude: parsedLng };
+}
+
 module.exports = {
   isValidPhoneVN,
   isValidEmail,
   isUuid,
   normalizeId,
   validateScheduledTime,
-  validateNonNegativeAmount
+  validateNonNegativeAmount,
+  VALID_BOOKING_STATUSES,
+  BOOKING_TRANSITIONS,
+  validateBookingStatusTransition,
+  validateCoordinates
 };

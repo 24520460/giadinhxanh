@@ -95,6 +95,41 @@ function resolveAuthUser(req) {
 }
 
 /**
+ * Xác thực token: ưu tiên GDX session token, sau đó fallback sang Supabase Auth JWT.
+ */
+async function resolveAuthUserAsync(req, client) {
+  const token = extractTokenFromRequest(req);
+  if (!token) return null;
+
+  const localUser = verifyAuthToken(token);
+  if (localUser) return localUser;
+
+  if (client && client.auth && typeof client.auth.getUser === "function") {
+    try {
+      const { data, error } = await client.auth.getUser(token);
+      if (error || !data || !data.user) return null;
+
+      const supaUser = data.user;
+      const { data: profile } = await client
+        .from("users")
+        .select("user_id, role, full_name, is_active")
+        .eq("user_id", supaUser.id)
+        .maybeSingle();
+
+      if (profile && profile.is_active === false) return null;
+      return {
+        user_id: supaUser.id,
+        role: (profile && profile.role) || (supaUser.user_metadata && supaUser.user_metadata.role) || "customer",
+        full_name: (profile && profile.full_name) || (supaUser.user_metadata && supaUser.user_metadata.full_name) || ""
+      };
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+/**
  * Bắt buộc xác thực và (tùy chọn) kiểm tra vai trò (RBAC).
  */
 function requireAuth(req, res, allowedRoles = null) {
@@ -102,6 +137,7 @@ function requireAuth(req, res, allowedRoles = null) {
   if (!user) {
     sendJson(res, 401, {
       ok: false,
+      code: "UNAUTHORIZED",
       error: "Yêu cầu xác thực (Bearer Token) để thực hiện thao tác này."
     });
     return null;
@@ -109,6 +145,7 @@ function requireAuth(req, res, allowedRoles = null) {
   if (Array.isArray(allowedRoles) && allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
     sendJson(res, 403, {
       ok: false,
+      code: "FORBIDDEN",
       error: `Không đủ quyền truy cập. Yêu cầu vai trò: ${allowedRoles.join(", ")}.`
     });
     return null;
@@ -116,9 +153,50 @@ function requireAuth(req, res, allowedRoles = null) {
   return user;
 }
 
+/**
+ * Bắt buộc xác thực async (hỗ trợ cả GDX token và Supabase JWT) + kiểm tra vai trò.
+ */
+async function requireAuthAsync(req, res, client, allowedRoles = null) {
+  const user = await resolveAuthUserAsync(req, client);
+  if (!user) {
+    sendJson(res, 401, {
+      ok: false,
+      code: "UNAUTHORIZED",
+      error: "Yêu cầu xác thực hợp lệ (Bearer Token) để thực hiện thao tác này."
+    });
+    return null;
+  }
+  if (Array.isArray(allowedRoles) && allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+    sendJson(res, 403, {
+      ok: false,
+      code: "FORBIDDEN",
+      error: `Không đủ quyền truy cập. Yêu cầu vai trò: ${allowedRoles.join(", ")}.`
+    });
+    return null;
+  }
+  return user;
+}
+
+/**
+ * Xác thực cho các thao tác ghi / scoped: bắt buộc ở Production hoặc khi client gửi token.
+ */
+async function authenticateWriteOrScopedRequest(req, res, { isProd, client, allowedRoles = null } = {}) {
+  const hasToken = Boolean(extractTokenFromRequest(req));
+  if (isProd || hasToken) {
+    const user = await requireAuthAsync(req, res, client, allowedRoles);
+    if (!user) return { halted: true, user: null };
+    return { halted: false, user };
+  }
+  return { halted: false, user: null };
+}
+
 module.exports = {
   signAuthToken,
   verifyAuthToken,
+  extractTokenFromRequest,
   resolveAuthUser,
-  requireAuth
+  resolveAuthUserAsync,
+  requireAuth,
+  requireAuthAsync,
+  authenticateWriteOrScopedRequest
 };
